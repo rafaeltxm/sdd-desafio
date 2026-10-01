@@ -41,20 +41,28 @@ pergunta BLOQUEANTE vira decisão na spec + entrada no `DECISIONS.md` antes do c
 
 ## Fluxo por task e ferramentas de qualidade
 
+Toda task é executada pela skill `/task T-NNN` (`.claude/skills/task/SKILL.md`),
+que detalha o fluxo abaixo e para para aprovação humana antes do commit.
+
 1. Ler a task em `tasks.md` e as `RN-`/`AMB-` que ela cita na spec.
 2. Implementar código + teste; `uv run pytest -q` e `uv run ruff check .` verdes.
 3. **Task de regra de negócio:** antes do commit, invocar o subagente
-   `task-reviewer` passando **só o ID da task** (sem explicar a implementação).
-   Ele salva o parecer em `docs/reviews/T-NNN.md`. Tratar todo achado
-   CORRIGIR CÓDIGO / CORRIGIR SPEC antes do commit (CORRIGIR SPEC → atualizar
-   spec + `DECISIONS.md`). Tasks de estrutura (CLI, leitura de JSON, setup)
-   dispensam a revisão.
+   `revisor-de-task` passando **só o ID da task** (sem explicar a implementação).
+   Ele é somente leitura; o relatório que devolve é salvo sem edição em
+   `docs/reviews/T-NNN.md`. Resultado BLOQUEADO impede o commit: corrigir o
+   código/teste, ou — se houver "Decisões necessárias" — parar para decisão
+   humana (spec + `DECISIONS.md` antes). Tasks de estrutura (CLI, leitura de
+   JSON, setup) dispensam a revisão.
 4. Commit com o parecer junto; marcar `[x]` e o hash na task.
 
 Git hooks em `.githooks/` (ativar uma vez por clone: `git config core.hooksPath .githooks`):
 - `pre-commit` — `ruff check` + `pytest`; bloqueia se falhar.
 - `commit-msg` — valida o padrão de mensagem e que o `T-NNN` existe em `tasks.md`.
-- `post-commit` — lembra de exportar a sessão para `docs/sessions/NN-*.md`.
+- `post-commit` — no fim de um bloco (qualquer commit exceto `feat|test|fix|refactor(T-NNN)`
+  e `docs(sessions)`), lembra de exportar a sessão para `docs/sessions/NN-*.md`. O hook
+  `.claude/hooks/lembrete-export.sh` (em `.claude/settings.json`) mostra o mesmo lembrete
+  ao usuário quando o commit é feito pelo Claude. Ao vê-lo, não iniciar o próximo bloco
+  sem o usuário.
 
 Formatos de commit aceitos: `feat|test|fix|refactor(T-NNN):`,
 `docs(spec|plan|tasks|decisions|readme|relatorio|sessions|claude):`,
