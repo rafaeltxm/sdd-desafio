@@ -1,27 +1,102 @@
 #!/usr/bin/env bash
-# Antes de cada commit: lint (ruff) + testes (pytest), via uv.
-# Pular em emergência: git commit --no-verify (e registrar no RELATORIO.md).
+# pre-commit: valida o que está sendo commitado, com escopo pelos arquivos staged.
+#   - ruff check: só nos .py staged (ou no projeto todo, se a config do ruff mudou)
+#   - pytest: suíte inteira, se algo que afeta os testes foi staged
+#   - commit só de documentação/ferramentas: nenhuma validação Python
+# O padrão da mensagem é validado depois, pelo hook commit-msg.
+# Este hook só lê: não corrige código, não cria commits, não altera spec/DECISIONS/tasks,
+# e usa `uv run --frozen` para não tocar no uv.lock.
 set -u
 cd "$(git rev-parse --show-toplevel)"
 
-if [ ! -f pyproject.toml ]; then
-  echo "pre-commit: pyproject.toml ainda não existe — pulando ruff e pytest."
+fail=0
+falhas=()
+
+# 1. Arquivos sendo commitados
+staged_all=$(git diff --cached --name-only --diff-filter=ACMRD)
+staged_py=$(git diff --cached --name-only --diff-filter=ACMR -- '*.py')
+
+if [ -z "$staged_all" ]; then
   exit 0
 fi
 
-echo "pre-commit: ruff check..."
-if ! uv run --quiet ruff check .; then
-  echo "pre-commit: ✗ ruff encontrou problemas. Corrija (ou 'uv run ruff check --fix .') e tente de novo."
+# 2. O que precisa rodar
+config_re='^(pyproject\.toml|uv\.lock|ruff\.toml|\.ruff\.toml|pytest\.ini|conftest\.py|.*/conftest\.py)$'
+pytest_re='(\.py$|^src/|^tests/|^exemplos/|^pyproject\.toml$|^uv\.lock$|^pytest\.ini$)'
+
+config_changed=$(grep -E "$config_re" <<<"$staged_all" || true)
+run_pytest=$(grep -E "$pytest_re" <<<"$staged_all" || true)
+run_ruff="$staged_py$config_changed"
+
+if [ -z "$run_ruff" ] && [ -z "$run_pytest" ]; then
+  echo "pre-commit: commit sem código Python/testes/exemplos — ruff e pytest não se aplicam."
+  exit 0
+fi
+
+# Pré-requisitos do ambiente
+if [ ! -f pyproject.toml ]; then
+  if [ -n "$staged_py" ]; then
+    echo "pre-commit: ✗ há arquivos .py no commit, mas o projeto ainda não tem pyproject.toml."
+    echo "            Configure o projeto Python (pyproject.toml + uv.lock) antes de commitar código."
+    exit 1
+  fi
+  echo "pre-commit: pyproject.toml ainda não existe — ruff e pytest não se aplicam."
+  exit 0
+fi
+if ! command -v uv >/dev/null 2>&1; then
+  echo "pre-commit: ✗ 'uv' não encontrado no PATH. Instale o uv para rodar ruff e pytest."
+  exit 1
+fi
+if [ ! -f uv.lock ]; then
+  echo "pre-commit: ✗ uv.lock não existe. Rode 'uv lock' e inclua o uv.lock no commit."
   exit 1
 fi
 
-echo "pre-commit: pytest..."
-uv run --quiet pytest -q
-status=$?
-if [ $status -eq 5 ]; then
-  echo "pre-commit: nenhum teste coletado ainda — seguindo."
-elif [ $status -ne 0 ]; then
-  echo "pre-commit: ✗ testes falhando. Commit bloqueado."
+# Aviso: ruff/pytest leem o diretório de trabalho, não o índice
+divergentes=$(comm -12 <(git diff --name-only | sort) <(printf '%s\n' "$staged_all" | sort))
+nao_rastreados=$(git ls-files --others --exclude-standard -- '*.py')
+if [ -n "$divergentes" ] || [ -n "$nao_rastreados" ]; then
+  echo "pre-commit: ⚠ a validação roda sobre os arquivos em disco, que diferem do que vai no commit:"
+  [ -n "$divergentes" ] && printf '            com mudanças não staged: %s\n' $divergentes
+  [ -n "$nao_rastreados" ] && printf '            .py não rastreado:       %s\n' $nao_rastreados
+  echo "            Faça 'git add' deles ou guarde-os antes, se quiser validar exatamente o commit."
+fi
+
+# 3. ruff check
+if [ -n "$run_ruff" ]; then
+  if [ -n "$config_changed" ]; then
+    echo "pre-commit: ruff check (configuração mudou → projeto inteiro)..."
+    uv run --frozen --quiet ruff check .
+  else
+    echo "pre-commit: ruff check em $(wc -w <<<"$staged_py" | tr -d ' ') arquivo(s) staged..."
+    # shellcheck disable=SC2086
+    uv run --frozen --quiet ruff check --force-exclude -- $staged_py
+  fi
+  if [ $? -ne 0 ]; then
+    fail=1
+    falhas+=("ruff check: corrija os problemas listados acima (para ver correções automáticas sugeridas: 'uv run ruff check --diff .').")
+  fi
+fi
+
+# 4. pytest (suíte inteira: não há mapeamento seguro de arquivo → teste)
+if [ -n "$run_pytest" ]; then
+  echo "pre-commit: pytest..."
+  uv run --frozen --quiet pytest -q
+  status=$?
+  if [ $status -eq 5 ]; then
+    echo "pre-commit: nenhum teste coletado ainda — pytest não bloqueia."
+  elif [ $status -ne 0 ]; then
+    fail=1
+    falhas+=("pytest (exit $status): corrija o código ou o teste que falhou acima; o esperado do teste deve vir da spec.")
+  fi
+fi
+
+# 5. Resultado
+if [ $fail -ne 0 ]; then
+  echo
+  echo "pre-commit: ✗ COMMIT BLOQUEADO. Validações que falharam:"
+  for f in "${falhas[@]}"; do echo "  - $f"; done
+  echo "  Nada foi alterado. Corrija, faça 'git add' e tente o commit de novo."
   exit 1
 fi
-echo "pre-commit: ✓ ok"
+echo "pre-commit: ✓ validações ok"
