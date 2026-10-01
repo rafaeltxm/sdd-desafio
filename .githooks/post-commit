@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Depois de cada commit: lembra de exportar a sessão do Claude Code (regra 3).
+cd "$(git rev-parse --show-toplevel)"
+subject=$(git log -1 --format=%s)
+
+# O próprio commit do export não precisa de lembrete
+if [[ "$subject" == docs\(sessions\):* ]]; then exit 0; fi
+
+last=$(ls docs/sessions/ 2>/dev/null | grep -oE '^[0-9]{2}' | sort -n | tail -1)
+next=$(printf '%02d' $((10#${last:-0} + 1)))
+
+cat <<MSG
+
+📝 Lembrete: ao encerrar esta sessão, exporte a conversa:
+   /export docs/sessions/${next}-<descricao-curta>.md
+   e commite com: docs(sessions): export da sessão ${next}
+   (se a sessão continua, exporte ao final — o mesmo arquivo pode ser sobrescrito)
+
+MSG

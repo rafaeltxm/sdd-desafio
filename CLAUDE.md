@@ -28,9 +28,30 @@ Se o que eu pedi não está coberto por nenhuma task, me avise em vez de impleme
 - Toda regra de negócio vive na spec, não no chat e não em comentário de código.
 - Se eu te explicar uma regra que não está na spec, **pare e me diga isso** antes
   de escrever código. Isso é um bug de spec.
-- Todo commit referencia uma task: `feat(T-003): <descrição>`.
+- Todo commit referencia uma task: `feat(T-003): <descrição>` (formatos completos abaixo).
   Mudanças de documentação: `docs(spec):`, `docs(plan):`, `docs(tasks):`.
 - Nenhuma regra de negócio entra sem teste.
+
+## Fluxo por task e ferramentas de qualidade
+
+1. Ler a task em `tasks.md` e as `RN-`/`AMB-` que ela cita na spec.
+2. Implementar código + teste; `uv run pytest -q` e `uv run ruff check .` verdes.
+3. **Task de regra de negócio:** antes do commit, invocar o subagente
+   `task-reviewer` passando **só o ID da task** (sem explicar a implementação).
+   Ele salva o parecer em `docs/reviews/T-NNN.md`. Tratar todo achado
+   CORRIGIR CÓDIGO / CORRIGIR SPEC antes do commit (CORRIGIR SPEC → atualizar
+   spec + `DECISIONS.md`). Tasks de estrutura (CLI, leitura de JSON, setup)
+   dispensam a revisão.
+4. Commit com o parecer junto; marcar `[x]` e o hash na task.
+
+Git hooks em `.githooks/` (ativar uma vez por clone: `git config core.hooksPath .githooks`):
+- `pre-commit` — `ruff check` + `pytest`; bloqueia se falhar.
+- `commit-msg` — valida o padrão de mensagem e que o `T-NNN` existe em `tasks.md`.
+- `post-commit` — lembra de exportar a sessão para `docs/sessions/NN-*.md`.
+
+Formatos de commit aceitos: `feat|test|fix|refactor(T-NNN):`,
+`docs(spec|plan|tasks|decisions|readme|relatorio|sessions|claude):`,
+`chore(tooling|setup|T-NNN):`.
 
 ## Stack e comandos
 

@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Antes de cada commit: lint (ruff) + testes (pytest), via uv.
+# Pular em emergência: git commit --no-verify (e registrar no RELATORIO.md).
+set -u
+cd "$(git rev-parse --show-toplevel)"
+
+if [ ! -f pyproject.toml ]; then
+  echo "pre-commit: pyproject.toml ainda não existe — pulando ruff e pytest."
+  exit 0
+fi
+
+echo "pre-commit: ruff check..."
+if ! uv run --quiet ruff check .; then
+  echo "pre-commit: ✗ ruff encontrou problemas. Corrija (ou 'uv run ruff check --fix .') e tente de novo."
+  exit 1
+fi
+
+echo "pre-commit: pytest..."
+uv run --quiet pytest -q
+status=$?
+if [ $status -eq 5 ]; then
+  echo "pre-commit: nenhum teste coletado ainda — seguindo."
+elif [ $status -ne 0 ]; then
+  echo "pre-commit: ✗ testes falhando. Commit bloqueado."
+  exit 1
+fi
+echo "pre-commit: ✓ ok"

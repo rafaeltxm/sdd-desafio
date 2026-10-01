@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Valida o padrão de mensagem de commit do desafio (regra 1: nenhum commit sem task).
+set -u
+cd "$(git rev-parse --show-toplevel)"
+msg_file="$1"
+subject=$(grep -v '^#' "$msg_file" | head -n1)
+tasks_file="specs/001-motor-reembolso/tasks.md"
+
+# Commits gerados pelo próprio git
+if [[ "$subject" =~ ^(Merge|Revert)\  ]]; then exit 0; fi
+
+code_re='^(feat|test|fix|refactor)\((T-[0-9]{3})\): .+'
+docs_re='^docs\((spec|plan|tasks|decisions|readme|relatorio|sessions|claude)\): .+'
+chore_re='^chore\((tooling|setup|T-[0-9]{3})\): .+'
+
+if [[ "$subject" =~ $code_re ]] || [[ "$subject" =~ $chore_re ]]; then
+  task="${BASH_REMATCH[2]:-}"
+  if [[ "$task" == T-* ]] && ! grep -q "\*\*$task\*\*" "$tasks_file" 2>/dev/null; then
+    echo "commit-msg: ✗ $task não existe em $tasks_file. Crie a task antes do commit."
+    exit 1
+  fi
+  exit 0
+fi
+
+if [[ "$subject" =~ $docs_re ]]; then exit 0; fi
+
+cat <<MSG
+commit-msg: ✗ mensagem fora do padrão:
+  "$subject"
+
+Formatos aceitos:
+  feat|test|fix|refactor(T-NNN): <descrição>      (T-NNN deve existir em tasks.md)
+  docs(spec|plan|tasks|decisions|readme|relatorio|sessions|claude): <descrição>
+  chore(tooling|setup|T-NNN): <descrição>
+MSG
+exit 1
