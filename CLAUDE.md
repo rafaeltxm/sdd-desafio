@@ -32,6 +32,13 @@ Se o que eu pedi não está coberto por nenhuma task, me avise em vez de impleme
   Mudanças de documentação: `docs(spec):`, `docs(plan):`, `docs(tasks):`.
 - Nenhuma regra de negócio entra sem teste.
 
+## Revisão adversarial da spec
+
+Antes de começar a implementação, e depois de qualquer mudança relevante na spec
+(inclusive a do envelope), invocar o subagente `spec-adversary`. Ele só lê e
+devolve problemas numerados com perguntas; **as decisões são do humano**. Cada
+pergunta BLOQUEANTE vira decisão na spec + entrada no `DECISIONS.md` antes do código.
+
 ## Fluxo por task e ferramentas de qualidade
 
 1. Ler a task em `tasks.md` e as `RN-`/`AMB-` que ela cita na spec.
