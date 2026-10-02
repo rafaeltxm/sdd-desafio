@@ -1,6 +1,6 @@
 # Tasks — Motor de Cálculo de Reembolso
 
-**Versão:** 1.1 · **Baseado em:** spec 1.8, plan 1.1
+**Versão:** 1.2 · **Baseado em:** spec 1.9, plan 1.2
 
 > Cada task é pequena o bastante para virar **um commit**. Se você não consegue
 > descrever o critério de aceite como "o teste X passa", a task está grande demais.
@@ -65,7 +65,7 @@ O esperado de todo teste é calculado à mão a partir da spec, nunca copiado da
   - **Tipo:** estrutura (leitura de JSON)
   - **Atende:** RN-002 (arquivo que não é JSON válido; escape que não forma caractere válido), seção 4 da spec (número pelo valor decimal exato; texto depois de decodificados os escapes), DT-001, DT-002
   - **Depende de:** T-001
-  - **Aceite:** `tests/test_leitura_json.py` passa: `test_rn002_nan_e_erro_de_arquivo` (`NaN`, `Infinity`, `-Infinity`); `test_rn002_json_malformado_e_erro_de_arquivo`; `test_rn002_utf8_invalido_e_erro_de_arquivo`; `test_rn002_escape_sem_par_em_valor_e_erro_de_arquivo` e `..._em_chave_...` (`\ud800`); `test_bom_e_aceito`; `test_numero_lido_pelo_valor_exato` (`33.333`, `999999999.99999999999`, `1e999999`, `1e-999999` e inteiro de 5.000 dígitos lidos como `Decimal` exato, sem erro); `test_escapes_validos_decodificados` (`"2026-07-03"` → `2026-07-03`; emoji em par de escapes igual ao emoji direto).
+  - **Aceite:** `tests/test_leitura_json.py` passa: `test_rn002_nan_e_erro_de_arquivo` (`NaN`, `Infinity`, `-Infinity`); `test_rn002_json_malformado_e_erro_de_arquivo`; `test_rn002_utf8_invalido_e_erro_de_arquivo`; `test_rn002_escape_sem_par_em_valor_e_erro_de_arquivo` e `..._em_chave_...` (`\ud800`); `test_rn002_escape_sem_par_em_ocorrencia_descartada_e_erro_de_arquivo` (`"obs": "\ud800", "obs": "ok"`, em valor e em objeto aninhado descartado; D-006); `test_escape_fora_dos_substitutos_forma_caractere_valido` (`\u0000`, `\uffff`, `\ufdd0` lidos como caractere, sem erro; D-006); `test_bom_e_aceito`; `test_segundo_bom_e_erro_de_arquivo` (D-006); `test_aninhamento_exagerado_e_erro_de_arquivo` (5.000 e 100.000 níveis → `ErroDeArquivo`, não erro interno; D-006); `test_rn002_json_malformado_e_erro_de_arquivo` inclui `01.5`, `.5`, `1.`, `+1` e tabulação, quebra de linha e U+0000 crus em texto; `test_rn002_escape_sem_par_em_valor_e_erro_de_arquivo` inclui par invertido e alto solto antes de emoji (D-006); `test_numero_lido_pelo_valor_exato` (`33.333`, `999999999.99999999999`, `1e999999`, `1e-999999` e inteiro de 5.000 dígitos lidos como `Decimal` exato, sem erro); `test_escapes_validos_decodificados` (`"2026-07-03"` → `2026-07-03`; emoji em par de escapes igual ao emoji direto).
   - **Commit:** e84693c
 
 - [x] **T-007** — Chaves repetidas: `ObjetoJson` via `object_pairs_hook` (vale a última ocorrência) e percurso que gera os avisos do topo e de cada elemento de `despesas`, com texto, caminho, contagem e ordem da RN-013 (DT-010).
@@ -79,7 +79,7 @@ O esperado de todo teste é calculado à mão a partir da spec, nunca copiado da
   - **Tipo:** regra
   - **Atende:** RN-002 (erro de arquivo), seção 4 da spec (Entrada), DT-003
   - **Depende de:** T-006
-  - **Aceite:** `tests/test_rn002_validacao_da_entrada.py` passa os testes de cabeçalho: `colaborador` ausente; `id`/`nome` ausentes, não texto, vazios ou só com espaços em branco (inclusive espaço não separável); `nome` só de U+200B, BOM ou U+001F → válido (não é espaço em branco, RN-002); `periodo.inicio`, `periodo.fim` ou `despesas` ausentes; `inicio`/`fim` que não são `AAAA-MM-DD` válidas (`2026-7-1`, `20260701`, `2026-02-30`, dígitos não ASCII); `inicio` posterior a `fim` → `ErroDeArquivo`. `inicio` igual a `fim` → válido. `despesas: []` → válido. `competencia` `202607` → nula, sem erro; `competencia` `"julho"` → copiada. `centro_custo` ausente → válido.
+  - **Aceite:** `tests/test_rn002_validacao_da_entrada.py` passa os testes de cabeçalho: `colaborador` ausente; `id`/`nome` ausentes, não texto, vazios ou só com espaços em branco (inclusive espaço não separável); `nome` só de U+200B, BOM ou U+001F → válido (não é espaço em branco, RN-002); `periodo.inicio`, `periodo.fim` ou `despesas` ausentes; `inicio`/`fim` que não são `AAAA-MM-DD` válidas (`2026-7-1`, `20260701`, `2026-02-30`, dígitos não ASCII); `inicio` posterior a `fim` → `ErroDeArquivo`. `inicio` igual a `fim` → válido. `despesas: []` → válido. `competencia` `202607` → nula, sem erro; `competencia` `"julho"` → copiada. `centro_custo` ausente → válido. `colaborador` com `nome` `""` seguido de `colaborador` com `nome` `"Ana"` → válido, `nome` `Ana` (só o valor que valeu é validado; RN-013, D-006).
   - **Commit:**
 
 - [ ] **T-009** — Validação da despesa: cada elemento de `despesas` vira `Despesa` (válida) ou `DespesaInvalida` (etapa 1 da seção 8), com `categoria_saida` normalizada se reconhecida e os avisos da T-007 anexados.
