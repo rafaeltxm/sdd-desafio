@@ -10,6 +10,7 @@ from reembolso.modelo import (
     Entrada,
     ItemResultado,
     Motivo,
+    Periodo,
     Resultado,
     Status,
     Totais,
@@ -63,9 +64,11 @@ def _item_invalido(despesa: DespesaInvalida) -> ItemResultado:
     )
 
 
-def _item_valor_invalido(despesa: Despesa, considerado: Decimal) -> ItemResultado:
-    """Etapa 3 (RN-004): recusado, `valor_invalido`; não consome limite."""
-    status, motivo = Status.RECUSADO, Motivo.VALOR_INVALIDO
+def _item_recusado(
+    despesa: Despesa, considerado: Decimal, motivo: Motivo
+) -> ItemResultado:
+    """Etapas 3 e 4: recusado antes do limite diário; não consome limite."""
+    status = Status.RECUSADO
     # seção 4: normalizada se reconhecida; senão como veio
     categoria = (
         despesa.categoria
@@ -94,6 +97,17 @@ def _item_valor_invalido(despesa: Despesa, considerado: Decimal) -> ItemResultad
         ),
         avisos=despesa.avisos,
     )
+
+
+def _motivo_de_recusa(
+    despesa: Despesa, considerado: Decimal, periodo: Periodo
+) -> Motivo | None:
+    """Etapas 3 e 4 da seção 8, nesta ordem; a primeira que recusa encerra."""
+    if considerado <= 0:  # RN-004
+        return Motivo.VALOR_INVALIDO
+    if not periodo.inicio <= despesa.data <= periodo.fim:  # RN-005, AMB-009
+        return Motivo.FORA_DO_PERIODO
+    return None
 
 
 def _aplicar_limite(despesas: list[Despesa]) -> dict[int, ItemResultado]:
@@ -160,14 +174,15 @@ def calcular(entrada: Entrada) -> Resultado:
     """Um item por despesa, na ordem da entrada (RN-001), e os totais."""
     validas = [d for d in entrada.despesas if isinstance(d, Despesa)]
     por_posicao: dict[int, ItemResultado] = {}
-    positivas = []
+    seguem = []
     for despesa in validas:
         considerado = arredondar(despesa.valor_informado)
-        if considerado <= 0:
-            por_posicao[despesa.posicao] = _item_valor_invalido(despesa, considerado)
+        motivo = _motivo_de_recusa(despesa, considerado, entrada.periodo)
+        if motivo is None:
+            seguem.append(despesa)
         else:
-            positivas.append(despesa)
-    por_posicao.update(_aplicar_limite(positivas))
+            por_posicao[despesa.posicao] = _item_recusado(despesa, considerado, motivo)
+    por_posicao.update(_aplicar_limite(seguem))
     itens = [
         por_posicao[d.posicao] if isinstance(d, Despesa) else _item_invalido(d)
         for d in entrada.despesas

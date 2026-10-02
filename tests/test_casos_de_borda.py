@@ -202,6 +202,26 @@ def _caso_valor_minusculo(saida):
     _recusado_valor_invalido(item)
 
 
+def _recusado_fora_do_periodo(item):
+    # RN-005: recusado, `fora_do_periodo`, sem reembolso, nulos de antes do limite
+    assert (item["status"], item["motivo"]) == ("recusado", "fora_do_periodo")
+    assert item["valor_reembolsado"] == 0
+    assert (item["em_viagem"], item["limite_diario"]) == (None, None)
+
+
+def _caso_primeiro_e_ultimo_dia_do_periodo(saida):
+    # `inicio` e `fim` inclusive → seguem; 41,00 ≤ 60,00 → aprovado
+    for item in saida["itens"]:
+        assert (item["status"], item["valor_reembolsado"]) == (
+            "aprovado", Decimal("41.00"),
+        )
+
+
+def _caso_fora_do_periodo(saida):
+    (item,) = saida["itens"]
+    _recusado_fora_do_periodo(item)
+
+
 def _aviso(caminho, n):
     return f"chave repetida: {caminho} ({n} ocorrências; valeu a última)"
 
@@ -398,6 +418,24 @@ CASOS = [
         _json(despesa(valor=Decimal("1"))).replace('"valor": 1', '"valor": 1e-999999'),
         _caso_valor_minusculo,
         id="Valor minúsculo",
+    ),
+    pytest.param(
+        _json(despesa(id="a", data="2026-07-01", valor=Decimal("41.00")),
+              despesa(id="b", data="2026-07-31", valor=Decimal("41.00"))),
+        _caso_primeiro_e_ultimo_dia_do_periodo,
+        id="Primeiro e último dia do período",
+    ),
+    pytest.param(
+        # fim 31/07 + 1 dia = 01/08
+        _json(despesa(data="2026-08-01")),
+        _caso_fora_do_periodo,
+        id="Um dia fora do período",
+    ),
+    pytest.param(
+        # d-008: 41,00 em 15/04, período de julho
+        _json(despesa(id="d-008", data="2026-04-15", valor=Decimal("41.00"))),
+        _caso_fora_do_periodo,
+        id="Despesa antiga lançada no período",
     ),
     pytest.param(
         _com_campos('"valor": 30.00, "valor": 50.00'),
