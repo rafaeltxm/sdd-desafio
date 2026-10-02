@@ -10,6 +10,35 @@ Ordem cronológica inversa: a mais recente primeiro.
 
 ---
 
+## D-004 — Valor gigante e chave repetida: spec 1.3 → 1.6 · `2026-10-01`
+
+**Gatilho:** escrita do `plan.md` 1.0. Ao verificar como o código leria o arquivo, apareceram duas entradas válidas no formato cujo resultado a spec não definia. O responsável decidiu as duas (versão 1.4, não commitada). A rodada do `spec-adversary` sobre a 1.4 apontou 4 problemas (1 bloqueante) nas próprias decisões; o responsável aceitou as 4 recomendações, aplicadas na 1.5 (pontos 3 a 6). A rodada sobre a 1.5 apontou 4 problemas, nenhum bloqueante; o responsável aceitou as 4 recomendações, aplicadas na 1.6 (pontos 7 a 10). Sessão `docs/sessions/07-*`.
+
+**O que mudou na spec:**
+
+| # | Ponto | De (1.3) | Para (1.6) | Onde |
+|---|---|---|---|---|
+| 1 | `valor` sem limite superior (ex.: 1e999999) | indefinido; o cálculo exato ao centavo não é possível para qualquer número, e a execução seria interrompida | valor absoluto a partir de 1.000.000.000,00, comparado com o número recebido → `entrada_invalida` (também se negativo, antes de `valor_invalido`) | RN-002, seção 4 (motivos), AMB-018, seção 7 |
+| 2 | Chave repetida num objeto (ex.: dois `valor`) | indefinido; a leitura ficaria com uma delas em silêncio | vale a última ocorrência; cada chave repetida gera aviso com texto fixo em `itens[].avisos` (dentro da despesa) ou `avisos` do topo (fora) | RN-013 (nova), seção 4 (entrada e saída), seção 8, AMB-019, seção 7 |
+| 3 | Precisão do "número recebido" (**bloqueante** na 1.4) | indefinida: lido aproximado, 999999999.995 arredondava para 999999999,99, contra o aceite da própria RN-002 (e 10.005 contra a RN-003); `valor_informado` de 1e999999 sem esperado | todo número vale pelo valor decimal exato escrito no arquivo, com quaisquer dígitos e expoente; teto, arredondamento e `valor_informado` usam esse valor | seção 4, RN-003, seção 7 |
+| 4 | Ordem e contagem de aviso de chave aninhada que também aparece em valor descartado | indefinidas | contam só as ocorrências dentro do valor que valeu | RN-013, seção 7 |
+| 5 | Caminho do aviso | sem regra para elemento de `despesas` que é lista; chaves com `.`, `[`, `]` ou vazias geram caminhos ambíguos | lista começa pela posição (`[0].a`); chaves sem escape, ambiguidade registrada como risco aceito | RN-013, seção 10, seção 7 |
+| 6 | Igualdade de chaves | "caractere a caractere" sem dizer se antes ou depois dos escapes (`"\u0076alor"`) | depois de decodificar os escapes, sem normalização Unicode; caminho usa o texto decodificado | RN-013, seção 7 |
+| 7 | Escape sem caractere válido (`\ud800` sem par) | indefinido; aceito pelo parser, a gravação da saída falharia | erro de arquivo, em chave ou valor; "caractere" é o caractere Unicode | seção 4, RN-002, seção 7 |
+| 8 | Escapes nos valores de texto | o ponto 6 falava só de chaves | todo texto da entrada, chave ou valor, vale depois de decodificados os escapes | seção 4, seção 7 |
+| 9 | Texto exato do aviso | lista dentro de lista, `<n>` ≥ 1000 e "sem escape" indefinidos | colchetes encadeados (`m[0][0].x`); `<n>` sem separador de milhar; "sem escape" vale só para o caminho; saída em UTF-8 com os escapes do formato | RN-013, seção 4, seção 7 |
+| 10 | Descrição do risco "caminho ambíguo" | dizia que a ambiguidade só afeta campos extras — **justificativa incompleta da 1.5** | inclui aviso de campo extra idêntico ao de campo da seção 4 e chave que imita outro aviso | seção 10 |
+
+**Por quê:** o ponto 1 deixaria uma despesa derrubar a execução inteira, contra o tratamento por item da RN-002; recusar como `entrada_invalida` preserva as demais. O ponto 3 fecha o que o ponto 1 deixou aberto: o teto limita a magnitude, e a leitura exata garante que o valor aceito é o escrito. O ponto 2 muda o reembolso conforme a ocorrência escolhida; a última ocorrência foi a escolhida, e o descarte fica visível ao conferente em campo contratual, em vez de texto livre na justificativa ou no terminal. Os pontos 4 a 6 tornam o texto e a ordem dos avisos determinísticos, já que são contratuais; escapar caracteres no caminho foi descartado para manter o aviso legível. Os pontos 7 a 9 fecham entradas válidas pela sintaxe sem resultado definido; o 10 corrige a descrição de um risco aceito, como o ponto 2 da D-002.
+
+**O que isso invalidou:** nenhum código ou teste (ainda não existem). Formato de saída: dois campos novos (`itens[].avisos`, `avisos`), sempre presentes. Nenhum valor do resultado esperado do exemplo mudou (seção 9; `avisos` vazios). Casos de borda novos: 16 linhas na seção 7. Risco aceito novo na seção 10 (caminho ambíguo). Critério de aceite da seção 9 passa a citar RN-001 a RN-013. `plan.md` passa a se basear na 1.6.
+
+**Tasks afetadas:** nenhuma (o `tasks.md` ainda não foi escrito).
+
+**Custo:** 3 arquivos (`spec.md`, `DECISIONS.md`, `plan.md`); 10 pontos decididos na mesma sessão. Duas rodadas do `spec-adversary`: sobre a 1.4 (por mudar o formato de saída) e sobre a 1.5 (pontos 3 a 6). Sem rodada sobre a 1.6: os pontos 7 a 10 são ajustes de texto sem mudança de regra de cálculo, recomendados pela própria rodada da 1.5.
+
+---
+
 ## D-003 — Validação final antes do plano: spec 1.2 → 1.3 · `2026-10-01`
 
 **Gatilho:** conferência da spec 1.2 (commit `bdb1eec`) antes de iniciar o `plan.md`, pedida pelo responsável. Saíram uma contradição interna e três lacunas de contrato. As quatro recomendações foram aceitas pelo responsável (sessão `docs/sessions/06-*`).

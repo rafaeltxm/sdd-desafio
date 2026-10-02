@@ -1,6 +1,6 @@
 # Spec — Motor de Cálculo de Reembolso
 
-**Versão:** 1.3 · **Status:** aprovada para planejamento · **Última alteração:** 2026-10-01 (ver `DECISIONS.md` D-001 a D-003)
+**Versão:** 1.6 · **Status:** aprovada para planejamento · **Última alteração:** 2026-10-01 (ver `DECISIONS.md` D-001 a D-004)
 
 > **Regra de ouro deste arquivo:** ele descreve o QUÊ e o PORQUÊ. Nenhuma linha
 > aqui pode citar linguagem, biblioteca, classe, função ou estrutura de pasta.
@@ -65,6 +65,10 @@ Formato fixo, conforme `exemplos/despesas-exemplo.json`.
 
 Campos não listados acima são ignorados.
 
+Se um mesmo objeto do arquivo traz a mesma chave mais de uma vez, vale a última ocorrência, e a saída avisa que as anteriores foram descartadas (RN-013).
+
+Todo texto da entrada, chave ou valor, vale pelo seu conteúdo **depois de decodificados os escapes** do arquivo (`"2026\u002d07\u002d03"` é a data `2026-07-03`), e "caractere" é o caractere Unicode (um emoji escrito como par de escapes é igual ao mesmo emoji escrito diretamente). Um escape que não forma caractere Unicode válido (`\uD800` a `\uDFFF` sem o par correspondente), em qualquer chave ou valor, é erro de arquivo (RN-002).
+
 ### Saída
 
 | Campo | Tipo | Significado |
@@ -82,18 +86,22 @@ Campos não listados acima são ignorados.
 | `itens[].motivo` | texto ou nulo | código do motivo (tabela abaixo); nulo quando `aprovado` |
 | `itens[].em_viagem` | booleano ou nulo | se a data estava em viagem (RN-010); nulo se o item foi recusado antes do limite diário |
 | `itens[].limite_diario` | número ou nulo | limite diário aplicado à categoria naquela data; nulo se o item foi recusado antes do limite diário |
-| `itens[].justificativa` | texto | frase em português explicando a decisão. Texto livre: **não é contratual**; os campos acima são |
+| `itens[].justificativa` | texto | frase em português explicando a decisão. Texto livre: **não é contratual**; os demais campos são |
+| `itens[].avisos` | lista de textos | avisos de chave repetida dentro da despesa (RN-013); lista vazia se não houver |
 | `totais.valor_solicitado` | número | soma de `valor_considerado` dos itens **não recusados por `entrada_invalida` e com `valor_considerado` maior que zero** |
 | `totais.valor_reembolsado` | número | soma de `valor_reembolsado` |
 | `totais.valor_glosado` | número | `valor_solicitado − valor_reembolsado` |
+| `avisos` | lista de textos | avisos de chave repetida fora das despesas (RN-013); lista vazia se não houver |
 
-Todos os valores monetários **calculados** da saída (`valor_considerado`, `valor_reembolsado`, `limite_diario` e totais) são em reais, com no máximo 2 casas decimais e exatos ao centavo. `valor_informado` é a única exceção: é a cópia do número recebido (ex.: 33.333). Como a entrada é um número, "como veio" se refere ao valor numérico, não à forma escrita (72.50 e 72.5 são o mesmo valor).
+Todos os valores monetários **calculados** da saída (`valor_considerado`, `valor_reembolsado`, `limite_diario` e totais) são em reais, com no máximo 2 casas decimais e exatos ao centavo. `valor_informado` é a única exceção: é a cópia do número recebido (ex.: 33.333). O arquivo de saída é gravado em UTF-8, com os escapes que o formato exige (uma quebra de linha dentro de um texto sai como `\n`).
+
+Todo número da entrada vale pelo seu **valor decimal exato, como escrito no arquivo**, com qualquer quantidade de dígitos e qualquer expoente, nunca por uma aproximação: é sobre esse valor que se aplicam o teto (RN-002), o arredondamento (RN-003) e a cópia em `valor_informado`. "Como veio" se refere ao valor numérico, não à forma escrita (72.50 e 72.5 são o mesmo valor; 1e999999 pode sair escrito como 1E+999999).
 
 **Códigos de motivo** (na ordem das etapas da seção 8):
 
 | Código | Quando | Status resultante |
 |---|---|---|
-| `entrada_invalida` | elemento que não é objeto, ou campo obrigatório ausente ou com tipo/formato errado (RN-002) | `recusado` |
+| `entrada_invalida` | elemento que não é objeto; campo obrigatório ausente ou com tipo/formato errado; ou `valor` com valor absoluto a partir de 1.000.000.000,00 (RN-002) | `recusado` |
 | `valor_invalido` | valor considerado menor ou igual a zero (RN-004) | `recusado` |
 | `fora_do_periodo` | data fora de `[inicio, fim]` (RN-005) | `recusado` |
 | `categoria_fora_da_politica` | categoria não reconhecida (RN-006) | `recusado` |
@@ -111,13 +119,16 @@ Todos os valores monetários **calculados** da saída (`valor_considerado`, `val
     { "id": "d-1", "data": "2026-07-03", "categoria": "alimentacao",
       "valor_informado": 45.0, "valor_considerado": 45.0, "valor_reembolsado": 45.0,
       "status": "aprovado", "motivo": null, "em_viagem": false, "limite_diario": 60.0,
-      "justificativa": "Aprovado integralmente: 45,00 dentro do limite diário de 60,00." },
+      "justificativa": "Aprovado integralmente: 45,00 dentro do limite diário de 60,00.",
+      "avisos": [] },
     { "id": "d-2", "data": "2026-07-03", "categoria": "alimentacao",
       "valor_informado": 30.0, "valor_considerado": 30.0, "valor_reembolsado": 15.0,
       "status": "parcial", "motivo": "limite_diario_excedido", "em_viagem": false, "limite_diario": 60.0,
-      "justificativa": "Parcial: restavam 15,00 do limite diário de 60,00 de alimentação em 03/07." }
+      "justificativa": "Parcial: restavam 15,00 do limite diário de 60,00 de alimentação em 03/07.",
+      "avisos": [] }
   ],
-  "totais": { "valor_solicitado": 75.0, "valor_reembolsado": 60.0, "valor_glosado": 15.0 }
+  "totais": { "valor_solicitado": 75.0, "valor_reembolsado": 60.0, "valor_glosado": 15.0 },
+  "avisos": []
 }
 ```
 
@@ -143,17 +154,17 @@ Exemplos: `"Transporte Urbano"`, `"transporte-urbano"` e `" TRANSPORTE__urbano "
 ### RN-002 — Validação da entrada
 
 **Regra:**
-- **Erro de arquivo** (o arquivo de saída não é criado nem alterado): arquivo de entrada ausente ou que não é JSON válido; `colaborador` ausente ou sem `id`/`nome` em texto, ou com `id`/`nome` vazio ou só com espaços em branco; `periodo.inicio`, `periodo.fim` ou `despesas` ausentes; `inicio` ou `fim` que não são datas válidas `AAAA-MM-DD`; `inicio` posterior a `fim`; `despesas` que não é lista; arquivo de saída que não pode ser gravado. `periodo.competencia` nunca causa erro: se não for texto, sai nula.
-- **Despesa inválida** (vira item `recusado` com motivo `entrada_invalida`; as demais despesas seguem): elemento de `despesas` que não é um objeto; falta `id`, `data`, `categoria`, `fornecedor`, `valor` ou `tem_nota_fiscal`; `data` não é data válida `AAAA-MM-DD`; `valor` não é número; `tem_nota_fiscal` não é booleano; `id`, `categoria` ou `fornecedor` não são texto, ou são texto vazio ou só com espaços em branco.
+- **Erro de arquivo** (o arquivo de saída não é criado nem alterado): arquivo de entrada ausente ou que não é JSON válido; texto, em chave ou valor, com escape que não forma caractere Unicode válido (seção 4); `colaborador` ausente ou sem `id`/`nome` em texto, ou com `id`/`nome` vazio ou só com espaços em branco; `periodo.inicio`, `periodo.fim` ou `despesas` ausentes; `inicio` ou `fim` que não são datas válidas `AAAA-MM-DD`; `inicio` posterior a `fim`; `despesas` que não é lista; arquivo de saída que não pode ser gravado. `periodo.competencia` nunca causa erro: se não for texto, sai nula.
+- **Despesa inválida** (vira item `recusado` com motivo `entrada_invalida`; as demais despesas seguem): elemento de `despesas` que não é um objeto; falta `id`, `data`, `categoria`, `fornecedor`, `valor` ou `tem_nota_fiscal`; `data` não é data válida `AAAA-MM-DD`; `valor` não é número; `tem_nota_fiscal` não é booleano; `id`, `categoria` ou `fornecedor` não são texto, ou são texto vazio ou só com espaços em branco; `valor` com valor absoluto maior ou igual a 1.000.000.000,00 (um bilhão), comparado com o número recebido, antes do arredondamento (AMB-018).
 - Na saída de uma despesa inválida, `id`, `data` e `categoria` são copiados se forem texto e saem nulos caso contrário (tipo errado, ausente ou elemento que não é objeto); a `categoria`, se reconhecida, sai normalizada, como em qualquer item (seção 4).
 - Uma despesa recusada por `entrada_invalida` tem `valor_considerado` nulo, `em_viagem` e `limite_diario` nulos, e não entra nos totais.
 - Campos extras, no arquivo ou nas despesas, são ignorados.
-**Origem:** necessidade operacional (a política não trata entrada malformada); pontos 7 e 9 de D-001.
-**Aceite:** despesa sem `tem_nota_fiscal` com `valor` 33.333 → `recusado`, `entrada_invalida`, `valor_informado` 33.333, `valor_considerado` nulo, fora de `valor_solicitado`; as demais despesas são processadas normalmente. Elemento `null` em `despesas` → item com `id` e `data` nulos, `entrada_invalida`. Arquivo sem `colaborador` → nenhuma saída, código diferente de 0. Hospedagem com campo extra `"noites": 2` → avaliada como uma diária (RN-012). Despesa com `"id": 17` → `entrada_invalida`, `id` nulo na saída. Despesa com `fornecedor` `"   "` → `entrada_invalida`. `competencia` 202607 (número) → processamento normal, `competencia` nula na saída. Caminho de saída em pasta inexistente → nenhuma saída, código diferente de 0. Despesa `"categoria": "ALIMENTACAO"` sem `tem_nota_fiscal` → `entrada_invalida`, `categoria` `alimentacao` na saída. `colaborador.nome` `"  "` → erro de arquivo. Erro de arquivo com arquivo de saída preexistente → o arquivo continua com o conteúdo anterior. Chamada sem `--output` → código diferente de 0.
+**Origem:** necessidade operacional (a política não trata entrada malformada); pontos 7 e 9 de D-001; AMB-018.
+**Aceite:** despesa sem `tem_nota_fiscal` com `valor` 33.333 → `recusado`, `entrada_invalida`, `valor_informado` 33.333, `valor_considerado` nulo, fora de `valor_solicitado`; as demais despesas são processadas normalmente. Elemento `null` em `despesas` → item com `id` e `data` nulos, `entrada_invalida`. Arquivo sem `colaborador` → nenhuma saída, código diferente de 0. Hospedagem com campo extra `"noites": 2` → avaliada como uma diária (RN-012). Despesa com `"id": 17` → `entrada_invalida`, `id` nulo na saída. Despesa com `fornecedor` `"   "` → `entrada_invalida`. `competencia` 202607 (número) → processamento normal, `competencia` nula na saída. Caminho de saída em pasta inexistente → nenhuma saída, código diferente de 0. Despesa `"categoria": "ALIMENTACAO"` sem `tem_nota_fiscal` → `entrada_invalida`, `categoria` `alimentacao` na saída. `colaborador.nome` `"  "` → erro de arquivo. Erro de arquivo com arquivo de saída preexistente → o arquivo continua com o conteúdo anterior. Chamada sem `--output` → código diferente de 0. `valor` 1000000000 → `entrada_invalida`, `valor_informado` 1000000000, fora dos totais. `valor` -1e12 → `entrada_invalida` (não `valor_invalido`). `valor` 999999999.995 → segue, com `valor_considerado` 1000000000.00 (o teto vale para o número recebido).
 
 ### RN-003 — Arredondamento ao centavo
 
-**Regra:** antes de qualquer outra regra de valor, `valor` é arredondado para 2 casas decimais, com a metade arredondada afastando do zero (0,005 → 0,01; -0,005 → -0,01). Todas as regras usam o valor arredondado (`valor_considerado`), e todos os cálculos são exatos ao centavo.
+**Regra:** antes de qualquer outra regra de valor, `valor` (pelo seu valor decimal exato, seção 4) é arredondado para 2 casas decimais, com a metade arredondada afastando do zero (0,005 → 0,01; -0,005 → -0,01). Todas as regras usam o valor arredondado (`valor_considerado`), e todos os cálculos são exatos ao centavo.
 **Origem:** AMB-014.
 **Aceite:** `valor` 33.333 → `valor_considerado` 33.33; `valor` 10.005 → 10.01; `valor` 10.004 → 10.00.
 
@@ -218,6 +229,24 @@ O limite é consumido pelas despesas na ordem da entrada: cada despesa recebe `m
 **Regra:** cada despesa de `hospedagem` é tratada como uma diária na sua `data`, qualquer que seja o valor, a descrição ou campos extras. Várias hospedagens na mesma data dividem o mesmo limite diário de 250,00 (RN-009).
 **Origem:** política do RH, item 3; AMB-005.
 **Aceite:** hospedagem de 480,00 com nota em 14/07 ("2 diarias" na descrição) → `parcial` com 250,00; 14/07 e 15/07 em viagem (RN-010).
+
+### RN-013 — Chave repetida no arquivo de entrada
+
+**Regra:** quando um objeto do arquivo de entrada traz a mesma chave (igual caractere a caractere) mais de uma vez, vale a **última** ocorrência: as anteriores são descartadas e nenhuma regra as considera. Cada chave repetida gera **um** aviso, qualquer que seja o número de repetições, com o texto exato:
+
+`chave repetida: <caminho> (<n> ocorrências; valeu a última)`
+
+- Chave repetida dentro de um elemento de `despesas`, em qualquer profundidade → aviso em `itens[].avisos` daquele item, com o caminho a partir da despesa (ex.: `valor`, `extra.obs`).
+- Qualquer outra → aviso em `avisos` do topo da saída, com o caminho a partir da raiz (ex.: `colaborador.nome`, `periodo.inicio`, `despesas`).
+- Caminho: chaves separadas por ponto; elemento de lista indicado pela posição, a partir de 0, entre colchetes (ex.: `extra.lista[0].x`). Se o elemento de `despesas` é uma lista, o caminho começa pela posição (ex.: `[0].a`). Lista dentro de lista: colchetes encadeados, sem ponto entre eles (ex.: `m[0][0].x`, `[0][0].a`). As chaves aparecem no caminho como texto, sem aspas nem escape (risco aceito, seção 10); a gravação do aviso no arquivo de saída segue a seção 4.
+- `<n>`: em algarismos, sem separador de milhar (ex.: `1000 ocorrências`).
+- Igualdade de chaves: compara o texto **depois** de decodificados os escapes do arquivo (`"\u0076alor"` é a chave `valor`), caractere a caractere, sem normalização Unicode (a forma composta e a decomposta de uma letra acentuada são chaves diferentes). O caminho usa o texto decodificado.
+- Ordem dos avisos de cada lista: a ordem em que a primeira ocorrência de cada chave repetida aparece no arquivo.
+- Só geram aviso os objetos que continuam no arquivo depois de aplicada a última ocorrência: chaves repetidas dentro de um valor descartado não geram aviso, nem entram no `<n>` nem na ordem de avisos de chaves com o mesmo caminho no valor que valeu.
+- O aviso não muda status, motivo nem valores, e aparece em qualquer item, inclusive recusado. Em erro de arquivo não há saída, logo não há aviso.
+
+**Origem:** necessidade operacional (a política não trata o formato do arquivo); AMB-019.
+**Aceite:** despesa com `"valor": 30.00` e depois `"valor": 50.00` → avaliada com 50,00; `itens[].avisos` = [`chave repetida: valor (2 ocorrências; valeu a última)`]. `colaborador.nome` repetido → `avisos` do topo = [`chave repetida: colaborador.nome (2 ocorrências; valeu a última)`]; itens sem chave repetida têm `avisos` vazio. Despesa com `"tem_nota_fiscal": true` e depois `"tem_nota_fiscal": "sim"` → `entrada_invalida`, com o aviso de `tem_nota_fiscal`. `despesas` repetida na raiz → só a última lista é avaliada; um aviso `chave repetida: despesas (2 ocorrências; valeu a última)` no topo; chaves repetidas dentro da primeira lista não geram aviso. Chave `valor` três vezes → um aviso, com `3 ocorrências`. Despesa com `"extra": {"x": 1, "x": 2}, "obs": "a", "obs": "b", "extra": {"x": 3, "x": 4}` → avisos, nesta ordem: `extra` (2), `obs` (2), `extra.x` (2). Alimentação fora de viagem com `"valor": 30.00` e depois `"\u0076alor": 90.00` → vale 90,00, `parcial` com 60,00, aviso de `valor`.
 
 ---
 
@@ -361,6 +390,22 @@ Tipo: **U** = unidade de aplicação · **F** = fronteira · **D** = dado ausent
 **Justificativa:** a entrada não informa número de pessoas nem uma categoria de representação; identificá-las exigiria interpretar a descrição. Fica registrado como evolução recomendada (seção 3).
 **Regra afetada:** RN-009
 
+### AMB-018 — Valor grande demais para ser despesa (F)
+
+**Texto original do RH:** (não tratado)
+**O que não está claro:** a entrada não tem limite superior para `valor`; um número como 1e999999 é válido no formato, mas não é uma despesa possível e não pode ser calculado com exatidão ao centavo.
+**Decisão:** `valor` com valor absoluto a partir de 1.000.000.000,00, comparado com o número recebido, é `entrada_invalida`, inclusive se negativo.
+**Justificativa:** nenhuma despesa corporativa real chega perto de um bilhão, e o teto garante que todo valor aceito é calculado exatamente; recusar com motivo explícito, em vez de interromper a execução, preserva a avaliação das demais despesas.
+**Regra afetada:** RN-002
+
+### AMB-019 — Chave repetida num objeto do arquivo (D)
+
+**Texto original do RH:** (não tratado)
+**O que não está claro:** o formato de entrada não proíbe que um objeto traga a mesma chave duas vezes (ex.: dois `valor` na mesma despesa); qual delas vale muda o resultado.
+**Decisão:** vale a última ocorrência; cada chave repetida gera um aviso na saída (`itens[].avisos` ou `avisos` do topo).
+**Justificativa:** a última ocorrência é a leitura mais comum desse tipo de arquivo e corresponde a uma correção feita ao final do registro; descartar em silêncio esconderia do conferente um valor que pode ter mudado o reembolso, por isso o descarte é avisado.
+**Regra afetada:** RN-013
+
 ---
 
 ## 7. Casos de borda
@@ -410,12 +455,30 @@ Tipo: **U** = unidade de aplicação · **F** = fronteira · **D** = dado ausent
 | Colaborador ausente | arquivo sem `colaborador` | erro de arquivo: sem saída, código diferente de 0 | RN-002 |
 | Colaborador com texto vazio | `colaborador.id` `""` ou `nome` `"  "` | erro de arquivo | RN-002 |
 | Saída preexistente com erro | arquivo de saída já existe; entrada sem `colaborador` | erro de arquivo; o arquivo existente não é alterado | RN-002 |
+| Escape sem caractere válido | `"fornecedor": "X\ud800"` (ou chave `"\ud800"`) | erro de arquivo: sem saída, código diferente de 0 | RN-002 |
+| Texto com escapes válidos | `"data": "2026\u002d07\u002d03"` | data `2026-07-03`, válida; avaliada normalmente | RN-002 |
 | Erro de uso | chamada sem `--input` ou sem `--output`, ou subcomando diferente de `calcular` | mensagem de erro, código diferente de 0, nenhuma saída | seção 4 |
 | Categoria reconhecível em despesa inválida | `"ALIMENTACAO"` sem `tem_nota_fiscal` | `entrada_invalida`; `categoria` `alimentacao` na saída | RN-002, RN-006 |
 | Lista de despesas vazia | `despesas: []` | `itens` vazio, totais 0 | RN-001 |
+| Valor a partir de um bilhão | `valor` 1000000000 | `entrada_invalida`; `valor_informado` 1000000000; fora dos totais | RN-002 |
+| Valor logo abaixo de um bilhão | hospedagem com nota, `valor` 999999999.995 | segue; `valor_considerado` 1000000000.00; `parcial` com 250,00 | RN-002, RN-003 |
+| Valor negativo gigante | `valor` -1e12 | `entrada_invalida` (não `valor_invalido`) | RN-002 |
+| Valor com expoente enorme | `valor` 1e999999 | `entrada_invalida`; `valor_informado` igual a 10^999999 (pode sair escrito `1E+999999`) | RN-002 |
+| Valor minúsculo | `valor` 1e-999999 | `valor_considerado` 0,00; `valor_invalido`; `valor_informado` igual a 10^-999999 | RN-003, RN-004 |
+| Muitas casas logo abaixo do teto | hospedagem com nota, `valor` 999999999.99999999999 | abaixo do teto: segue; `valor_considerado` 1000000000.00; `parcial` com 250,00 | RN-002, RN-003 |
+| Chave repetida na despesa | `"valor": 30.00` e depois `"valor": 50.00` | avaliada com 50,00; aviso em `itens[].avisos` | RN-013 |
+| Chave repetida fora das despesas | `colaborador.nome` duas vezes | vale a última; aviso em `avisos` do topo | RN-013 |
+| Chave repetida dentro de valor descartado | `despesas` repetida na raiz | só a última lista é avaliada; um único aviso, `despesas` | RN-013 |
+| Mesma chave aninhada no valor descartado e no que valeu | `"extra": {"x":1,"x":2}, "obs":"a", "obs":"b", "extra": {"x":3,"x":4}` | avisos `extra` (2), `obs` (2), `extra.x` (2), nesta ordem | RN-013 |
+| Chave repetida escrita com escape | `"valor": 30.00` e `"\u0076alor": 90.00`, alimentação fora de viagem | mesma chave: vale 90,00; `parcial` com 60,00; aviso de `valor` | RN-013, RN-009 |
+| Lista dentro de lista no caminho | despesa com `"m": [[{"x": 1, "x": 2}]]` | aviso `chave repetida: m[0][0].x (2 ocorrências; valeu a última)` | RN-013 |
+| Chave repetida mil vezes | `obs` 1000 vezes na mesma despesa | um aviso, `chave repetida: obs (1000 ocorrências; valeu a última)` | RN-013 |
+| Chave repetida em elemento que é lista | `[{"a": 1, "a": 2}]` como elemento de `despesas` | `entrada_invalida`; aviso `chave repetida: [0].a (2 ocorrências; valeu a última)` | RN-013, RN-002 |
 | Despesa em sábado | 18/07 (sábado) | avaliada normalmente | AMB-015 |
 
 ## 8. Ordem de aplicação das regras
+
+Antes das etapas, a leitura do arquivo resolve chaves repetidas pela última ocorrência (RN-013): todas as etapas veem só o valor que valeu.
 
 Cada despesa passa pelas etapas abaixo, nesta ordem. A primeira etapa que a recusa encerra a avaliação dela.
 
@@ -437,7 +500,7 @@ O sistema está pronto quando:
 
 - [ ] Processa `exemplos/despesas-exemplo.json` e produz exatamente o resultado da tabela abaixo.
 - [ ] Cada caso de borda da seção 7 tem um teste automatizado que passa.
-- [ ] Cada regra RN-001 a RN-012 tem pelo menos um teste automatizado que a referencia.
+- [ ] Cada regra RN-001 a RN-013 tem pelo menos um teste automatizado que a referencia.
 - [ ] A mesma entrada sempre produz a mesma saída.
 - [ ] Entradas com erro de arquivo (RN-002) e chamadas com erro de uso (seção 4) terminam com código diferente de 0 e não criam nem alteram o arquivo de saída.
 
@@ -464,6 +527,8 @@ O sistema está pronto quando:
 
 Totais: `valor_solicitado` = 1.861,84 · `valor_reembolsado` = 585,43 · `valor_glosado` = 1.276,41.
 
+O arquivo de exemplo não tem chave repetida: `avisos` vazio em todos os itens e no topo.
+
 ## 10. O que fica em aberto
 
 ### Decisões provisórias
@@ -477,4 +542,5 @@ Totais: `valor_solicitado` = 1.861,84 · `valor_reembolsado` = 585,43 · `valor_
 
 - **Fracionamento para escapar da nota fiscal** (AMB-008): três hospedagens sem nota de 100,00 + 99,99 + 50,01 na mesma data recebem 250,00, enquanto uma de 250,00 sem nota recebe 0. O ganho é limitado aos casos em que o limite diário passa de 100,00 (hospedagem e transporte em viagem). Aceito para não recusar despesas pequenas legítimas sem nota.
 - **Viagem por hospedagem irrisória com nota declarada** (AMB-004): uma hospedagem de 0,01 com `tem_nota_fiscal` verdadeiro põe D e D+1 em viagem e amplia os limites de alimentação e transporte em até 70,00 por dia (140,00 nos dois dias). Aceito porque o sistema não verifica notas (seção 3) e qualquer valor mínimo seria regra inventada; a saída expõe `em_viagem` por item para a conferência humana. Mitigação definitiva: indicação explícita de viagem na entrada (evolução, seção 3).
+- **Caminho ambíguo no aviso de chave repetida** (RN-013): chaves com `.`, `[` ou `]`, vazias ou com quebra de linha aparecem no caminho sem escape. Dois caminhos diferentes podem gerar o mesmo texto (`"a.b"` e `a` → `b`), e um campo extra pode gerar aviso idêntico ao de um campo da seção 4 que entra no cálculo (chave extra `"periodo.inicio"` repetida na raiz produz o mesmo aviso que o `periodo.inicio` verdadeiro repetido) ou um texto que imita outro aviso. Nenhum valor muda: o aviso só pode enganar o conferente sobre qual chave foi descartada. Aceito para manter o aviso legível; na dúvida, o conferente consulta o arquivo de entrada.
 - **Quase-duplicatas** (AMB-010): o mesmo gasto relançado com data vizinha, valor diferente em um centavo ou fornecedor com outra grafia (além do que a normalização da seção 5 cobre) não é detectado. Aceito porque qualquer critério aproximado seria regra inventada e poderia recusar gastos legítimos repetidos.
