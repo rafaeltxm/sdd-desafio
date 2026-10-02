@@ -75,12 +75,12 @@ O esperado de todo teste é calculado à mão a partir da spec, nunca copiado da
   - **Aceite:** `tests/test_rn013_chave_repetida.py` passa, cobrindo o **Aceite** da RN-013 no nível da leitura: `valor` duas vezes → vale a última, aviso `chave repetida: valor (2 ocorrências; valeu a última)` no elemento; `colaborador.nome` → aviso no topo com caminho da raiz; `valor` três vezes → um aviso com `3 ocorrências`; `despesas` repetida → só a última lista, um aviso `despesas`, chaves repetidas da lista descartada sem aviso; `extra`/`obs`/`extra.x` na ordem `extra`, `obs`, `extra.x`, cada um com 2; `"valor"` igual a `valor`; forma composta e decomposta de letra acentuada são chaves diferentes; `m[0][0].x`; elemento-lista `[0].a`; `obs` 1000 vezes → `1000 ocorrências`; objeto sem repetição → nenhum aviso.
   - **Commit:** ae9e75b
 
-- [ ] **T-008** — Validação do cabeçalho: `colaborador`, `periodo` e `despesas` conforme o primeiro item da RN-002; erro → `ErroDeArquivo`. `competencia` copiada se texto, senão nula.
+- [x] **T-008** — Validação do cabeçalho: `colaborador`, `periodo` e `despesas` conforme o primeiro item da RN-002; erro → `ErroDeArquivo`. `competencia` copiada se texto, senão nula.
   - **Tipo:** regra
   - **Atende:** RN-002 (erro de arquivo), seção 4 da spec (Entrada), DT-003
   - **Depende de:** T-006
   - **Aceite:** `tests/test_rn002_validacao_da_entrada.py` passa os testes de cabeçalho: `colaborador` ausente; `id`/`nome` ausentes, não texto, vazios ou só com espaços em branco (inclusive espaço não separável); `nome` só de U+200B, BOM ou U+001F → válido (não é espaço em branco, RN-002); `periodo.inicio`, `periodo.fim` ou `despesas` ausentes; `inicio`/`fim` que não são `AAAA-MM-DD` válidas (`2026-7-1`, `20260701`, `2026-02-30`, dígitos não ASCII); `inicio` posterior a `fim` → `ErroDeArquivo`. `inicio` igual a `fim` → válido. `despesas: []` → válido. `competencia` `202607` → nula, sem erro; `competencia` `"julho"` → copiada. `centro_custo` ausente → válido. `colaborador` com `nome` `""` seguido de `colaborador` com `nome` `"Ana"` → válido, `nome` `Ana` (só o valor que valeu é validado; RN-013, D-006).
-  - **Commit:**
+  - **Commit:** 8efe738
 
 - [ ] **T-009** — Validação da despesa: cada elemento de `despesas` vira `Despesa` (válida) ou `DespesaInvalida` (etapa 1 da seção 8), com `categoria_saida` normalizada se reconhecida e os avisos da T-007 anexados.
   - **Tipo:** regra
