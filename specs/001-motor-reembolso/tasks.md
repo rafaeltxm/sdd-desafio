@@ -93,13 +93,13 @@ O esperado de todo teste é calculado à mão a partir da spec, nunca copiado da
 
 O motor segue o DT-005: fase individual (lista ordenada de verificações, etapas 2 a 6), duplicatas (etapa 7), viagem (etapa 8), limite (etapa 9). As tasks abaixo constroem primeiro o caminho de uma despesa válida até o limite e depois inserem cada recusa na sua posição da lista. Até a T-015, testes do motor usam só categorias reconhecidas.
 
-- [ ] **T-010** — Núcleo do motor: um item por despesa na ordem da entrada, arredondamento, limite diário por data e categoria consumido na ordem da entrada (fora de viagem), status, totais; função auxiliar de teste `processar(texto_json) -> dict` (entrada → motor → saída).
+- [x] **T-010** — Núcleo do motor: um item por despesa na ordem da entrada, arredondamento, limite diário por data e categoria consumido na ordem da entrada (fora de viagem), status, totais; função auxiliar de teste `processar(texto_json) -> dict` (entrada → motor → saída).
   - **Tipo:** regra
   - **Atende:** RN-001, RN-003, RN-009, RN-011, RN-012, AMB-001, AMB-002, AMB-003, AMB-006, AMB-014, AMB-015, AMB-017
   - **Depende de:** T-004, T-005, T-009
   - **Aceite:** passam `test_rn001_um_resultado_por_despesa.py` (N despesas → N itens, mesma ordem de ids; `valor_glosado = valor_solicitado − valor_reembolsado`), `test_rn003_arredondamento.py` (33.333 → 33.33; 10.005 → 10.01; 10.004 → 10.00), `test_rn009_limite_diario.py` (72,50 + 38,00 → 60,00 `parcial` e 0 `recusado`; ordem invertida → 38,00 `aprovado` e 22,00 `parcial`; limites de transporte 80,00 e hospedagem 250,00; categorias diferentes na mesma data não dividem limite), `test_rn011_status.py` (status compatível com os valores em todos os itens; `motivo` nulo só em `aprovado`), `test_rn012_hospedagem_uma_diaria.py` (480,00 com nota → `parcial` com 250,00; duas hospedagens na mesma data dividem 250,00). Item válido sai com `em_viagem` falso e `limite_diario` preenchido.
   - **Casos de borda:** Duas alimentações no mesmo dia somando mais que o limite · Valor exatamente no limite diário · Um centavo acima do limite diário · Duas hospedagens na mesma data · Três casas decimais · Arredondamento da metade · Lista de despesas vazia · Despesa em sábado
-  - **Commit:**
+  - **Commit:** b50dbfa
 
 - [ ] **T-011** — Despesa inválida na saída: `DespesaInvalida` vira item `recusado` / `entrada_invalida`, com `valor_considerado`, `em_viagem` e `limite_diario` nulos, fora de `valor_solicitado`, sem afetar as demais.
   - **Tipo:** regra
