@@ -35,32 +35,33 @@ Checklist pessoal para organizar os 2 dias. Marque `[x]` conforme avança.
 ## Fase 1 — Dia 1, manhã: especificar (sem código)
 
 ### 1.1 `spec.md` — o QUÊ e o PORQUÊ
-- [ ] Decidir cada ambiguidade (A1–A15 + ordem de aplicação das regras)
-- [ ] Escrever na spec: ambiguidade → decisão → justificativa de 1 linha
-- [ ] Requisitos funcionais numerados (RF-01, RF-02, ...)
-- [ ] Schema de saída (JSON) documentado
-- [ ] Casos de borda + critérios de aceite verificáveis sem ler código
-- [ ] Fora de escopo explícito
-- [ ] Revisar: nada de biblioteca, classe, pasta ou linguagem na spec
-- [ ] Commit `docs(spec): ...`
+- [x] Decidir cada ambiguidade (A1–A15 + ordem de aplicação das regras) — 19 na spec 1.6: AMB-001…AMB-019, ordem em AMB-016 e seção 8
+- [x] Escrever na spec: ambiguidade → decisão → justificativa de 1 linha — spec seção 6
+- [x] Requisitos funcionais numerados (RF-01, RF-02, ...) — numerados como regras de negócio RN-001…RN-013 (spec seção 5)
+- [x] Schema de saída (JSON) documentado — spec seção 4
+- [x] Casos de borda + critérios de aceite verificáveis sem ler código — seção 7 (63 casos), seção 9 e **Aceite** de cada RN
+- [x] Fora de escopo explícito — spec seção 3
+- [x] Revisar: nada de biblioteca, classe, pasta ou linguagem na spec
+- [x] Commit `docs(spec): ...` — `c8bcad9` (1.0) → `d35f68d` (1.1, D-001) → `bdb1eec` (1.2, D-002) → `b253498` (1.3, D-003) → `1eb808c` (1.6, D-004)
+- [x] Revisões adversariais com `spec-adversary`, decisões registradas em `DECISIONS.md` (D-001 a D-004)
 
 ### 1.2 `plan.md` — o COMO
-- [ ] Stack e por quê
-- [ ] Arquitetura em blocos e modelo de dados
-- [ ] Decisões técnicas com alternativa descartada e motivo
-- [ ] Estratégia de testes (incluindo o exemplo como teste de ponta a ponta)
-- [ ] Commit `docs(plan): ...`
+- [x] Stack e por quê — plan seção 1
+- [x] Arquitetura em blocos e modelo de dados — plan seções 2 e 3
+- [x] Decisões técnicas com alternativa descartada e motivo — DT-001 a DT-010 (plan seção 5)
+- [x] Estratégia de testes (incluindo o exemplo como teste de ponta a ponta) — plan seção 6
+- [x] Commit `docs(plan): ...` — `bf1df44` (plan 1.0 sobre spec 1.6)
 
 ### 1.3 `tasks.md` — a fatia executável
-- [ ] T-001..T-0NN, cada uma: o que faz, RFs atendidos, critério de aceite (teste X passa)
-- [ ] Cada task pequena o bastante para 1 commit
-- [ ] Commit `docs(tasks): ...`
+- [x] T-001..T-0NN, cada uma: o que faz, RFs atendidos, critério de aceite (teste X passa) — T-001…T-021, com Tipo, Atende, Depende de, Aceite e Casos de borda
+- [x] Cada task pequena o bastante para 1 commit
+- [x] Commit `docs(tasks): ...` — `70b9d31` (tasks 1.0)
 
 ### 1.4 `CLAUDE.md`
-- [ ] Convenções do projeto (stack, como rodar testes, padrão de commit, "spec é a fonte da verdade")
-- [ ] Commit
+- [x] Convenções do projeto (stack, como rodar testes, padrão de commit, "spec é a fonte da verdade") — "Convenções de código" e "Fora de escopo" ainda com `<...>`
+- [x] Commit — `b8efb2b docs(claude)`
 
-- [ ] `/export` da sessão + commit
+- [x] `/export` da sessão + commit — sessões 05 a 09 (`docs/sessions/`)
 
 ## Fase 2 — Dia 1, tarde: implementar guiado pelas tasks
 
