@@ -60,7 +60,7 @@ Checklist pessoal para organizar os 2 dias. Marque `[x]` conforme avança.
 ### 1.4 `CLAUDE.md`
 - [x] Convenções do projeto (stack, como rodar testes, padrão de commit, "spec é a fonte da verdade")
 - [x] Commit — `b8efb2b docs(claude)`
-- [ ] **Pendente:** "Convenções de código" e "Fora de escopo" ainda com `<...>` do template (dinheiro em `Decimal` → DT-001; fora de escopo → spec seção 3) — commit `docs(claude)`
+- [x] "Convenções de código" e "Fora de escopo" preenchidos a partir do plan (DT-001…DT-009) e da spec seção 3 — `30dd977 docs(claude)`
 
 - [x] `/export` da sessão + commit — sessões 05 a 09 (`docs/sessions/`)
 
@@ -74,9 +74,9 @@ Avaliação em 2026-10-02 09:50 (antes do envelope): T-001…T-021 concluídas, 
 - [x] Ao descobrir lacuna na spec: parar → corrigir spec → `DECISIONS.md` → seguir — spec 1.8 (D-005, durante T-003) e 1.9 (D-006, durante T-006/T-008), sempre spec → plan → tasks → código
 - [x] Teste de ponta a ponta com `exemplos/despesas-exemplo.json` — T-020 `45f014f` (tabela da seção 9 transcrita à mão + determinismo)
 - [x] Rastreabilidade automática RN/casos de borda → testes — T-021 `672cc34`; tabela de Cobertura preenchida
-- [ ] **`README.md` do projeto (como rodar, como testar) substituindo o atual** — ainda é o README do desafio (risco de −3). Não é task de código: commit `docs(readme)`
+- [x] `README.md` do projeto (como rodar, como testar) substituindo o atual — `66362be docs(readme)`; comandos conferidos num clone limpo (exemplo exit 0, JSON inválido exit 1, uso exit 2, 649 testes)
 - [x] Sistema base funcionando e testado **antes do Dia 2**
-- [ ] **Push** — `main` está 80 commits à frente de `origin/main`; nada do trabalho está no fork público ainda
+- [x] Push de todo o trabalho até aqui para o fork público (`origin/main`)
 - [ ] `/export` da sessão desta avaliação (sessão 33) + commit + push
 
 ### Anotações para o relatório (coletadas até aqui)
