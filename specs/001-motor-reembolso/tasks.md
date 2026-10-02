@@ -52,12 +52,12 @@ O esperado de todo teste é calculado à mão a partir da spec, nunca copiado da
   - **Aceite:** `tests/test_justificativa.py` passa: `test_rn011_justificativa_nao_vazia_para_todo_status_e_motivo` (todas as combinações de status × motivo da seção 4); `test_formata_decimal_em_reais` (`Decimal("1234.5")` → `1.234,50`); `test_formata_data_dd_mm`. O texto exato da frase não é testado.
   - **Commit:** 18a8117
 
-- [ ] **T-005** — Serialização da saída: `saida.py` converte `Resultado` em dicionário com os campos na ordem da tabela de saída da seção 4 e em texto JSON (`use_decimal`, `ensure_ascii=False`, `indent=2`, quebra de linha final) (DT-001, DT-008).
+- [x] **T-005** — Serialização da saída: `saida.py` converte `Resultado` em dicionário com os campos na ordem da tabela de saída da seção 4 e em texto JSON (`use_decimal`, `ensure_ascii=False`, `indent=2`, quebra de linha final) (DT-001, DT-008).
   - **Tipo:** estrutura (escrita de JSON)
   - **Atende:** seção 4 da spec (Saída), DT-001, DT-008
   - **Depende de:** T-002
   - **Aceite:** `tests/test_saida.py` passa: ordem dos campos do topo e de `itens[]` igual à tabela da spec; `Decimal` sai como número JSON exato, nunca `float` (`Decimal("33.333")` → `33.333`; `Decimal("1E+999999")` sai como número); campos nulos saem `null`; `avisos` sai lista vazia quando não há aviso; texto com quebra de linha sai com `\n`; caractere não ASCII sai em UTF-8 sem escape; mesma entrada → mesmo texto byte a byte.
-  - **Commit:**
+  - **Commit:** dea6ff9
 
 ## Fase 2 — Entrada (RN-002, RN-013)
 
