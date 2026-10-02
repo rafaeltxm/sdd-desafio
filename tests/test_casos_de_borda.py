@@ -248,6 +248,110 @@ def _caso_um_centavo_acima_do_limite_de_nota(saida):
     assert (item["em_viagem"], item["limite_diario"]) == (None, None)
 
 
+def _hospedagem(**campos):
+    padrao = dict(id="h", categoria="hospedagem", fornecedor="Hotel",
+                  valor=Decimal("200.00"), tem_nota_fiscal=True)
+    padrao.update(campos)
+    return despesa(**padrao)
+
+
+def _em_viagem(item, limite):
+    assert (item["em_viagem"], item["limite_diario"]) == (True, limite)
+
+
+def _caso_limite_de_nota_em_viagem(saida):
+    # RN-008: 110,00 > 100,00 sem nota, mesmo em viagem → recusado antes do limite
+    _, transporte = saida["itens"]
+    assert (transporte["status"], transporte["motivo"]) == (
+        "recusado", "nota_fiscal_ausente",
+    )
+    assert (transporte["em_viagem"], transporte["limite_diario"]) == (None, None)
+
+
+def _caso_hospedagem_duplicata_so_uma_com_nota(saida):
+    # RN-007: a com nota é a original; RN-010: comprova 14/07 e 15/07;
+    # alimentação 80,00 em 15/07 ≤ 90,00 → aprovado
+    itens = {item["id"]: item for item in saida["itens"]}
+    assert itens["sem"]["motivo"] == "duplicata"
+    _em_viagem(itens["com"], Decimal("250.00"))
+    _em_viagem(itens["a"], Decimal("90.00"))
+    assert itens["a"]["status"] == "aprovado"
+
+
+def _caso_hospedagem_varias_diarias(saida):
+    # RN-012: uma diária, min(480,00; 250,00) = 250,00 → parcial; RN-010: 14 e 15/07
+    hospedagem, a15, a16 = saida["itens"]
+    assert (hospedagem["valor_reembolsado"], hospedagem["status"]) == (
+        Decimal("250.00"), "parcial",
+    )
+    _em_viagem(hospedagem, Decimal("250.00"))
+    assert a15["em_viagem"] is True
+    assert a16["em_viagem"] is False
+
+
+def _caso_dia_seguinte_a_diaria(saida):
+    # 15/07 = D+1 em viagem: 80,00 ≤ 90,00 → aprovado
+    _, alimentacao = saida["itens"]
+    _em_viagem(alimentacao, Decimal("90.00"))
+    assert (alimentacao["valor_reembolsado"], alimentacao["status"]) == (
+        Decimal("80.00"), "aprovado",
+    )
+
+
+def _caso_dois_dias_depois_da_diaria(saida):
+    # 16/07 = D+2 fora de viagem: min(80,00; 60,00) = 60,00 → parcial
+    _, alimentacao = saida["itens"]
+    assert (alimentacao["em_viagem"], alimentacao["limite_diario"]) == (
+        False, Decimal("60.00"),
+    )
+    assert (alimentacao["valor_reembolsado"], alimentacao["status"]) == (
+        Decimal("60.00"), "parcial",
+    )
+
+
+def _caso_hospedagem_sem_nota_ate_100(saida):
+    # 80,00 ≤ 100,00 sem nota → segue, aprovado; não comprova viagem:
+    # alimentação min(90,00; 60,00) = 60,00 → parcial
+    hospedagem, alimentacao = saida["itens"]
+    assert (hospedagem["valor_reembolsado"], hospedagem["status"]) == (
+        Decimal("80.00"), "aprovado",
+    )
+    assert hospedagem["em_viagem"] is False
+    assert (alimentacao["em_viagem"], alimentacao["limite_diario"]) == (
+        False, Decimal("60.00"),
+    )
+    assert (alimentacao["valor_reembolsado"], alimentacao["status"]) == (
+        Decimal("60.00"), "parcial",
+    )
+
+
+def _caso_hospedagem_sem_nota_acima_de_100(saida):
+    # RN-008 recusa na etapa 6 → não comprova viagem: limite 60,00 na mesma data
+    hospedagem, alimentacao = saida["itens"]
+    assert hospedagem["motivo"] == "nota_fiscal_ausente"
+    assert (alimentacao["em_viagem"], alimentacao["limite_diario"]) == (
+        False, Decimal("60.00"),
+    )
+
+
+def _caso_hospedagem_fora_do_periodo(saida):
+    # RN-005 recusa na etapa 4 → 01/07 não fica em viagem
+    hospedagem, alimentacao = saida["itens"]
+    _recusado_fora_do_periodo(hospedagem)
+    assert (alimentacao["em_viagem"], alimentacao["limite_diario"]) == (
+        False, Decimal("60.00"),
+    )
+
+
+def _caso_alimentacao_antes_da_hospedagem(saida):
+    # etapa 8 antes da 9: data em viagem; 80,00 ≤ 90,00 → aprovado
+    alimentacao, _ = saida["itens"]
+    _em_viagem(alimentacao, Decimal("90.00"))
+    assert (alimentacao["valor_reembolsado"], alimentacao["status"]) == (
+        Decimal("80.00"), "aprovado",
+    )
+
+
 def _aviso(caminho, n):
     return f"chave repetida: {caminho} ({n} ocorrências; valeu a última)"
 
@@ -627,6 +731,76 @@ CASOS = [
         _com_campos("", despesas='[[{"a": 1, "a": 2}]]'),
         _caso_chave_repetida_em_elemento_lista,
         id="Chave repetida em elemento que é lista",
+    ),
+    pytest.param(
+        _json(_hospedagem(data="2026-07-14"),
+              despesa(id="t", data="2026-07-14", categoria="transporte_urbano",
+                      fornecedor="Táxi", valor=Decimal("110.00"),
+                      tem_nota_fiscal=False)),
+        _caso_limite_de_nota_em_viagem,
+        id="Limite de nota em viagem",
+    ),
+    pytest.param(
+        _json(_hospedagem(id="sem", data="2026-07-14", valor=Decimal("90.00"),
+                          tem_nota_fiscal=False),
+              _hospedagem(id="com", data="2026-07-14", valor=Decimal("90.00")),
+              despesa(id="a", data="2026-07-15", valor=Decimal("80.00"))),
+        _caso_hospedagem_duplicata_so_uma_com_nota,
+        id="Duplicata de hospedagem só uma com nota",
+    ),
+    pytest.param(
+        _json(_hospedagem(id="com", data="2026-07-14", valor=Decimal("90.00")),
+              _hospedagem(id="sem", data="2026-07-14", valor=Decimal("90.00"),
+                          tem_nota_fiscal=False),
+              despesa(id="a", data="2026-07-15", valor=Decimal("80.00"))),
+        _caso_hospedagem_duplicata_so_uma_com_nota,
+        id="Duplicata de hospedagem só uma com nota (ordem inversa)",
+    ),
+    pytest.param(
+        _json(_hospedagem(data="2026-07-14", valor=Decimal("480.00"),
+                          descricao="2 diarias"),
+              despesa(id="a15", data="2026-07-15", valor=Decimal("10.00")),
+              despesa(id="a16", data="2026-07-16", valor=Decimal("10.00"))),
+        _caso_hospedagem_varias_diarias,
+        id="Hospedagem com várias diárias na descrição",
+    ),
+    pytest.param(
+        _json(_hospedagem(data="2026-07-14"),
+              despesa(id="a", data="2026-07-15", valor=Decimal("80.00"))),
+        _caso_dia_seguinte_a_diaria,
+        id="Dia seguinte à diária",
+    ),
+    pytest.param(
+        _json(_hospedagem(data="2026-07-14"),
+              despesa(id="a", data="2026-07-16", valor=Decimal("80.00"))),
+        _caso_dois_dias_depois_da_diaria,
+        id="Dois dias depois da diária",
+    ),
+    pytest.param(
+        _json(_hospedagem(data="2026-07-03", valor=Decimal("80.00"),
+                          tem_nota_fiscal=False),
+              despesa(id="a", data="2026-07-03", valor=Decimal("90.00"))),
+        _caso_hospedagem_sem_nota_ate_100,
+        id="Hospedagem sem nota até 100",
+    ),
+    pytest.param(
+        _json(_hospedagem(data="2026-07-14", valor=Decimal("690.00"),
+                          tem_nota_fiscal=False),
+              despesa(id="a", data="2026-07-14", valor=Decimal("80.00"))),
+        _caso_hospedagem_sem_nota_acima_de_100,
+        id="Hospedagem sem nota acima de 100",
+    ),
+    pytest.param(
+        _json(_hospedagem(data="2026-06-30"),
+              despesa(id="a", data="2026-07-01", valor=Decimal("80.00"))),
+        _caso_hospedagem_fora_do_periodo,
+        id="Hospedagem fora do período",
+    ),
+    pytest.param(
+        _json(despesa(id="a", data="2026-07-14", valor=Decimal("80.00")),
+              _hospedagem(data="2026-07-14")),
+        _caso_alimentacao_antes_da_hospedagem,
+        id="Alimentação antes da hospedagem na entrada, mesma data",
     ),
 ]
 

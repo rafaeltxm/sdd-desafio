@@ -1,7 +1,7 @@
 """Limite diário por categoria: RN-009, AMB-001, AMB-002, AMB-003, AMB-006, AMB-017.
 
-Até a T-018 não há viagem: os casos usam datas sem hospedagem com nota, ou não
-conferem `em_viagem`/limite de alimentação e transporte nessas datas.
+Os casos de alimentação e transporte usam datas sem hospedagem com nota (fora de
+viagem); os limites em viagem estão em `test_rn010_viagem.py`.
 """
 
 from decimal import Decimal

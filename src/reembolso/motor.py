@@ -1,6 +1,6 @@
 """Etapas 2 a 9 da seção 8 da spec: Entrada → Resultado."""
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
 from reembolso.justificativa import justificar
@@ -16,7 +16,9 @@ from reembolso.modelo import (
     Totais,
 )
 from reembolso.politica import (
+    CATEGORIA_QUE_COMPROVA_VIAGEM,
     CATEGORIAS_RECONHECIDAS,
+    DIAS_EM_VIAGEM_APOS_HOSPEDAGEM,
     LIMITES_DIARIOS,
     VALOR_ACIMA_DO_QUAL_EXIGE_NOTA,
 )
@@ -142,13 +144,34 @@ def _separar_duplicatas(
     return originais, duplicatas
 
 
-def _aplicar_limite(despesas: list[Despesa]) -> dict[int, ItemResultado]:
-    """Etapa 9 (RN-009): saldo por (data, categoria), consumido na ordem da entrada."""
+def _dias_em_viagem(despesas: list[Despesa]) -> set[date]:
+    """Etapa 8 (RN-010, AMB-004): {D, D+1} de cada hospedagem com nota fiscal
+    entre as despesas que passaram pelas etapas 1 a 7."""
+    dias = set()
+    for despesa in despesas:
+        if (
+            despesa.categoria == CATEGORIA_QUE_COMPROVA_VIAGEM
+            and despesa.tem_nota_fiscal
+        ):
+            for dias_depois in range(DIAS_EM_VIAGEM_APOS_HOSPEDAGEM + 1):
+                # D+1 depois de 9999-12-31 não existe: nenhuma despesa cai nele
+                if despesa.data <= date.max - timedelta(days=dias_depois):
+                    dias.add(despesa.data + timedelta(days=dias_depois))
+    return dias
+
+
+def _aplicar_limite(
+    despesas: list[Despesa], dias_em_viagem: set[date]
+) -> dict[int, ItemResultado]:
+    """Etapa 9 (RN-009): saldo por (data, categoria), consumido na ordem da entrada;
+    limite em viagem nas datas da etapa 8 (RN-010, AMB-006)."""
     saldos: dict[tuple[date, str], Decimal] = {}
     itens = {}
     for despesa in sorted(despesas, key=lambda d: d.posicao):
         considerado = arredondar(despesa.valor_informado)
-        limite = LIMITES_DIARIOS[despesa.categoria].normal
+        em_viagem = despesa.data in dias_em_viagem
+        limites = LIMITES_DIARIOS[despesa.categoria]
+        limite = limites.viagem if em_viagem else limites.normal
         chave = (despesa.data, despesa.categoria)
         saldo = saldos.get(chave, limite)
         reembolsado = min(considerado, saldo)
@@ -163,7 +186,7 @@ def _aplicar_limite(despesas: list[Despesa]) -> dict[int, ItemResultado]:
             valor_reembolsado=reembolsado,
             status=status,
             motivo=motivo,
-            em_viagem=False,
+            em_viagem=em_viagem,
             limite_diario=limite,
             justificativa=justificar(
                 status,
@@ -219,7 +242,7 @@ def calcular(entrada: Entrada) -> Resultado:
         por_posicao[despesa.posicao] = _item_recusado(
             despesa, arredondar(despesa.valor_informado), Motivo.DUPLICATA
         )
-    por_posicao.update(_aplicar_limite(originais))
+    por_posicao.update(_aplicar_limite(originais, _dias_em_viagem(originais)))
     itens = [
         por_posicao[d.posicao] if isinstance(d, Despesa) else _item_invalido(d)
         for d in entrada.despesas
