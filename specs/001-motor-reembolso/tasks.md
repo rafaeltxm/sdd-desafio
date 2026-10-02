@@ -133,13 +133,13 @@ O motor segue o DT-005: fase individual (lista ordenada de verificações, etapa
   - **Casos de borda:** Primeiro e último dia do período · Um dia fora do período · Despesa antiga lançada no período
   - **Commit:** `0f4805d`
 
-- [ ] **T-015** — Categoria: etapa 5, `categoria_fora_da_politica` para categoria normalizada fora das três reconhecidas; categoria reconhecida sai normalizada.
+- [x] **T-015** — Categoria: etapa 5, `categoria_fora_da_politica` para categoria normalizada fora das três reconhecidas; categoria reconhecida sai normalizada.
   - **Tipo:** regra
   - **Atende:** RN-006, AMB-011, AMB-012
   - **Depende de:** T-014
   - **Aceite:** `tests/test_rn006_categorias.py` passa: `ALIMENTACAO`, `" Alimentacao "`, `"alimentacao\t"`, `alimentação` → `alimentacao` na saída e limite de alimentação; `"Transporte Urbano"`, `"transporte-urbano"` → `transporte_urbano`; `coworking` → `categoria_fora_da_politica`, `categoria` `coworking` na saída, item presente (não omitido); despesa fora do período com categoria desconhecida → `fora_do_periodo` (etapa 4 vem antes).
   - **Casos de borda:** Categoria em maiúsculas · Categoria com acento · Categoria com separador diferente · Categoria com tabulação no fim
-  - **Commit:**
+  - **Commit:** `154c679`
 
 - [ ] **T-016** — Nota fiscal: etapa 6, `nota_fiscal_ausente` para `valor_considerado` > 100,00 sem nota, comparando o valor individual antes do limite.
   - **Tipo:** regra
