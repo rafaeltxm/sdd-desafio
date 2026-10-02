@@ -61,12 +61,12 @@ O esperado de todo teste é calculado à mão a partir da spec, nunca copiado da
 
 ## Fase 2 — Entrada (RN-002, RN-013)
 
-- [ ] **T-006** — Leitura do JSON estrito: bytes → documento, com `utf-8-sig`, `simplejson` (`use_decimal=True`, `parse_int=Decimal`) e verificação de caractere substituto isolado em chaves e textos; qualquer falha vira `ErroDeArquivo` (DT-001, DT-002).
+- [x] **T-006** — Leitura do JSON estrito: bytes → documento, com `utf-8-sig`, `simplejson` (`use_decimal=True`, `parse_int=Decimal`) e verificação de caractere substituto isolado em chaves e textos; qualquer falha vira `ErroDeArquivo` (DT-001, DT-002).
   - **Tipo:** estrutura (leitura de JSON)
   - **Atende:** RN-002 (arquivo que não é JSON válido; escape que não forma caractere válido), seção 4 da spec (número pelo valor decimal exato; texto depois de decodificados os escapes), DT-001, DT-002
   - **Depende de:** T-001
   - **Aceite:** `tests/test_leitura_json.py` passa: `test_rn002_nan_e_erro_de_arquivo` (`NaN`, `Infinity`, `-Infinity`); `test_rn002_json_malformado_e_erro_de_arquivo`; `test_rn002_utf8_invalido_e_erro_de_arquivo`; `test_rn002_escape_sem_par_em_valor_e_erro_de_arquivo` e `..._em_chave_...` (`\ud800`); `test_bom_e_aceito`; `test_numero_lido_pelo_valor_exato` (`33.333`, `999999999.99999999999`, `1e999999`, `1e-999999` e inteiro de 5.000 dígitos lidos como `Decimal` exato, sem erro); `test_escapes_validos_decodificados` (`"2026-07-03"` → `2026-07-03`; emoji em par de escapes igual ao emoji direto).
-  - **Commit:**
+  - **Commit:** e84693c
 
 - [ ] **T-007** — Chaves repetidas: `ObjetoJson` via `object_pairs_hook` (vale a última ocorrência) e percurso que gera os avisos do topo e de cada elemento de `despesas`, com texto, caminho, contagem e ordem da RN-013 (DT-010).
   - **Tipo:** regra
