@@ -157,13 +157,13 @@ O motor segue o DT-005: fase individual (lista ordenada de verificações, etapa
   - **Casos de borda:** Duplicata exata · Fornecedor com acento · Fornecedor com espaços internos · Quase duplicata · Cópias idênticas sem nota acima de 100 · Relançamento com nota
   - **Commit:** `555a85e`
 
-- [ ] **T-018** — Viagem: etapa 8, antes do limite, `dias_em_viagem` = {D, D+1} de cada hospedagem com nota que passou pelas etapas 1 a 7; nessas datas, limites de alimentação e transporte em viagem; `em_viagem` verdadeiro no item.
+- [x] **T-018** — Viagem: etapa 8, antes do limite, `dias_em_viagem` = {D, D+1} de cada hospedagem com nota que passou pelas etapas 1 a 7; nessas datas, limites de alimentação e transporte em viagem; `em_viagem` verdadeiro no item.
   - **Tipo:** regra
   - **Atende:** RN-010, RN-012 (parte de viagem), AMB-004, AMB-005, AMB-006
   - **Depende de:** T-017
   - **Aceite:** `tests/test_rn010_viagem.py` passa: hospedagem com nota em 14/07 → 14/07 e 15/07 em viagem; alimentação 80,00 em 15/07 → limite 90,00, `aprovado`; alimentação 80,00 em 16/07 → limite 60,00, `parcial` com 60,00; transporte em viagem → limite 120,00; hospedagem em viagem continua com limite 250,00; hospedagem 80,00 sem nota → reembolsada, mas data não fica em viagem; hospedagem com nota recusada nas etapas 1 a 7 (fora do período, duplicata) não comprova viagem; hospedagem com nota que recebe 0 no limite (terceira do dia) comprova viagem; alimentação antes da hospedagem na entrada → em viagem; hospedagem em 31/07 põe 01/08 em viagem sem efeito (fora do período). `test_rn012_hospedagem_uma_diaria.py`: 480,00 com nota em 14/07 → 14/07 e 15/07 em viagem, não 16/07.
   - **Casos de borda:** Limite de nota em viagem · Duplicata de hospedagem só uma com nota · Hospedagem com várias diárias na descrição · Dia seguinte à diária · Dois dias depois da diária · Hospedagem sem nota até 100 · Hospedagem sem nota acima de 100 · Hospedagem fora do período · Alimentação antes da hospedagem na entrada, mesma data
-  - **Commit:**
+  - **Commit:** b1cb651
 
 ## Fase 4 — Saída e CLI
 
