@@ -6,6 +6,7 @@ from decimal import Decimal
 import pytest
 import simplejson
 
+from conftest import construir_despesa
 from reembolso.entrada import ErroDeArquivo, ler_entrada, ler_json, validar_cabecalho
 from reembolso.modelo import Colaborador, Despesa, DespesaInvalida
 
@@ -728,3 +729,176 @@ def test_rn002_ler_entrada_propaga_erro_de_arquivo(entrada):
     del documento["colaborador"]
     with pytest.raises(ErroDeArquivo):
         ler_entrada(simplejson.dumps(documento).encode())
+
+
+# --- saída da despesa inválida (T-011) ---
+
+
+def _sem_nota(**campos):
+    """Despesa sem `tem_nota_fiscal` (campo obrigatório ausente → inválida)."""
+    documento = construir_despesa(**campos)
+    del documento["tem_nota_fiscal"]
+    return documento
+
+
+def _invalido(item):
+    """RN-002: recusado, `entrada_invalida`, sem valor considerado, reembolso 0."""
+    assert item["status"] == "recusado"
+    assert item["motivo"] == "entrada_invalida"
+    assert item["valor_considerado"] is None
+    assert item["valor_reembolsado"] == 0
+    assert item["em_viagem"] is None
+    assert item["limite_diario"] is None
+    assert item["justificativa"]
+
+
+def test_rn002_sem_tem_nota_fiscal_sai_recusado_fora_dos_totais(avaliar, despesa):
+    """RN-002: sem `tem_nota_fiscal`, 33.333 → `entrada_invalida`, fora dos totais;
+    as demais são processadas normalmente (e não perdem limite)."""
+    saida = avaliar(
+        _sem_nota(id="d-1", valor=Decimal("33.333")),
+        despesa(id="d-2", valor=Decimal("60.00")),
+    )
+
+    invalida, valida = saida["itens"]
+    _invalido(invalida)
+    assert invalida["id"] == "d-1"
+    assert invalida["data"] == "2026-07-03"
+    assert invalida["valor_informado"] == Decimal("33.333")
+    # a inválida não consome limite: 60,00 ≤ 60,00 → aprovado com 60,00
+    assert valida["status"] == "aprovado"
+    assert valida["valor_reembolsado"] == Decimal("60.00")
+    # só a válida entra: solicitado 60,00, reembolsado 60,00, glosado 0
+    assert saida["totais"] == {
+        "valor_solicitado": Decimal("60.00"),
+        "valor_reembolsado": Decimal("60.00"),
+        "valor_glosado": Decimal("0"),
+    }
+
+
+def test_rn002_elemento_null_sai_com_id_data_e_categoria_nulos(processar):
+    """RN-002: `null` em `despesas` → item com `id`, `data`, `categoria` nulos."""
+    saida = processar(
+        '{"colaborador": {"id": "c-1", "nome": "Ana"}, '
+        '"periodo": {"inicio": "2026-07-01", "fim": "2026-07-31"}, '
+        '"despesas": [null]}'
+    )
+
+    (item,) = saida["itens"]
+    _invalido(item)
+    assert (item["id"], item["data"], item["categoria"]) == (None, None, None)
+    assert item["valor_informado"] is None
+
+
+def test_rn002_id_numero_sai_com_id_nulo(avaliar, despesa):
+    """RN-002: `"id": 17` → `entrada_invalida`, `id` nulo na saída."""
+    (item,) = avaliar(despesa(id=17))["itens"]
+    _invalido(item)
+    assert item["id"] is None
+    assert item["data"] == "2026-07-03"
+    assert item["categoria"] == "alimentacao"
+
+
+@pytest.mark.parametrize("fornecedor", ["", "   ", "-"])
+def test_rn002_fornecedor_vazio_sai_entrada_invalida(avaliar, despesa, fornecedor):
+    """RN-002: `fornecedor` `""`, `"   "` ou `"-"` → `entrada_invalida`."""
+    (item,) = avaliar(despesa(fornecedor=fornecedor))["itens"]
+    _invalido(item)
+
+
+def test_rn002_competencia_numero_processamento_normal(avaliar, despesa):
+    """RN-002: `competencia` 202607 → `competencia` nula, despesa avaliada."""
+    saida = avaliar(
+        despesa(valor=Decimal("50.00")),
+        periodo={"competencia": Decimal("202607"), "inicio": "2026-07-01",
+                 "fim": "2026-07-31"},
+    )
+
+    assert saida["periodo"]["competencia"] is None
+    (item,) = saida["itens"]
+    # 50,00 ≤ 60,00 → aprovado
+    assert (item["status"], item["valor_reembolsado"]) == ("aprovado", Decimal("50.00"))
+
+
+def test_rn002_categoria_reconhecida_em_invalida_sai_normalizada_na_saida(avaliar):
+    """RN-002 / RN-006: `"ALIMENTACAO"` sem `tem_nota_fiscal` → `alimentacao`."""
+    (item,) = avaliar(_sem_nota(categoria="ALIMENTACAO"))["itens"]
+    _invalido(item)
+    assert item["categoria"] == "alimentacao"
+
+
+def test_rn002_hospedagem_com_noites_e_avaliada_como_uma_diaria(avaliar, despesa):
+    """RN-002 / RN-012: `"noites": 2` é ignorado → uma diária de 250,00."""
+    (item,) = avaliar(
+        despesa(categoria="hospedagem", valor=Decimal("480.00"), noites=2)
+    )["itens"]
+    # min(480,00; 250,00) = 250,00 (não 2 × 250,00) → parcial
+    assert item["status"] == "parcial"
+    assert item["valor_reembolsado"] == Decimal("250.00")
+    assert item["limite_diario"] == Decimal("250.00")
+
+
+def test_amb018_valor_um_bilhao_sai_entrada_invalida_fora_dos_totais(avaliar, despesa):
+    """RN-002 / AMB-018: `valor` 1000000000 → `entrada_invalida`, copiado, fora
+    dos totais."""
+    saida = avaliar(despesa(valor=Decimal("1000000000")))
+
+    (item,) = saida["itens"]
+    _invalido(item)
+    assert item["valor_informado"] == Decimal("1000000000")
+    assert saida["totais"] == {
+        "valor_solicitado": 0, "valor_reembolsado": 0, "valor_glosado": 0,
+    }
+
+
+def test_amb018_negativo_gigante_e_expoente_enorme_saem_entrada_invalida(processar):
+    """RN-002 / AMB-018: `-1e12` → `entrada_invalida` (não `valor_invalido`);
+    `1e999999` → `entrada_invalida` com `valor_informado` 10^999999."""
+    saida = processar(
+        '{"colaborador": {"id": "c-1", "nome": "Ana"}, '
+        '"periodo": {"inicio": "2026-07-01", "fim": "2026-07-31"}, '
+        '"despesas": ['
+        '{"id": "d-1", "data": "2026-07-03", "categoria": "alimentacao", '
+        '"fornecedor": "R", "valor": -1e12, "tem_nota_fiscal": true}, '
+        '{"id": "d-2", "data": "2026-07-03", "categoria": "alimentacao", '
+        '"fornecedor": "R", "valor": 1e999999, "tem_nota_fiscal": true}]}'
+    )
+
+    negativo, enorme = saida["itens"]
+    _invalido(negativo)
+    assert negativo["valor_informado"] == Decimal("-1E+12")
+    _invalido(enorme)
+    assert enorme["valor_informado"] == Decimal("1E+999999")
+
+
+@pytest.mark.parametrize(
+    "valor", [Decimal("999999999.995"), Decimal("999999999.99999999999")]
+)
+def test_amb018_valor_logo_abaixo_do_teto_segue(avaliar, despesa, valor):
+    """RN-002 / RN-003 / AMB-018: teto sobre o número recebido → segue com
+    `valor_considerado` 1000000000.00."""
+    (item,) = avaliar(despesa(categoria="hospedagem", valor=valor))["itens"]
+    assert item["valor_informado"] == valor
+    assert item["valor_considerado"] == Decimal("1000000000.00")
+    # min(1.000.000.000,00; 250,00) = 250,00 → parcial
+    assert item["status"] == "parcial"
+    assert item["valor_reembolsado"] == Decimal("250.00")
+
+
+def test_rn001_invalida_entre_validas_mantem_posicao_e_nao_consome_limite(
+    avaliar, despesa
+):
+    """RN-001 / RN-002: [válida, inválida, válida] no mesmo dia e categoria → mesma
+    ordem na saída; só as válidas consomem o limite."""
+    saida = avaliar(
+        despesa(id="a", valor=Decimal("40.00")),
+        _sem_nota(id="b", valor=Decimal("50.00")),
+        despesa(id="c", valor=Decimal("30.00")),
+    )
+
+    a, b, c = saida["itens"]
+    assert [a["id"], b["id"], c["id"]] == ["a", "b", "c"]
+    _invalido(b)
+    # limite 60,00: a recebe 40,00; c recebe min(30,00; 60,00 − 40,00) = 20,00
+    assert (a["status"], a["valor_reembolsado"]) == ("aprovado", Decimal("40.00"))
+    assert (c["status"], c["valor_reembolsado"]) == ("parcial", Decimal("20.00"))
