@@ -1,6 +1,6 @@
 # Spec — Motor de Cálculo de Reembolso
 
-**Versão:** 1.2 · **Status:** aprovada para planejamento · **Última alteração:** 2026-10-01 (ver `DECISIONS.md` D-001 e D-002)
+**Versão:** 1.3 · **Status:** aprovada para planejamento · **Última alteração:** 2026-10-01 (ver `DECISIONS.md` D-001 a D-003)
 
 > **Regra de ouro deste arquivo:** ele descreve o QUÊ e o PORQUÊ. Nenhuma linha
 > aqui pode citar linguagem, biblioteca, classe, função ou estrutura de pasta.
@@ -39,7 +39,8 @@ Dado o conjunto de despesas de um colaborador num período, calcular de forma de
 `<comando> calcular --input <arquivo de entrada> --output <arquivo de saída>`
 
 - Sucesso: grava o arquivo de saída e termina com código 0.
-- Erro de arquivo (RN-002), inclusive quando o arquivo de saída não pode ser gravado: não deixa arquivo de saída, escreve uma mensagem de erro e termina com código diferente de 0.
+- Erro de arquivo (RN-002), inclusive quando o arquivo de saída não pode ser gravado: não cria nem altera o arquivo de saída (se já existia, permanece como estava), escreve uma mensagem de erro e termina com código diferente de 0.
+- Erro de uso (subcomando diferente de `calcular`, `--input` ou `--output` ausentes): mesmo comportamento do erro de arquivo.
 
 ### Entrada
 
@@ -73,7 +74,7 @@ Campos não listados acima são ignorados.
 | `itens` | lista | um item por elemento de `despesas`, **na mesma ordem** |
 | `itens[].id` | texto ou nulo | id da despesa como veio, se for texto; nulo se ausente, se não for texto ou se o elemento não é um objeto |
 | `itens[].data` | texto ou nulo | data da despesa como veio, se for texto; nulo se ausente, se não for texto ou se o elemento não é um objeto |
-| `itens[].categoria` | texto ou nulo | categoria normalizada (RN-006) se reconhecida; senão, como veio, se for texto; nulo se ausente ou não for texto |
+| `itens[].categoria` | texto ou nulo | categoria normalizada (RN-006) se reconhecida, qualquer que seja o status ou o motivo do item (inclusive `entrada_invalida`); senão, como veio, se for texto; nulo se ausente ou não for texto |
 | `itens[].valor_informado` | número ou nulo | o número recebido em `valor`, sem arredondamento; nulo se ausente ou não numérico |
 | `itens[].valor_considerado` | número ou nulo | valor arredondado ao centavo (RN-003); **nulo se a despesa foi recusada por `entrada_invalida`** |
 | `itens[].valor_reembolsado` | número | quanto será reembolsado (0 se recusado) |
@@ -142,13 +143,13 @@ Exemplos: `"Transporte Urbano"`, `"transporte-urbano"` e `" TRANSPORTE__urbano "
 ### RN-002 — Validação da entrada
 
 **Regra:**
-- **Erro de arquivo** (nenhuma saída é deixada): arquivo de entrada ausente ou que não é JSON válido; `colaborador` ausente ou sem `id`/`nome` em texto; `periodo.inicio`, `periodo.fim` ou `despesas` ausentes; `inicio` ou `fim` que não são datas válidas `AAAA-MM-DD`; `inicio` posterior a `fim`; `despesas` que não é lista; arquivo de saída que não pode ser gravado. `periodo.competencia` nunca causa erro: se não for texto, sai nula.
+- **Erro de arquivo** (o arquivo de saída não é criado nem alterado): arquivo de entrada ausente ou que não é JSON válido; `colaborador` ausente ou sem `id`/`nome` em texto, ou com `id`/`nome` vazio ou só com espaços em branco; `periodo.inicio`, `periodo.fim` ou `despesas` ausentes; `inicio` ou `fim` que não são datas válidas `AAAA-MM-DD`; `inicio` posterior a `fim`; `despesas` que não é lista; arquivo de saída que não pode ser gravado. `periodo.competencia` nunca causa erro: se não for texto, sai nula.
 - **Despesa inválida** (vira item `recusado` com motivo `entrada_invalida`; as demais despesas seguem): elemento de `despesas` que não é um objeto; falta `id`, `data`, `categoria`, `fornecedor`, `valor` ou `tem_nota_fiscal`; `data` não é data válida `AAAA-MM-DD`; `valor` não é número; `tem_nota_fiscal` não é booleano; `id`, `categoria` ou `fornecedor` não são texto, ou são texto vazio ou só com espaços em branco.
-- Na saída de uma despesa inválida, `id`, `data` e `categoria` são copiados se forem texto e saem nulos caso contrário (tipo errado, ausente ou elemento que não é objeto).
-- Uma despesa recusada por `entrada_invalida` tem `valor_considerado` nulo, categoria como veio, `em_viagem` e `limite_diario` nulos, e não entra nos totais.
+- Na saída de uma despesa inválida, `id`, `data` e `categoria` são copiados se forem texto e saem nulos caso contrário (tipo errado, ausente ou elemento que não é objeto); a `categoria`, se reconhecida, sai normalizada, como em qualquer item (seção 4).
+- Uma despesa recusada por `entrada_invalida` tem `valor_considerado` nulo, `em_viagem` e `limite_diario` nulos, e não entra nos totais.
 - Campos extras, no arquivo ou nas despesas, são ignorados.
 **Origem:** necessidade operacional (a política não trata entrada malformada); pontos 7 e 9 de D-001.
-**Aceite:** despesa sem `tem_nota_fiscal` com `valor` 33.333 → `recusado`, `entrada_invalida`, `valor_informado` 33.333, `valor_considerado` nulo, fora de `valor_solicitado`; as demais despesas são processadas normalmente. Elemento `null` em `despesas` → item com `id` e `data` nulos, `entrada_invalida`. Arquivo sem `colaborador` → nenhuma saída, código diferente de 0. Hospedagem com campo extra `"noites": 2` → avaliada como uma diária (RN-012). Despesa com `"id": 17` → `entrada_invalida`, `id` nulo na saída. Despesa com `fornecedor` `"   "` → `entrada_invalida`. `competencia` 202607 (número) → processamento normal, `competencia` nula na saída. Caminho de saída em pasta inexistente → nenhuma saída, código diferente de 0.
+**Aceite:** despesa sem `tem_nota_fiscal` com `valor` 33.333 → `recusado`, `entrada_invalida`, `valor_informado` 33.333, `valor_considerado` nulo, fora de `valor_solicitado`; as demais despesas são processadas normalmente. Elemento `null` em `despesas` → item com `id` e `data` nulos, `entrada_invalida`. Arquivo sem `colaborador` → nenhuma saída, código diferente de 0. Hospedagem com campo extra `"noites": 2` → avaliada como uma diária (RN-012). Despesa com `"id": 17` → `entrada_invalida`, `id` nulo na saída. Despesa com `fornecedor` `"   "` → `entrada_invalida`. `competencia` 202607 (número) → processamento normal, `competencia` nula na saída. Caminho de saída em pasta inexistente → nenhuma saída, código diferente de 0. Despesa `"categoria": "ALIMENTACAO"` sem `tem_nota_fiscal` → `entrada_invalida`, `categoria` `alimentacao` na saída. `colaborador.nome` `"  "` → erro de arquivo. Erro de arquivo com arquivo de saída preexistente → o arquivo continua com o conteúdo anterior. Chamada sem `--output` → código diferente de 0.
 
 ### RN-003 — Arredondamento ao centavo
 
@@ -407,6 +408,10 @@ Tipo: **U** = unidade de aplicação · **F** = fronteira · **D** = dado ausent
 | Competência não textual | `competencia` 202607 | processamento normal; `competencia` nula na saída | RN-002 |
 | Saída não gravável | caminho de saída em pasta inexistente | erro de arquivo: código diferente de 0 | RN-002 |
 | Colaborador ausente | arquivo sem `colaborador` | erro de arquivo: sem saída, código diferente de 0 | RN-002 |
+| Colaborador com texto vazio | `colaborador.id` `""` ou `nome` `"  "` | erro de arquivo | RN-002 |
+| Saída preexistente com erro | arquivo de saída já existe; entrada sem `colaborador` | erro de arquivo; o arquivo existente não é alterado | RN-002 |
+| Erro de uso | chamada sem `--input` ou sem `--output`, ou subcomando diferente de `calcular` | mensagem de erro, código diferente de 0, nenhuma saída | seção 4 |
+| Categoria reconhecível em despesa inválida | `"ALIMENTACAO"` sem `tem_nota_fiscal` | `entrada_invalida`; `categoria` `alimentacao` na saída | RN-002, RN-006 |
 | Lista de despesas vazia | `despesas: []` | `itens` vazio, totais 0 | RN-001 |
 | Despesa em sábado | 18/07 (sábado) | avaliada normalmente | AMB-015 |
 
@@ -434,7 +439,7 @@ O sistema está pronto quando:
 - [ ] Cada caso de borda da seção 7 tem um teste automatizado que passa.
 - [ ] Cada regra RN-001 a RN-012 tem pelo menos um teste automatizado que a referencia.
 - [ ] A mesma entrada sempre produz a mesma saída.
-- [ ] Entradas com erro de arquivo (RN-002) terminam com código diferente de 0 e não geram arquivo de saída.
+- [ ] Entradas com erro de arquivo (RN-002) e chamadas com erro de uso (seção 4) terminam com código diferente de 0 e não criam nem alteram o arquivo de saída.
 
 **Resultado esperado para `exemplos/despesas-exemplo.json`** (datas em viagem: 14/07 e 15/07, pela hospedagem d-010 com nota):
 

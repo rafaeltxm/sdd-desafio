@@ -10,6 +10,29 @@ Ordem cronológica inversa: a mais recente primeiro.
 
 ---
 
+## D-003 — Validação final antes do plano: spec 1.2 → 1.3 · `2026-10-01`
+
+**Gatilho:** conferência da spec 1.2 (commit `bdb1eec`) antes de iniciar o `plan.md`, pedida pelo responsável. Saíram uma contradição interna e três lacunas de contrato. As quatro recomendações foram aceitas pelo responsável (sessão `docs/sessions/06-*`).
+
+**O que mudou na spec:**
+
+| # | Ponto | De (1.2) | Para (1.3) | Onde |
+|---|---|---|---|---|
+| 1 | Categoria de despesa `entrada_invalida` (**contradição**) | seção 4: normalizada se reconhecida; RN-002: "como veio" | normalizada se reconhecida, em qualquer status ou motivo; senão, como veio | seção 4, RN-002 |
+| 2 | Arquivo de saída preexistente em erro de arquivo | "não deixa arquivo de saída" (silencioso sobre arquivo já existente) | não cria nem altera o arquivo de saída; um arquivo preexistente permanece como estava | seção 4 (Interface), RN-002, seção 9 |
+| 3 | Erro de uso da CLI | indefinido | subcomando diferente de `calcular` ou `--input`/`--output` ausentes: mensagem de erro, código diferente de 0, saída não criada nem alterada | seção 4 (Interface), seção 9 |
+| 4 | `colaborador.id`/`nome` com texto vazio | aceito (só exigia texto) | erro de arquivo, coerente com o tratamento de texto vazio nas despesas (D-002, ponto 5) | RN-002 |
+
+**Por quê:** o ponto 1 obrigaria o código a escolher entre duas seções; os pontos 2 a 4 deixavam comportamentos observáveis (código de saída, arquivo no disco) sem definição. Recomendações: regra única de categoria (mais simples e já válida para recusas nas etapas 3 e 4); não apagar arquivo do usuário; erro de uso com o mesmo contrato do erro de arquivo; mesmo critério de texto vazio em todo o arquivo.
+
+**O que isso invalidou:** nenhum código ou teste (ainda não existem). Nenhum valor do resultado esperado do exemplo mudou (seção 9). Casos de borda novos: 4 linhas na seção 7.
+
+**Tasks afetadas:** nenhuma (o `tasks.md` ainda não foi escrito).
+
+**Custo:** 2 arquivos (`spec.md`, `DECISIONS.md`); 4 pontos decididos na mesma sessão. Sem nova rodada do `spec-adversary`: as mudanças fecham lacunas apontadas na conferência e não alteram regra de cálculo.
+
+---
+
 ## D-002 — Segunda revisão adversarial: spec 1.1 → 1.2 · `2026-10-01`
 
 **Gatilho:** nova rodada do `spec-adversary` sobre a 1.1 (commit `d35f68d`), focada no que a D-001 mudou: 6 problemas, 1 bloqueante. Decididos um a um pelo responsável (sessão `docs/sessions/05-*`).
