@@ -125,13 +125,13 @@ O motor segue o DT-005: fase individual (lista ordenada de verificações, etapa
   - **Casos de borda:** Estorno · Valor zero · Arredondamento da metade negativa · Valor minúsculo
   - **Commit:** `3c6131a`
 
-- [ ] **T-014** — Período: etapa 4, `fora_do_periodo` para data fora de `[inicio, fim]`.
+- [x] **T-014** — Período: etapa 4, `fora_do_periodo` para data fora de `[inicio, fim]`.
   - **Tipo:** regra
   - **Atende:** RN-005, AMB-009
   - **Depende de:** T-013
   - **Aceite:** `tests/test_rn005_periodo.py` passa: período 2026-07-01 a 2026-07-31 — 2026-04-15 → `fora_do_periodo`; 2026-07-01 e 2026-07-31 → seguem; 2026-06-30 e 2026-08-01 → `fora_do_periodo`; despesa com valor ≤ 0 fora do período → `valor_invalido` (etapa 3 vem antes).
   - **Casos de borda:** Primeiro e último dia do período · Um dia fora do período · Despesa antiga lançada no período
-  - **Commit:**
+  - **Commit:** `0f4805d`
 
 - [ ] **T-015** — Categoria: etapa 5, `categoria_fora_da_politica` para categoria normalizada fora das três reconhecidas; categoria reconhecida sai normalizada.
   - **Tipo:** regra
