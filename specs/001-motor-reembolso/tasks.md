@@ -175,12 +175,12 @@ O motor segue o DT-005: fase individual (lista ordenada de verificações, etapa
   - **Casos de borda:** Saída não gravável · Colaborador ausente · Colaborador com texto vazio · Saída preexistente com erro · Escape sem caractere válido · Erro de uso
   - **Commit:** 00cf730
 
-- [ ] **T-020** — Aceite com o arquivo de exemplo: `exemplos/despesas-exemplo.json` pela CLI contra a tabela da seção 9 da spec, **transcrita à mão** no teste.
+- [x] **T-020** — Aceite com o arquivo de exemplo: `exemplos/despesas-exemplo.json` pela CLI contra a tabela da seção 9 da spec, **transcrita à mão** no teste.
   - **Tipo:** regra
   - **Atende:** seção 9 da spec (critérios de aceite), RN-001 a RN-012
   - **Depende de:** T-019
   - **Aceite:** `tests/test_exemplo.py` passa: as 14 linhas da tabela da seção 9 (considerado, em viagem, limite, reembolsado, status, motivo), totais 1.861,84 / 585,43 / 1.276,41, `avisos` vazios no topo e em todos os itens; `test_determinismo_byte_a_byte` (duas execuções → arquivos idênticos); `test_nenhum_valor_monetario_e_float` (propriedade da DT-001 sobre a saída lida com `Decimal`).
-  - **Commit:**
+  - **Commit:** `45f014f`
 
 - [ ] **T-021** — Rastreabilidade automática: `tests/test_rastreabilidade.py` lê a `spec.md`, extrai todos os `RN-NNN` e todos os valores da coluna "Caso" da seção 7, e falha se algum não tiver teste (RN no nome ou docstring; caso como `id` em `test_casos_de_borda.py`). Preenche a tabela de Cobertura abaixo.
   - **Tipo:** estrutura
