@@ -10,6 +10,38 @@ Ordem cronológica inversa: a mais recente primeiro.
 
 ---
 
+## D-005 — Normalização: só letras e algarismos contam: spec 1.6 → 1.8 · `2026-10-01`
+
+**Gatilho:** revisão independente da T-003 (`docs/reviews/T-003.md`, revisão 1, BLOQUEADO). O passo 4 da seção 5 só tratava sequências **internas** de separadores e o passo 1 só removia espaço em branco das pontas: hífen ou sublinhado no início ou no fim não tinham resultado definido (`"-Bistro"` × `"_Bistro"` mudam a RN-007). O passo 3 não dizia se `ø`, `ł`, `đ` contam como letra com sinal. O responsável decidiu os dois pontos (versão 1.7, não commitada). A rodada do `spec-adversary` sobre a 1.7 apontou 5 problemas (1 bloqueante): o conjunto de "hífens" e de "espaços em branco" não estava fechado (travessão U+2013 colocado pelo editor, espaço de largura zero, BOM, caracteres de controle). O responsável optou por trocar as listas por uma regra única, "só letras e algarismos contam". A rodada do `spec-adversary` sobre essa versão apontou 5 problemas (2 bloqueantes): "letra", "algarismo decimal" e "sinal combinante" sem conjunto definido (`Nº` × `N°`), e "espaço em branco" ainda aberto para `id` e `colaborador`. O responsável aceitou as 5 recomendações (pontos 8 a 12), aplicadas na mesma versão 1.8. A rodada de confirmação não apontou bloqueante; os 4 achados (uma contradição de redação e três cantos do Unicode sem efeito em dados realistas) foram registrados no ponto 13, como combinado com o responsável. Sessão `docs/sessions/13-*`.
+
+**O que mudou na spec:**
+
+| # | Ponto | De (1.6) | Para (1.8) | Onde |
+|---|---|---|---|---|
+| 1 | Separadores | espaço em branco, hífen (`-`) e sublinhado; nas pontas, só espaço em branco removido; hífen e sublinhado nas pontas indefinidos | todo caractere que não é letra nem algarismo decimal é separador (inclui travessão, pontuação, símbolo, emoji, invisível, controle); nas pontas, removido; no meio, cada sequência vale um `_` | seção 5 (passo 3 e exemplos), AMB-011 |
+| 2 | Letras sem decomposição canônica (`ø`, `ł`, `đ`) | indefinido | **ficam como estão**; letra base é a da decomposição canônica do Unicode; risco aceito | seção 5 (passo 2), seção 10 |
+| 3 | Sinal combinante sem letra (sobre hífen, no início, U+0338, seletor de variação) | indefinido | todo sinal combinante é descartado, acompanhe ele uma letra ou não; descartado antes de separar, então `"alimentacao-́"` → `alimentacao` | seção 5 (passo 2) |
+| 4 | Ordem dos passos | pontas → caixa → acentos → separadores internos | caixa → acentos → separadores (pontas e meio juntos) | seção 5 |
+| 5 | Equivalência de caixa | "ignorar maiúsculas/minúsculas", sem dizer qual | equivalência completa de caixa do Unicode (`ß` = `ss`) | seção 5 (passo 1) |
+| 6 | `categoria` ou `fornecedor` só de separadores (`"-"`, `"***"`) | válido; normalizava para vazio e todos os fornecedores "vazios" eram iguais na RN-007 | `entrada_invalida`, como o texto só com espaços | RN-002 (regra e aceite), seção 5, seção 7 (linha "Texto vazio em campo obrigatório") |
+| 7 | Caractere invisível no meio da palavra | — | é separador (`ali_mentacao`); risco aceito | seção 10 |
+| 8 | Conjuntos de "letra", "algarismo decimal" e "sinal combinante" | indefinidos (`Nº` × `N°`, `²`, `١`, sinais com espaço próprio) | categorias Unicode "letra" (inclui `º`, `ª`, `ʼ`), "dígito decimal" (mantido como está) e "marca" (todas as três subcategorias); o passo 2 trata o resultado do passo 1 | seção 5 |
+| 9 | "Espaço em branco" em `id`, `colaborador.id` e `nome` | indefinido (BOM, espaço de largura zero, U+001C a U+001F) | propriedade White_Space do Unicode; os demais não são espaço; `id` e `nome` não são normalizados (`id` `"-"` é válido) | RN-002 |
+| 10 | Fornecedor visualmente idêntico (invisível, letra de outro alfabeto) | risco descrito só para a categoria | risco aceito descrito também para o fornecedor, que não aparece na saída | seção 10 |
+| 11 | Formas de compatibilidade (largura total, sobrescritos) | indefinido | distintas da forma comum; risco aceito | seção 10 |
+| 12 | Comportamentos novos fora da seção 7 | — | **mantido**: exemplos da seção 5 testados na T-003; seção 7 não muda (contagem de 63 casos preservada) | — |
+| 13 | Redação e cantos do Unicode (rodada de confirmação) | "caracteres de controle não são espaço" contradizia tabulação e quebra de linha; letra invisível (U+3164), `º` × `°`, U+0345 e versão do Unicode sem registro | exclusão vale só para controle sem White_Space (tabulação, LF, CR, NEL são espaço); demais casos num risco aceito único | RN-002, seção 10 |
+
+**Por quê:** os pontos 1 e 3 seguem a lógica da AMB-011: separador e sinal solto são diferença de grafia, não de significado (`"alimentacao-"` e `"Transporte – Urbano"` passam a ser reconhecidas). Uma regra única ("só letras e algarismos") fecha o conjunto sem lista de caracteres, que seria incompleta por construção, e qualquer pessoa consegue conferir. O efeito colateral (mais fornecedores iguais, como `"Padaria (Centro)"` = `"Padaria Centro"`) só pesa na RN-007, que também exige mesma data, categoria e valor ao centavo. O ponto 6 vem junto: sem ele, `"-"` e `"?"` viram o mesmo fornecedor e se anulam como duplicatas, enquanto `"   "` já era recusado. O ponto 2 evita tabela manual (alternativa já descartada no DT-004). O ponto 5 registra o comportamento escolhido; raro em dados em português.
+
+**O que isso invalidou:** o DT-004 do `plan.md` (lista fixa de separadores, só `Mn` removido); alinhado na versão 1.1 do plano. Código da T-003 ainda não commitado, ajustado antes do commit. Aceite da T-009 ganha o texto que normaliza para vazio. Nenhum valor do exemplo (seção 9) mudou: as categorias e fornecedores do arquivo só têm letras ASCII, espaço simples e, em `transporte_urbano`, sublinhado interno, que continua valendo `_`.
+
+**Tasks afetadas:** T-003 (aceite com separadores de qualquer tipo, sinal solto, `ø`, `ß`, `º`, `²`), T-008 e T-009 (espaço em branco pela propriedade White_Space; texto normalizado vazio).
+
+**Custo:** 4 arquivos (`spec.md`, `DECISIONS.md`, `plan.md`, `tasks.md`); 13 pontos decididos na mesma sessão. Três rodadas do `spec-adversary` (sobre a 1.7, sobre a primeira redação da 1.8 e de confirmação sobre a 1.8 final).
+
+---
+
 ## D-004 — Valor gigante e chave repetida: spec 1.3 → 1.6 · `2026-10-01`
 
 **Gatilho:** escrita do `plan.md` 1.0. Ao verificar como o código leria o arquivo, apareceram duas entradas válidas no formato cujo resultado a spec não definia. O responsável decidiu as duas (versão 1.4, não commitada). A rodada do `spec-adversary` sobre a 1.4 apontou 4 problemas (1 bloqueante) nas próprias decisões; o responsável aceitou as 4 recomendações, aplicadas na 1.5 (pontos 3 a 6). A rodada sobre a 1.5 apontou 4 problemas, nenhum bloqueante; o responsável aceitou as 4 recomendações, aplicadas na 1.6 (pontos 7 a 10). Sessão `docs/sessions/07-*`.
