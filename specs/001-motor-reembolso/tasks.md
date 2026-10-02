@@ -109,13 +109,13 @@ O motor segue o DT-005: fase individual (lista ordenada de verificações, etapa
   - **Casos de borda:** Campo obrigatório ausente · Elemento que não é objeto · Campo extra · Campo com tipo errado · Texto vazio em campo obrigatório · Competência não textual · Texto com escapes válidos · Categoria reconhecível em despesa inválida · Valor a partir de um bilhão · Valor logo abaixo de um bilhão · Valor negativo gigante · Valor com expoente enorme · Muitas casas logo abaixo do teto
   - **Commit:** c576a24
 
-- [ ] **T-012** — Avisos de chave repetida na saída: avisos da T-007 chegam a `itens[].avisos` e a `avisos` do topo, sem mudar status, motivo nem valores, inclusive em item recusado.
+- [x] **T-012** — Avisos de chave repetida na saída: avisos da T-007 chegam a `itens[].avisos` e a `avisos` do topo, sem mudar status, motivo nem valores, inclusive em item recusado.
   - **Tipo:** regra
   - **Atende:** RN-013, AMB-019
   - **Depende de:** T-011
   - **Aceite:** `tests/test_rn013_chave_repetida.py` passa os testes de ponta a ponta: o **Aceite** da RN-013 verificado na saída (despesa avaliada com 50,00 e aviso no item; `colaborador.nome` no topo com itens de `avisos` vazio; `tem_nota_fiscal` `true` e depois `"sim"` → `entrada_invalida` com aviso; `"valor"` 90,00 → `parcial` com 60,00 e aviso).
   - **Casos de borda:** Chave repetida na despesa · Chave repetida fora das despesas · Chave repetida dentro de valor descartado · Mesma chave aninhada no valor descartado e no que valeu · Chave repetida escrita com escape · Lista dentro de lista no caminho · Chave repetida mil vezes · Chave repetida em elemento que é lista
-  - **Commit:**
+  - **Commit:** b787957
 
 - [ ] **T-013** — Valor positivo: etapa 3, `valor_invalido` para `valor_considerado` ≤ 0.
   - **Tipo:** regra
