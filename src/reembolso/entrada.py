@@ -1,9 +1,13 @@
 """bytes → JSON → Entrada; erros de arquivo e despesas inválidas (RN-002, RN-013)."""
 
+import re
 from collections import Counter
+from datetime import date
 from decimal import Decimal
 
 import simplejson
+
+from reembolso.modelo import Colaborador, Periodo
 
 
 class ErroDeArquivo(Exception):
@@ -112,3 +116,70 @@ def avisos_de_chave_repetida(documento):
 
     _percorrer(documento, None, topo, ao_descer=separar_despesas)
     return tuple(topo), tuple(por_despesa)
+
+
+_FORMATO_DATA = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+
+
+def _data(valor) -> date | None:
+    """Data válida `AAAA-MM-DD` com dígitos ASCII, ou `None` (DT-003)."""
+    if not isinstance(valor, str) or not _FORMATO_DATA.fullmatch(valor):
+        return None
+    try:
+        return date.fromisoformat(valor)
+    except ValueError:
+        return None
+
+
+def _tem_texto(valor) -> bool:
+    """Texto com algum caractere fora do espaço em branco (White_Space, RN-002).
+
+    `str.isspace()` também aceita U+001C a U+001F, que não são White_Space (DT-003).
+    """
+    return isinstance(valor, str) and any(
+        not c.isspace() or c in "\x1c\x1d\x1e\x1f" for c in valor
+    )
+
+
+def validar_cabecalho(documento) -> tuple[Colaborador, Periodo, list]:
+    """`colaborador`, `periodo` e `despesas` da raiz; erro → `ErroDeArquivo` (RN-002).
+
+    Valida só os valores que valeram por chave repetida (RN-013, D-006). Os
+    elementos de `despesas` são devolvidos sem validar (etapa 1 da seção 8).
+    """
+    raiz = documento if isinstance(documento, dict) else {}
+
+    colaborador = raiz.get("colaborador")
+    if not isinstance(colaborador, dict):
+        raise ErroDeArquivo("colaborador ausente ou não é objeto")
+    for campo in ("id", "nome"):
+        if not _tem_texto(colaborador.get(campo)):
+            raise ErroDeArquivo(f"colaborador.{campo} ausente ou vazio")
+
+    periodo = raiz.get("periodo")
+    if not isinstance(periodo, dict):
+        periodo = {}
+    datas = {}
+    for campo in ("inicio", "fim"):
+        datas[campo] = _data(periodo.get(campo))
+        if datas[campo] is None:
+            raise ErroDeArquivo(f"periodo.{campo} ausente ou não é data AAAA-MM-DD")
+    if datas["inicio"] > datas["fim"]:
+        raise ErroDeArquivo("periodo.inicio posterior a periodo.fim")
+
+    despesas = raiz.get("despesas")
+    if not isinstance(despesas, list):
+        raise ErroDeArquivo("despesas ausente ou não é lista")
+
+    competencia = periodo.get("competencia")
+    return (
+        Colaborador(id=colaborador["id"], nome=colaborador["nome"]),
+        Periodo(
+            inicio=datas["inicio"],
+            fim=datas["fim"],
+            inicio_texto=periodo["inicio"],
+            fim_texto=periodo["fim"],
+            competencia=competencia if isinstance(competencia, str) else None,
+        ),
+        despesas,
+    )
