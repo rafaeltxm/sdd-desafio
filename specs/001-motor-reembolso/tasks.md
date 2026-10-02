@@ -1,6 +1,6 @@
 # Tasks — Motor de Cálculo de Reembolso
 
-**Versão:** 1.0 · **Baseado em:** spec 1.6, plan 1.0
+**Versão:** 1.1 · **Baseado em:** spec 1.8, plan 1.1
 
 > Cada task é pequena o bastante para virar **um commit**. Se você não consegue
 > descrever o critério de aceite como "o teste X passa", a task está grande demais.
@@ -38,11 +38,11 @@ O esperado de todo teste é calculado à mão a partir da spec, nunca copiado da
   - **Aceite:** `tests/test_politica.py` passa: `test_rn009_limites_conferem_tabela_da_spec` (60/90, 80/120, 250/250), `test_rn006_tres_categorias_reconhecidas`, `test_rn008_valor_de_nota_e_100`, `test_rn002_teto_de_um_bilhao`, `test_rn010_viagem_cobre_d_e_d_mais_1`, `test_motivos_na_ordem_da_secao_8`; todas as constantes monetárias são `Decimal`.
   - **Commit:** 6e1f498
 
-- [ ] **T-003** — Normalização de texto: `normalizar_texto()` com os 4 passos da seção 5 da spec (DT-004).
+- [ ] **T-003** — Normalização de texto: `normalizar_texto()` com os passos da seção 5 da spec (DT-004).
   - **Tipo:** regra
-  - **Atende:** seção 5 da spec (normalização), AMB-011; usada por RN-006 e RN-007
+  - **Atende:** seção 5 da spec (normalização), AMB-011, D-005; usada por RN-002, RN-006 e RN-007
   - **Depende de:** T-001
-  - **Aceite:** `tests/test_normalizacao.py` passa: exemplos da seção 5 (`"Transporte Urbano"`, `"transporte-urbano"`, `" TRANSPORTE__urbano "` → `transporte_urbano`; `"Pão  Quente"`, `"pao-quente"` → `pao_quente`); acento pré-composto e combinante dão o mesmo resultado; `ç`, `ô`, `ü`, `ñ`; tabulação, quebra de linha e espaço não separável nas pontas; mistura de espaço, hífen e sublinhado internos vira um `_`.
+  - **Aceite:** `tests/test_normalizacao.py` passa: exemplos da seção 5 (`"Transporte Urbano"`, `"transporte-urbano"`, `" TRANSPORTE__urbano "`, `"Transporte – Urbano"` → `transporte_urbano`; `"Pão  Quente"`, `"pao-quente"` → `pao_quente`; `"-Bistro"`, `"_Bistro"`, `"Bistro -"`, `" -_Bistro"` → `bistro`; `"Padaria (Centro)"` → `padaria_centro`; `"McDonald's"` → `mcdonald_s`; `"Straße"` → `strasse`; `"Padaria Nº 1"` → `padaria_nº_1` e `"Padaria N° 1"` → `padaria_n_1`; `"Loja²"` → `loja`; `"Smørrebrød"` → `smørrebrød`; `"-"` → vazio); acento pré-composto e combinante dão o mesmo resultado; `ç`, `ô`, `ü`, `ñ`; sinal combinante solto (no início, sobre hífen no fim) é descartado; tabulação, quebra de linha, espaço não separável, espaço de largura zero e caractere de controle nas pontas; mistura de separadores internos de qualquer tipo vira um `_`; letras de qualquer alfabeto e algarismos decimais de qualquer escrita são mantidos como estão; número que não é dígito decimal (`²`, `½`) é separador.
   - **Commit:**
 
 - [ ] **T-004** — Justificativa: `justificativa.py` gera a frase em português de um item já decidido, para cada status e motivo, com formatação própria `1.234,56` e `DD/MM` sem `locale` (DT-009).
@@ -79,14 +79,14 @@ O esperado de todo teste é calculado à mão a partir da spec, nunca copiado da
   - **Tipo:** regra
   - **Atende:** RN-002 (erro de arquivo), seção 4 da spec (Entrada), DT-003
   - **Depende de:** T-006
-  - **Aceite:** `tests/test_rn002_validacao_da_entrada.py` passa os testes de cabeçalho: `colaborador` ausente; `id`/`nome` ausentes, não texto, vazios ou só com espaços em branco (inclusive espaço não separável); `periodo.inicio`, `periodo.fim` ou `despesas` ausentes; `inicio`/`fim` que não são `AAAA-MM-DD` válidas (`2026-7-1`, `20260701`, `2026-02-30`, dígitos não ASCII); `inicio` posterior a `fim` → `ErroDeArquivo`. `inicio` igual a `fim` → válido. `despesas: []` → válido. `competencia` `202607` → nula, sem erro; `competencia` `"julho"` → copiada. `centro_custo` ausente → válido.
+  - **Aceite:** `tests/test_rn002_validacao_da_entrada.py` passa os testes de cabeçalho: `colaborador` ausente; `id`/`nome` ausentes, não texto, vazios ou só com espaços em branco (inclusive espaço não separável); `nome` só de U+200B, BOM ou U+001F → válido (não é espaço em branco, RN-002); `periodo.inicio`, `periodo.fim` ou `despesas` ausentes; `inicio`/`fim` que não são `AAAA-MM-DD` válidas (`2026-7-1`, `20260701`, `2026-02-30`, dígitos não ASCII); `inicio` posterior a `fim` → `ErroDeArquivo`. `inicio` igual a `fim` → válido. `despesas: []` → válido. `competencia` `202607` → nula, sem erro; `competencia` `"julho"` → copiada. `centro_custo` ausente → válido.
   - **Commit:**
 
 - [ ] **T-009** — Validação da despesa: cada elemento de `despesas` vira `Despesa` (válida) ou `DespesaInvalida` (etapa 1 da seção 8), com `categoria_saida` normalizada se reconhecida e os avisos da T-007 anexados.
   - **Tipo:** regra
   - **Atende:** RN-002 (despesa inválida), AMB-018, DT-003
   - **Depende de:** T-003, T-007, T-008
-  - **Aceite:** `tests/test_rn002_validacao_da_entrada.py` passa os testes de despesa: elemento que não é objeto (`null`, número, lista) → inválida com `id`/`data` nulos; cada campo obrigatório ausente; `data` em formato errado (mesmos casos da T-008); `valor` não número (`"10"`, `true`, `null`); `tem_nota_fiscal` não booleano (`1`, `"sim"`); `id`/`categoria`/`fornecedor` não texto, vazio ou só espaços; `abs(valor) >= 1000000000` (inclusive `-1e12` e `1e999999`) → inválida; `999999999.995` e `999999999.99999999999` → válidas; `"id": 17` → `id` nulo; `"ALIMENTACAO"` em despesa inválida → `categoria_saida` `alimentacao`; categoria não reconhecida em despesa inválida → como veio; campo extra ignorado; `valor_informado` guardado quando é número.
+  - **Aceite:** `tests/test_rn002_validacao_da_entrada.py` passa os testes de despesa: elemento que não é objeto (`null`, número, lista) → inválida com `id`/`data` nulos; cada campo obrigatório ausente; `data` em formato errado (mesmos casos da T-008); `valor` não número (`"10"`, `true`, `null`); `tem_nota_fiscal` não booleano (`1`, `"sim"`); `id`/`categoria`/`fornecedor` não texto, vazio ou só espaços; `id` `"-"` ou só de U+200B → válido; `categoria`/`fornecedor` cujo texto normalizado fica vazio (`"-"`, `"***"`); `abs(valor) >= 1000000000` (inclusive `-1e12` e `1e999999`) → inválida; `999999999.995` e `999999999.99999999999` → válidas; `"id": 17` → `id` nulo; `"ALIMENTACAO"` em despesa inválida → `categoria_saida` `alimentacao`; categoria não reconhecida em despesa inválida → como veio; campo extra ignorado; `valor_informado` guardado quando é número.
   - **Commit:**
 
 ## Fase 3 — Regras de negócio (motor)
