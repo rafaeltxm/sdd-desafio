@@ -82,12 +82,12 @@ O esperado de todo teste é calculado à mão a partir da spec, nunca copiado da
   - **Aceite:** `tests/test_rn002_validacao_da_entrada.py` passa os testes de cabeçalho: `colaborador` ausente; `id`/`nome` ausentes, não texto, vazios ou só com espaços em branco (inclusive espaço não separável); `nome` só de U+200B, BOM ou U+001F → válido (não é espaço em branco, RN-002); `periodo.inicio`, `periodo.fim` ou `despesas` ausentes; `inicio`/`fim` que não são `AAAA-MM-DD` válidas (`2026-7-1`, `20260701`, `2026-02-30`, dígitos não ASCII); `inicio` posterior a `fim` → `ErroDeArquivo`. `inicio` igual a `fim` → válido. `despesas: []` → válido. `competencia` `202607` → nula, sem erro; `competencia` `"julho"` → copiada. `centro_custo` ausente → válido. `colaborador` com `nome` `""` seguido de `colaborador` com `nome` `"Ana"` → válido, `nome` `Ana` (só o valor que valeu é validado; RN-013, D-006).
   - **Commit:** 8efe738
 
-- [ ] **T-009** — Validação da despesa: cada elemento de `despesas` vira `Despesa` (válida) ou `DespesaInvalida` (etapa 1 da seção 8), com `categoria_saida` normalizada se reconhecida e os avisos da T-007 anexados.
+- [x] **T-009** — Validação da despesa: cada elemento de `despesas` vira `Despesa` (válida) ou `DespesaInvalida` (etapa 1 da seção 8), com `categoria_saida` normalizada se reconhecida e os avisos da T-007 anexados.
   - **Tipo:** regra
   - **Atende:** RN-002 (despesa inválida), AMB-018, DT-003
   - **Depende de:** T-003, T-007, T-008
   - **Aceite:** `tests/test_rn002_validacao_da_entrada.py` passa os testes de despesa: elemento que não é objeto (`null`, número, lista) → inválida com `id`/`data` nulos; cada campo obrigatório ausente; `data` em formato errado (mesmos casos da T-008); `valor` não número (`"10"`, `true`, `null`); `tem_nota_fiscal` não booleano (`1`, `"sim"`); `id`/`categoria`/`fornecedor` não texto, vazio ou só espaços; `id` `"-"` ou só de U+200B → válido; `categoria`/`fornecedor` cujo texto normalizado fica vazio (`"-"`, `"***"`); `abs(valor) >= 1000000000` (inclusive `-1e12` e `1e999999`) → inválida; `999999999.995` e `999999999.99999999999` → válidas; `"id": 17` → `id` nulo; `"ALIMENTACAO"` em despesa inválida → `categoria_saida` `alimentacao`; categoria não reconhecida em despesa inválida → como veio; campo extra ignorado; `valor_informado` guardado quando é número.
-  - **Commit:**
+  - **Commit:** 117814a
 
 ## Fase 3 — Regras de negócio (motor)
 
