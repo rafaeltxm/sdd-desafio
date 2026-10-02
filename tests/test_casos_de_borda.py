@@ -233,6 +233,21 @@ def _caso_categoria_tratada_como(categoria, limite):
     return verificar
 
 
+def _caso_valor_no_limite_de_nota(saida):
+    # RN-008: 100,00 não é > 100,00 → segue; RN-009: min(100,00; 80,00) = 80,00
+    (item,) = saida["itens"]
+    assert (item["status"], item["motivo"]) == ("parcial", "limite_diario_excedido")
+    assert item["valor_reembolsado"] == Decimal("80.00")
+
+
+def _caso_um_centavo_acima_do_limite_de_nota(saida):
+    # RN-008: 100,01 > 100,00 sem nota → recusado antes do limite
+    (item,) = saida["itens"]
+    assert (item["status"], item["motivo"]) == ("recusado", "nota_fiscal_ausente")
+    assert item["valor_reembolsado"] == 0
+    assert (item["em_viagem"], item["limite_diario"]) == (None, None)
+
+
 def _aviso(caminho, n):
     return f"chave repetida: {caminho} ({n} ocorrências; valeu a última)"
 
@@ -468,6 +483,17 @@ CASOS = [
         _json(despesa(categoria="alimentacao\t")),
         _caso_categoria_tratada_como("alimentacao", Decimal("60.00")),
         id="Categoria com tabulação no fim",
+    ),
+    pytest.param(
+        _json(despesa(categoria="transporte_urbano", valor=Decimal("100.00"),
+                      tem_nota_fiscal=False)),
+        _caso_valor_no_limite_de_nota,
+        id="Valor exatamente no limite de nota",
+    ),
+    pytest.param(
+        _json(despesa(valor=Decimal("100.01"), tem_nota_fiscal=False)),
+        _caso_um_centavo_acima_do_limite_de_nota,
+        id="Um centavo acima do limite de nota",
     ),
     pytest.param(
         _com_campos('"valor": 30.00, "valor": 50.00'),

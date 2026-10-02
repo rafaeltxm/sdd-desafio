@@ -15,7 +15,11 @@ from reembolso.modelo import (
     Status,
     Totais,
 )
-from reembolso.politica import CATEGORIAS_RECONHECIDAS, LIMITES_DIARIOS
+from reembolso.politica import (
+    CATEGORIAS_RECONHECIDAS,
+    LIMITES_DIARIOS,
+    VALOR_ACIMA_DO_QUAL_EXIGE_NOTA,
+)
 
 CENTAVO = Decimal("0.01")
 ZERO = Decimal("0.00")
@@ -67,7 +71,7 @@ def _item_invalido(despesa: DespesaInvalida) -> ItemResultado:
 def _item_recusado(
     despesa: Despesa, considerado: Decimal, motivo: Motivo
 ) -> ItemResultado:
-    """Etapas 3 a 5: recusado antes do limite diário; não consome limite."""
+    """Etapas 3 a 6: recusado antes do limite diário; não consome limite."""
     status = Status.RECUSADO
     # seção 4: normalizada se reconhecida; senão como veio
     categoria = (
@@ -102,13 +106,16 @@ def _item_recusado(
 def _motivo_de_recusa(
     despesa: Despesa, considerado: Decimal, periodo: Periodo
 ) -> Motivo | None:
-    """Etapas 3 a 5 da seção 8, nesta ordem; a primeira que recusa encerra."""
+    """Etapas 3 a 6 da seção 8, nesta ordem; a primeira que recusa encerra."""
     if considerado <= 0:  # RN-004
         return Motivo.VALOR_INVALIDO
     if not periodo.inicio <= despesa.data <= periodo.fim:  # RN-005, AMB-009
         return Motivo.FORA_DO_PERIODO
     if despesa.categoria not in CATEGORIAS_RECONHECIDAS:  # RN-006, AMB-012
         return Motivo.CATEGORIA_FORA_DA_POLITICA
+    # RN-008, AMB-007, AMB-008: valor individual, antes do limite
+    if considerado > VALOR_ACIMA_DO_QUAL_EXIGE_NOTA and not despesa.tem_nota_fiscal:
+        return Motivo.NOTA_FISCAL_AUSENTE
     return None
 
 
