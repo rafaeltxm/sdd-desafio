@@ -70,10 +70,15 @@ Formatos de commit aceitos: `feat|test|fix|refactor(T-NNN):`,
 
 ## Stack e comandos
 
-- Linguagem: `<...>`
-- Rodar: `<comando>`
-- Testes: `<comando>`
-- Lint/format: `<comando>`
+Detalhes e justificativas em `plan.md` seção 1.
+
+- Linguagem: Python ≥ 3.12 gerenciado com `uv` (`pyproject.toml` + `uv.lock`);
+  o Python do sistema é 3.9, então sempre via `uv run`. Dependência de runtime
+  só `simplejson` ≥ 4; o resto é biblioteca padrão (`decimal`, `argparse`, `unicodedata`).
+- Rodar: `uv run reembolso calcular --input <entrada> --output <saída>`
+- Testes: `uv run pytest -q`
+- Lint: `uv run ruff check .` (regras `E`, `F`, `I`, `B`, `UP`)
+- Pacote em `src/reembolso/`, testes em `tests/` (módulos e fronteiras: `plan.md` seção 2).
 
 ## Convenções de código
 
