@@ -71,7 +71,7 @@ def _item_invalido(despesa: DespesaInvalida) -> ItemResultado:
 def _item_recusado(
     despesa: Despesa, considerado: Decimal, motivo: Motivo
 ) -> ItemResultado:
-    """Etapas 3 a 6: recusado antes do limite diário; não consome limite."""
+    """Etapas 3 a 7: recusado antes do limite diário; não consome limite."""
     status = Status.RECUSADO
     # seção 4: normalizada se reconhecida; senão como veio
     categoria = (
@@ -117,6 +117,29 @@ def _motivo_de_recusa(
     if considerado > VALOR_ACIMA_DO_QUAL_EXIGE_NOTA and not despesa.tem_nota_fiscal:
         return Motivo.NOTA_FISCAL_AUSENTE
     return None
+
+
+def _separar_duplicatas(
+    despesas: list[Despesa],
+) -> tuple[list[Despesa], list[Despesa]]:
+    """Etapa 7 (RN-007, AMB-010): agrupa por (data, categoria, fornecedor,
+    `valor_considerado`); a original é a primeira com nota fiscal, ou a primeira
+    na ordem da entrada. Devolve (originais, duplicatas)."""
+    grupos: dict[tuple[date, str, str, Decimal], list[Despesa]] = {}
+    for despesa in sorted(despesas, key=lambda d: d.posicao):
+        chave = (
+            despesa.data,
+            despesa.categoria,
+            despesa.fornecedor,
+            arredondar(despesa.valor_informado),
+        )
+        grupos.setdefault(chave, []).append(despesa)
+    originais, duplicatas = [], []
+    for grupo in grupos.values():
+        original = next((d for d in grupo if d.tem_nota_fiscal), grupo[0])
+        originais.append(original)
+        duplicatas.extend(d for d in grupo if d is not original)
+    return originais, duplicatas
 
 
 def _aplicar_limite(despesas: list[Despesa]) -> dict[int, ItemResultado]:
@@ -191,7 +214,12 @@ def calcular(entrada: Entrada) -> Resultado:
             seguem.append(despesa)
         else:
             por_posicao[despesa.posicao] = _item_recusado(despesa, considerado, motivo)
-    por_posicao.update(_aplicar_limite(seguem))
+    originais, duplicatas = _separar_duplicatas(seguem)
+    for despesa in duplicatas:
+        por_posicao[despesa.posicao] = _item_recusado(
+            despesa, arredondar(despesa.valor_informado), Motivo.DUPLICATA
+        )
+    por_posicao.update(_aplicar_limite(originais))
     itens = [
         por_posicao[d.posicao] if isinstance(d, Despesa) else _item_invalido(d)
         for d in entrada.despesas

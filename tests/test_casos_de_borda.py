@@ -319,6 +319,47 @@ def _caso_chave_repetida_em_elemento_lista(saida):
     assert item["avisos"] == [_aviso("[0].a", 2)]
 
 
+def _caso_segunda_duplicata(saida):
+    # RN-007: a primeira avaliada (≤ 60,00 → aprovado); a segunda `duplicata`,
+    # recusada antes do limite
+    a, b = saida["itens"]
+    assert (a["status"], a["motivo"]) == ("aprovado", None)
+    assert (b["status"], b["motivo"], b["valor_reembolsado"]) == (
+        "recusado", "duplicata", Decimal("0"),
+    )
+    assert (b["em_viagem"], b["limite_diario"]) == (None, None)
+
+
+def _caso_quase_duplicata(saida):
+    # data vizinha / fornecedor diferente: comparação exata → todas avaliadas
+    assert [item["status"] for item in saida["itens"]] == ["aprovado"] * 3
+
+
+def _caso_copias_sem_nota_acima_de_100(saida):
+    # etapa 6 antes da 7: as duas recusadas por nota, nenhuma por duplicata
+    assert [item["motivo"] for item in saida["itens"]] == [
+        "nota_fiscal_ausente", "nota_fiscal_ausente",
+    ]
+
+
+def _caso_relancamento_com_nota(saida):
+    # sem nota → `nota_fiscal_ausente` (etapa 6); com nota segue: transporte
+    # min(110,00; 80,00) = 80,00 → parcial
+    itens = {item["id"]: item for item in saida["itens"]}
+    assert itens["sem"]["motivo"] == "nota_fiscal_ausente"
+    assert (itens["com"]["status"], itens["com"]["valor_reembolsado"]) == (
+        "parcial", Decimal("80.00"),
+    )
+
+
+def _relancamento(sem_nota_primeiro):
+    campos = dict(categoria="transporte_urbano", fornecedor="Táxi",
+                  valor=Decimal("110.00"))
+    sem = despesa(id="sem", tem_nota_fiscal=False, **campos)
+    com = despesa(id="com", tem_nota_fiscal=True, **campos)
+    return _json(*([sem, com] if sem_nota_primeiro else [com, sem]))
+
+
 CASOS = [
     pytest.param(
         _json(despesa(id="a", valor=Decimal("72.50")),
@@ -494,6 +535,48 @@ CASOS = [
         _json(despesa(valor=Decimal("100.01"), tem_nota_fiscal=False)),
         _caso_um_centavo_acima_do_limite_de_nota,
         id="Um centavo acima do limite de nota",
+    ),
+    pytest.param(
+        _json(despesa(id="d-006", fornecedor="Bistro Central", valor=Decimal("54.90")),
+              despesa(id="d-007", fornecedor="Bistro Central", valor=Decimal("54.90"))),
+        _caso_segunda_duplicata,
+        id="Duplicata exata",
+    ),
+    pytest.param(
+        _json(despesa(id="a", fornecedor="Bistro Central", valor=Decimal("54.90")),
+              despesa(id="b", fornecedor="Bistrô Central", valor=Decimal("54.90"))),
+        _caso_segunda_duplicata,
+        id="Fornecedor com acento",
+    ),
+    pytest.param(
+        _json(despesa(id="a", fornecedor="Pão  Quente", valor=Decimal("12.00")),
+              despesa(id="b", fornecedor="Pao Quente", valor=Decimal("12.00"))),
+        _caso_segunda_duplicata,
+        id="Fornecedor com espaços internos",
+    ),
+    pytest.param(
+        _json(despesa(id="a", fornecedor="Bistro Central", valor=Decimal("20.00")),
+              despesa(id="b", fornecedor="Bistro Central", valor=Decimal("20.00"),
+                      data="2026-07-04"),
+              despesa(id="c", fornecedor="Bistro Centro", valor=Decimal("20.00"))),
+        _caso_quase_duplicata,
+        id="Quase duplicata",
+    ),
+    pytest.param(
+        _json(despesa(id="a", valor=Decimal("150.00"), tem_nota_fiscal=False),
+              despesa(id="b", valor=Decimal("150.00"), tem_nota_fiscal=False)),
+        _caso_copias_sem_nota_acima_de_100,
+        id="Cópias idênticas sem nota acima de 100",
+    ),
+    pytest.param(
+        _relancamento(sem_nota_primeiro=True),
+        _caso_relancamento_com_nota,
+        id="Relançamento com nota",
+    ),
+    pytest.param(
+        _relancamento(sem_nota_primeiro=False),
+        _caso_relancamento_com_nota,
+        id="Relançamento com nota (ordem inversa)",
     ),
     pytest.param(
         _com_campos('"valor": 30.00, "valor": 50.00'),
