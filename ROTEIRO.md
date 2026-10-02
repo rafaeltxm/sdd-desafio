@@ -80,7 +80,7 @@ Avaliação em 2026-10-02 09:50 (antes do envelope): T-001…T-021 concluídas, 
 - [ ] `/export` da sessão desta avaliação (sessão 33) + commit + push
 
 ### Anotações para o relatório (coletadas até aqui)
-- Revisões BLOQUEADAS pelo `revisor-de-task`: T-003 (2×) e T-007 (2×) — candidatas a **Discernimento** (o que o Claude entregou, o que o revisor pegou, o que foi corrigido); ver `docs/reviews/T-003.md`, `docs/reviews/T-007.md` e sessões 13 e 17.
+- Revisões BLOQUEADAS pelo `revisor-de-task`: T-003 e T-007 (1× cada, na primeira rodada) — candidatas a **Discernimento** (o que o Claude entregou, o que o revisor pegou, o que foi corrigido); ver `docs/reviews/T-003.md`, `docs/reviews/T-007.md` e sessões 13 e 17.
 - Mudanças de spec durante a implementação: D-005 (normalização) e D-006 (forma do arquivo) — candidatas a **Descrição**/Diligência.
 - Commits sem task a explicar: `994a491 chore:` (estrutura inicial) e `683f161 docs:` (export da sessão 01), anteriores ao hook `commit-msg`.
 - Versões da spec puladas (1.4, 1.5, 1.7): explicar no relatório que foram intermediárias dentro de D-004/D-005, ou citar isso no próprio `DECISIONS.md`.
@@ -105,6 +105,7 @@ Avaliação em 2026-10-02 09:50 (antes do envelope): T-001…T-021 concluídas, 
 ## Fase 4 — Dia 2, tarde: fechamento
 
 ### `docs/RELATORIO.md` (4 Ds + envelope, com evidências)
+- [x] Levantamento de evidências do Dia 1 no rascunho (fatos preenchidos; julgamento marcado com ✍️)
 - [ ] **Delegação** — o que você fez vs. o Claude, e por quê
 - [ ] **Descrição** — 1 requisito: primeira versão vs. final na spec (citar commits)
 - [ ] **Discernimento** — ≥1 erro concreto do Claude que você pegou, com link para a sessão exportada (sem isso = zero)
