@@ -182,12 +182,12 @@ O motor segue o DT-005: fase individual (lista ordenada de verificações, etapa
   - **Aceite:** `tests/test_exemplo.py` passa: as 14 linhas da tabela da seção 9 (considerado, em viagem, limite, reembolsado, status, motivo), totais 1.861,84 / 585,43 / 1.276,41, `avisos` vazios no topo e em todos os itens; `test_determinismo_byte_a_byte` (duas execuções → arquivos idênticos); `test_nenhum_valor_monetario_e_float` (propriedade da DT-001 sobre a saída lida com `Decimal`).
   - **Commit:** `45f014f`
 
-- [ ] **T-021** — Rastreabilidade automática: `tests/test_rastreabilidade.py` lê a `spec.md`, extrai todos os `RN-NNN` e todos os valores da coluna "Caso" da seção 7, e falha se algum não tiver teste (RN no nome ou docstring; caso como `id` em `test_casos_de_borda.py`). Preenche a tabela de Cobertura abaixo.
+- [x] **T-021** — Rastreabilidade automática: `tests/test_rastreabilidade.py` lê a `spec.md`, extrai todos os `RN-NNN` e todos os valores da coluna "Caso" da seção 7, e falha se algum não tiver teste (RN no nome ou docstring; caso como `id` em `test_casos_de_borda.py`). Preenche a tabela de Cobertura abaixo.
   - **Tipo:** estrutura
   - **Atende:** seção 9 da spec (cada caso de borda e cada RN com teste), plan seção 6
   - **Depende de:** T-020
   - **Aceite:** `tests/test_rastreabilidade.py` passa com a suíte completa; remover qualquer teste de RN ou caso de borda o faz falhar (verificado à mão uma vez e registrado no resumo da task); tabela de Cobertura sem célula vazia.
-  - **Commit:**
+  - **Commit:** 672cc34
 
 ---
 
