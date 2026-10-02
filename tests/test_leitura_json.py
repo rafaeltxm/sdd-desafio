@@ -23,10 +23,17 @@ def test_rn002_nan_e_erro_de_arquivo(literal):
         b"{'valor': 10}",
         b'{"valor": 10} {}',
         b'{"valor": 010}',
+        b'{"valor": 01.5}',
+        b'{"valor": .5}',
+        b'{"valor": 1.}',
+        b'{"valor": +1}',
+        b'{"obs": "a\tb"}',  # tabulação crua dentro do texto
+        b'{"obs": "a\nb"}',  # quebra de linha crua dentro do texto
+        b'{"obs": "a\x00b"}',  # U+0000 cru dentro do texto
     ],
 )
 def test_rn002_json_malformado_e_erro_de_arquivo(texto):
-    """RN-002: arquivo que não é JSON válido → erro de arquivo."""
+    """RN-002 / D-006: não é JSON válido pela RFC 8259 → erro de arquivo."""
     with pytest.raises(ErroDeArquivo):
         ler_json(texto)
 
@@ -52,6 +59,8 @@ def test_rn002_utf8_invalido_e_erro_de_arquivo(texto):
         rb'{"nome": "a\udc00b"}',
         rb'{"despesas": [{"id": "x\ud800"}]}',
         rb'{"lista": [["\udfff"]]}',
+        rb'{"nome": "\udc00\ud800"}',  # par em ordem invertida
+        b'{"nome": "\\ud800\xf0\x9f\x98\x80"}',  # alto solto antes de emoji cru
     ],
 )
 def test_rn002_escape_sem_par_em_valor_e_erro_de_arquivo(texto):
@@ -69,6 +78,44 @@ def test_rn002_escape_sem_par_em_valor_e_erro_de_arquivo(texto):
 )
 def test_rn002_escape_sem_par_em_chave_e_erro_de_arquivo(texto):
     """RN-002 / seção 4: escape sem caractere válido em chave → erro de arquivo."""
+    with pytest.raises(ErroDeArquivo):
+        ler_json(texto)
+
+
+@pytest.mark.parametrize(
+    "texto",
+    [
+        rb'{"obs": "\ud800", "obs": "ok"}',
+        rb'{"despesas": [{"obs": {"x": "\ud800"}, "obs": "ok"}]}',
+        rb'{"extra": {"\udc00": 1}, "extra": {}}',
+    ],
+)
+def test_rn002_escape_sem_par_em_ocorrencia_descartada_e_erro_de_arquivo(texto):
+    """RN-002 / RN-013 / D-006: escape inválido em ocorrência descartada → erro."""
+    with pytest.raises(ErroDeArquivo):
+        ler_json(texto)
+
+
+@pytest.mark.parametrize(
+    "escape, caractere",
+    [(r"\u0000", "\x00"), (r"\uffff", "\uffff"), (r"\ufdd0", "\ufdd0")],
+)
+def test_escape_fora_dos_substitutos_forma_caractere_valido(escape, caractere):
+    """Seção 4 / D-006: só U+D800 a U+DFFF sem par são inválidos; o resto é válido."""
+    documento = ler_json(f'{{"obs": "{escape}"}}'.encode())
+    assert documento["obs"] == caractere
+
+
+def test_segundo_bom_e_erro_de_arquivo():
+    """Seção 4 / D-006: só um BOM no início é ignorado; o segundo é erro."""
+    with pytest.raises(ErroDeArquivo):
+        ler_json(b'\xef\xbb\xbf\xef\xbb\xbf{"a": 1}')
+
+
+@pytest.mark.parametrize("niveis", [5_000, 100_000])
+def test_aninhamento_exagerado_e_erro_de_arquivo(niveis):
+    """Seção 10 / D-006: aninhamento de milhares de níveis → erro de arquivo."""
+    texto = b'{"extra": ' + b"[" * niveis + b"]" * niveis + b"}"
     with pytest.raises(ErroDeArquivo):
         ler_json(texto)
 

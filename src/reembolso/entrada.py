@@ -24,12 +24,12 @@ def _tem_substituto_isolado(texto: str) -> bool:
 
 
 def _verificar_textos(valor) -> None:
-    """Percorre chaves e textos do documento (DT-002)."""
+    """Percorre chaves e textos do documento, inclusive descartados (DT-002, D-006)."""
     if isinstance(valor, str):
         if _tem_substituto_isolado(valor):
             raise ErroDeArquivo("texto com escape que não forma caractere válido")
-    elif isinstance(valor, dict):
-        for chave, item in valor.items():
+    elif isinstance(valor, ObjetoJson):
+        for chave, item in valor.pares:
             _verificar_textos(chave)
             _verificar_textos(item)
     elif isinstance(valor, list):
@@ -43,6 +43,9 @@ def ler_json(conteudo: bytes):
         texto = conteudo.decode("utf-8-sig")
     except UnicodeDecodeError as erro:
         raise ErroDeArquivo("arquivo não está em UTF-8 válido") from erro
+    if texto.startswith("\ufeff"):
+        # `utf-8-sig` removeu o único BOM ignorado; um segundo é JSON inválido (D-006)
+        raise ErroDeArquivo("arquivo não é JSON válido: BOM repetido no início")
     try:
         documento = simplejson.loads(
             texto,
@@ -50,9 +53,12 @@ def ler_json(conteudo: bytes):
             parse_int=Decimal,
             object_pairs_hook=ObjetoJson,
         )
+        _verificar_textos(documento)
     except simplejson.JSONDecodeError as erro:
         raise ErroDeArquivo(f"arquivo não é JSON válido: {erro}") from erro
-    _verificar_textos(documento)
+    except RecursionError as erro:
+        # limite de aninhamento não fixado pela spec (seção 10, D-006)
+        raise ErroDeArquivo("arquivo com aninhamento profundo demais") from erro
     return documento
 
 
