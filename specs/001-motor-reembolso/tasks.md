@@ -149,13 +149,13 @@ O motor segue o DT-005: fase individual (lista ordenada de verificações, etapa
   - **Casos de borda:** Valor exatamente no limite de nota · Um centavo acima do limite de nota
   - **Commit:** `09573f7`
 
-- [ ] **T-017** — Duplicatas: etapa 7, agrupa as despesas que passaram pelas etapas 1 a 6 por (data, categoria normalizada, fornecedor normalizado, `valor_considerado`); a original é a primeira com nota, ou a primeira na ordem; as demais → `duplicata`.
+- [x] **T-017** — Duplicatas: etapa 7, agrupa as despesas que passaram pelas etapas 1 a 6 por (data, categoria normalizada, fornecedor normalizado, `valor_considerado`); a original é a primeira com nota, ou a primeira na ordem; as demais → `duplicata`.
   - **Tipo:** regra
   - **Atende:** RN-007, AMB-010, AMB-016
   - **Depende de:** T-016
   - **Aceite:** `tests/test_rn007_duplicatas.py` passa: d-006/d-007 (54,90, ambas com nota) → primeira avaliada, segunda `duplicata`; `id`, `descricao` e `tem_nota_fiscal` diferentes não impedem a duplicata; sem nota antes e com nota depois (valor ≤ 100) → a com nota é a original, a sem nota `duplicata`, nas duas ordens; táxi 110,00 sem nota + o mesmo com nota → `nota_fiscal_ausente` e o outro avaliado, nas duas ordens; nenhuma com nota → a primeira é a original; duplicata não consome limite (alimentação 54,90 + duplicata 54,90 → a original `aprovado` com 54,90); três cópias → uma original e duas `duplicata`; "Bistro Central" e "Bistrô Central" → mesmo fornecedor.
   - **Casos de borda:** Duplicata exata · Fornecedor com acento · Fornecedor com espaços internos · Quase duplicata · Cópias idênticas sem nota acima de 100 · Relançamento com nota
-  - **Commit:**
+  - **Commit:** `555a85e`
 
 - [ ] **T-018** — Viagem: etapa 8, antes do limite, `dias_em_viagem` = {D, D+1} de cada hospedagem com nota que passou pelas etapas 1 a 7; nessas datas, limites de alimentação e transporte em viagem; `em_viagem` verdadeiro no item.
   - **Tipo:** regra
