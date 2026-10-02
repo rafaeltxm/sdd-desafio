@@ -1,6 +1,6 @@
 # Plano Técnico — Motor de Cálculo de Reembolso
 
-**Versão:** 1.0 · **Baseado na spec:** 1.6
+**Versão:** 1.1 · **Baseado na spec:** 1.8
 
 > Aqui mora o COMO. Este arquivo pode e deve falar de linguagem, biblioteca e
 > arquitetura. O que ele **não** pode é introduzir regra de negócio nova — se
@@ -33,7 +33,7 @@ arquivo JSON ─▶ cli ─▶ entrada ─▶ motor ─▶ saida ─▶ cli ─�
 |---|---|---|
 | `cli.py` | `argparse`, lê bytes do arquivo, chama o pipeline, grava a saída de forma atômica, mapeia erros para mensagem + código de saída | sim |
 | `entrada.py` | bytes → JSON (`Decimal`) → `Entrada`. Resolve chaves repetidas e gera os avisos (RN-013); erros de arquivo da RN-002 viram `ErroDeArquivo`; despesa inválida vira `DespesaInvalida` (etapa 1 da seção 8) | não |
-| `normalizacao.py` | `normalizar_texto()` — os 4 passos da seção 5 da spec | não |
+| `normalizacao.py` | `normalizar_texto()` — os passos da seção 5 da spec | não |
 | `politica.py` | constantes da política (seção 4 deste plano) | não |
 | `motor.py` | etapas 2 a 9 da seção 8; recebe `Entrada`, devolve `Resultado` | não |
 | `justificativa.py` | frase em português para cada item (texto não contratual) | não |
@@ -132,16 +132,16 @@ Os limites em viagem ficam escritos por extenso (90,00 / 120,00 / 250,00), e nã
 - número = `Decimal` ou `int`, **e não** `bool`;
 - booleano = `type(x) is bool`;
 - data = casa `^[0-9]{4}-[0-9]{2}-[0-9]{2}$` **e** `date.fromisoformat` aceita (rejeita 2026-02-30);
-- texto obrigatório = `str` com `strip()` não vazio (o `strip()` sem argumento remove todo espaço em branco Unicode, inclusive o não separável).
+- texto obrigatório = `str` com algum caractere fora do espaço em branco da RN-002 (propriedade White_Space do Unicode). **Não** usar `strip()`/`isspace()` puros: eles também tratam U+001C a U+001F como espaço, e a spec diz que não são; usar `c.isspace() and c not in "\x1c\x1d\x1e\x1f"`.
 **Alternativa descartada:** `isinstance(x, (int, float))` e `fromisoformat` sozinho — aceitariam `"valor": true` e `"data": "20260703"`.
 **Consequência:** cada armadilha vira um caso de teste de `entrada.py`.
 
 ### DT-004 — Normalização de texto com `unicodedata`
 
-**Contexto:** seção 5 da spec, 4 passos, "qualquer que seja a forma como o caractere foi codificado".
-**Decisão:** `strip()` → `casefold()` → `unicodedata.normalize("NFD")` e remoção dos caracteres de categoria `Mn` (marcas combinantes) → `re.sub(r"[\s\-_]+", "_", ...)`. O NFD decompõe tanto `á` pré-composto (U+00E1) quanto `a` + acento combinante (U+0301) para a mesma sequência, cobrindo as duas codificações.
-**Alternativa descartada:** tabela manual de acentos (`á→a`, ...): incompleta por construção; `NFKD`: também desfaz compatibilidades (ligaduras, larguras) que a spec não pede.
-**Consequência:** uma função pura, usada por RN-006 e RN-007, testada com os exemplos da seção 5 e os casos de borda de categoria e fornecedor.
+**Contexto:** seção 5 da spec, 3 passos (caixa, acentos, só letras e algarismos), "qualquer que seja a forma como o caractere foi codificado".
+**Decisão:** `casefold()` (equivalência completa de caixa, `ß` → `ss`) → `unicodedata.normalize("NFD")` e remoção de todo caractere de categoria `M*` (sinais combinantes, com ou sem letra) → todo caractere que não é de categoria `L*` (letra, inclui `Lm`/`Lo` como `º` e `ʼ`) nem `Nd` (algarismo decimal, sem conversão para ASCII) vira espaço → `"_".join(texto.split())` (pontas somem, sequências internas viram um `_`). O NFD decompõe tanto `á` pré-composto (U+00E1) quanto `a` + acento combinante (U+0301) para a mesma sequência, cobrindo as duas codificações; letras sem decomposição canônica (`ø`, `ł`) ficam como estão, como a spec define. Texto que resulta vazio é tratado pela validação (`entrada.py`, RN-002).
+**Alternativa descartada:** tabela manual de acentos (`á→a`, ...): incompleta por construção; `NFKD`: também desfaz compatibilidades (ligaduras, larguras, `²` → `2`) que a spec não pede (seção 10); lista de separadores (`[\s\-_]`): deixa travessões, invisíveis e pontuação sem resultado definido (D-005).
+**Consequência:** uma função pura, usada por RN-006, RN-007 e pela validação da RN-002, testada com os exemplos da seção 5 e os casos de borda de categoria e fornecedor.
 
 ### DT-005 — Pipeline em duas fases, espelhando a seção 8
 
