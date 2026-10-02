@@ -67,7 +67,7 @@ def _item_invalido(despesa: DespesaInvalida) -> ItemResultado:
 def _item_recusado(
     despesa: Despesa, considerado: Decimal, motivo: Motivo
 ) -> ItemResultado:
-    """Etapas 3 e 4: recusado antes do limite diário; não consome limite."""
+    """Etapas 3 a 5: recusado antes do limite diário; não consome limite."""
     status = Status.RECUSADO
     # seção 4: normalizada se reconhecida; senão como veio
     categoria = (
@@ -102,11 +102,13 @@ def _item_recusado(
 def _motivo_de_recusa(
     despesa: Despesa, considerado: Decimal, periodo: Periodo
 ) -> Motivo | None:
-    """Etapas 3 e 4 da seção 8, nesta ordem; a primeira que recusa encerra."""
+    """Etapas 3 a 5 da seção 8, nesta ordem; a primeira que recusa encerra."""
     if considerado <= 0:  # RN-004
         return Motivo.VALOR_INVALIDO
     if not periodo.inicio <= despesa.data <= periodo.fim:  # RN-005, AMB-009
         return Motivo.FORA_DO_PERIODO
+    if despesa.categoria not in CATEGORIAS_RECONHECIDAS:  # RN-006, AMB-012
+        return Motivo.CATEGORIA_FORA_DA_POLITICA
     return None
 
 

@@ -222,6 +222,17 @@ def _caso_fora_do_periodo(saida):
     _recusado_fora_do_periodo(item)
 
 
+def _caso_categoria_tratada_como(categoria, limite):
+    def verificar(saida):
+        # RN-006: reconhecida → normalizada na saída e limite da categoria;
+        # 10,00 ≤ limite → aprovado
+        for item in saida["itens"]:
+            assert item["categoria"] == categoria
+            assert item["limite_diario"] == limite
+            assert item["status"] == "aprovado"
+    return verificar
+
+
 def _aviso(caminho, n):
     return f"chave repetida: {caminho} ({n} ocorrências; valeu a última)"
 
@@ -436,6 +447,27 @@ CASOS = [
         _json(despesa(id="d-008", data="2026-04-15", valor=Decimal("41.00"))),
         _caso_fora_do_periodo,
         id="Despesa antiga lançada no período",
+    ),
+    pytest.param(
+        _json(despesa(categoria="ALIMENTACAO")),
+        _caso_categoria_tratada_como("alimentacao", Decimal("60.00")),
+        id="Categoria em maiúsculas",
+    ),
+    pytest.param(
+        _json(despesa(categoria="alimentação")),
+        _caso_categoria_tratada_como("alimentacao", Decimal("60.00")),
+        id="Categoria com acento",
+    ),
+    pytest.param(
+        _json(despesa(id="a", categoria="Transporte Urbano"),
+              despesa(id="b", categoria="transporte-urbano", data="2026-07-04")),
+        _caso_categoria_tratada_como("transporte_urbano", Decimal("80.00")),
+        id="Categoria com separador diferente",
+    ),
+    pytest.param(
+        _json(despesa(categoria="alimentacao\t")),
+        _caso_categoria_tratada_como("alimentacao", Decimal("60.00")),
+        id="Categoria com tabulação no fim",
     ),
     pytest.param(
         _com_campos('"valor": 30.00, "valor": 50.00'),
