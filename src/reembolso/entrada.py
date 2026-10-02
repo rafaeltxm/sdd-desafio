@@ -7,7 +7,9 @@ from decimal import Decimal
 
 import simplejson
 
-from reembolso.modelo import Colaborador, Periodo
+from reembolso.modelo import Colaborador, Despesa, DespesaInvalida, Entrada, Periodo
+from reembolso.normalizacao import normalizar_texto
+from reembolso.politica import CATEGORIAS_RECONHECIDAS, VALOR_ABSOLUTO_MAXIMO
 
 
 class ErroDeArquivo(Exception):
@@ -182,4 +184,88 @@ def validar_cabecalho(documento) -> tuple[Colaborador, Periodo, list]:
             competencia=competencia if isinstance(competencia, str) else None,
         ),
         despesas,
+    )
+
+
+def _numero(valor) -> bool:
+    """Número JSON: `Decimal` ou `int`, e não `bool` (DT-003)."""
+    return isinstance(valor, Decimal | int) and not isinstance(valor, bool)
+
+
+def _categoria_saida(valor) -> str | None:
+    """Normalizada se reconhecida; senão como veio, se texto; senão `None` (seção 4)."""
+    if not isinstance(valor, str):
+        return None
+    normalizada = normalizar_texto(valor)
+    return normalizada if normalizada in CATEGORIAS_RECONHECIDAS else valor
+
+
+def validar_despesa(
+    posicao: int, elemento, avisos: tuple[str, ...]
+) -> Despesa | DespesaInvalida:
+    """Etapa 1 da seção 8: elemento de `despesas` → `Despesa` ou `DespesaInvalida`.
+
+    Aplica a RN-002 (despesa inválida) e o teto da AMB-018 ao número recebido.
+    """
+    if not isinstance(elemento, dict):
+        return DespesaInvalida(posicao, None, None, None, None, avisos)
+
+    id_ = elemento.get("id")
+    data_texto = elemento.get("data")
+    categoria = elemento.get("categoria")
+    fornecedor = elemento.get("fornecedor")
+    valor = elemento.get("valor")
+    tem_nota_fiscal = elemento.get("tem_nota_fiscal")
+
+    data = _data(data_texto)
+    valida = (
+        _tem_texto(id_)
+        and data is not None
+        and _tem_texto(categoria)
+        and normalizar_texto(categoria) != ""
+        and _tem_texto(fornecedor)
+        and normalizar_texto(fornecedor) != ""
+        and _numero(valor)
+        # `copy_abs` é exato, sem o arredondamento do contexto decimal
+        and Decimal(valor).copy_abs() < VALOR_ABSOLUTO_MAXIMO
+        and type(tem_nota_fiscal) is bool
+    )
+    if not valida:
+        return DespesaInvalida(
+            posicao=posicao,
+            id=id_ if isinstance(id_, str) else None,
+            data_texto=data_texto if isinstance(data_texto, str) else None,
+            categoria_saida=_categoria_saida(categoria),
+            valor_informado=Decimal(valor) if _numero(valor) else None,
+            avisos=avisos,
+        )
+    return Despesa(
+        posicao=posicao,
+        id=id_,
+        data=data,
+        data_texto=data_texto,
+        categoria_texto=categoria,
+        categoria=normalizar_texto(categoria),
+        fornecedor=normalizar_texto(fornecedor),
+        valor_informado=Decimal(valor),
+        tem_nota_fiscal=tem_nota_fiscal,
+        avisos=avisos,
+    )
+
+
+def ler_entrada(conteudo: bytes) -> Entrada:
+    """Bytes → `Entrada`: cabeçalho, despesas validadas e avisos (RN-002, RN-013)."""
+    documento = ler_json(conteudo)
+    colaborador, periodo, despesas = validar_cabecalho(documento)
+    avisos_topo, avisos_por_despesa = avisos_de_chave_repetida(documento)
+    return Entrada(
+        colaborador=colaborador,
+        periodo=periodo,
+        despesas=[
+            validar_despesa(posicao, elemento, avisos)
+            for posicao, (elemento, avisos) in enumerate(
+                zip(despesas, avisos_por_despesa, strict=True)
+            )
+        ],
+        avisos=avisos_topo,
     )

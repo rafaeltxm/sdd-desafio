@@ -1,12 +1,13 @@
 """Validação da entrada: RN-002, seção 4 da spec (Entrada), DT-003."""
 
 from datetime import date
+from decimal import Decimal
 
 import pytest
 import simplejson
 
-from reembolso.entrada import ErroDeArquivo, ler_json, validar_cabecalho
-from reembolso.modelo import Colaborador
+from reembolso.entrada import ErroDeArquivo, ler_entrada, ler_json, validar_cabecalho
+from reembolso.modelo import Colaborador, Despesa, DespesaInvalida
 
 
 def _validar(documento):
@@ -346,3 +347,384 @@ def test_rn002_valor_valido_seguido_de_invalido_por_chave_repetida_e_erro():
     )
     with pytest.raises(ErroDeArquivo):
         _validar_texto(texto)
+
+
+# --- despesa (T-009) ---
+
+_DATAS_INVALIDAS = [
+    "2026-7-3",  # sem zero à esquerda
+    "20260703",  # ISO básico, sem hífens
+    "2026-02-30",  # dia inexistente
+    "2026-13-03",  # mês inexistente
+    "2026-07-03T00:00:00",
+    "2026-07-03 ",
+    " 2026-07-03",
+    "",
+    "٢٠٢٦-07-03",  # dígitos arábico-índicos (não ASCII)
+    "２０２６-０７-０３",  # dígitos de largura total
+    "2026/07/03",
+    "03-07-2026",
+]
+
+_SO_ESPACOS = ["", "  ", "\t", "\n\r", "\u0085", "\u00a0", "\u2003\u3000"]
+
+
+def _despesas(documento):
+    """Documento → texto JSON → `ler_entrada` → despesas validadas."""
+    texto = simplejson.dumps(documento, use_decimal=True, ensure_ascii=False)
+    return ler_entrada(texto.encode()).despesas
+
+
+def _uma(entrada, despesa_):
+    """Valida uma única despesa dentro de uma entrada mínima."""
+    (resultado,) = _despesas(entrada(despesas=[despesa_]))
+    return resultado
+
+
+def test_rn002_despesa_valida_vira_despesa(entrada, despesa):
+    """RN-002 / seção 5: válida → `Despesa`; categoria e fornecedor normalizados."""
+    resultado = _uma(
+        entrada,
+        despesa(
+            id="d-7",
+            data="2026-07-03",
+            categoria="Transporte Urbano",
+            fornecedor="Padaria (Centro)",
+            valor=Decimal("33.333"),
+            tem_nota_fiscal=False,
+        ),
+    )
+    assert resultado == Despesa(
+        posicao=0,
+        id="d-7",
+        data=date(2026, 7, 3),
+        data_texto="2026-07-03",
+        categoria_texto="Transporte Urbano",
+        # seção 5: "Transporte Urbano" → transporte_urbano;
+        # "Padaria (Centro)" → padaria_centro
+        categoria="transporte_urbano",
+        fornecedor="padaria_centro",
+        # sem arredondamento: valor recebido (seção 4, `valor_informado`)
+        valor_informado=Decimal("33.333"),
+        tem_nota_fiscal=False,
+        avisos=(),
+    )
+
+
+def test_rn002_categoria_nao_reconhecida_nao_e_entrada_invalida(entrada, despesa):
+    """RN-002 / seção 8: categoria fora da política é etapa 5, não etapa 1."""
+    resultado = _uma(entrada, despesa(categoria="Lavanderia"))
+    assert isinstance(resultado, Despesa)
+    assert resultado.categoria == "lavanderia"
+    assert resultado.categoria_texto == "Lavanderia"
+
+
+@pytest.mark.parametrize(
+    "elemento", [None, 1, Decimal("10.5"), "d-1", True, [], [{"id": "d-1"}]]
+)
+def test_rn002_elemento_que_nao_e_objeto_e_invalido_com_campos_nulos(
+    entrada, elemento
+):
+    """RN-002: elemento de `despesas` que não é objeto → inválida, campos nulos."""
+    resultado = _uma(entrada, elemento)
+    assert resultado == DespesaInvalida(
+        posicao=0,
+        id=None,
+        data_texto=None,
+        categoria_saida=None,
+        valor_informado=None,
+        avisos=(),
+    )
+
+
+@pytest.mark.parametrize(
+    "campo", ["id", "data", "categoria", "fornecedor", "valor", "tem_nota_fiscal"]
+)
+def test_rn002_campo_obrigatorio_ausente_e_invalido(entrada, despesa, campo):
+    """RN-002: falta campo obrigatório da despesa → `entrada_invalida`."""
+    documento = despesa()
+    del documento[campo]
+    assert isinstance(_uma(entrada, documento), DespesaInvalida)
+
+
+@pytest.mark.parametrize("data", _DATAS_INVALIDAS)
+def test_rn002_data_que_nao_e_aaaa_mm_dd_e_invalida_e_copiada(entrada, despesa, data):
+    """RN-002 / DT-003: `data` texto mas não data válida → inválida; texto copiado."""
+    resultado = _uma(entrada, despesa(data=data))
+    assert isinstance(resultado, DespesaInvalida)
+    # seção 4: `data` como veio, se for texto
+    assert resultado.data_texto == data
+
+
+@pytest.mark.parametrize("data", [20260703, None, True, ["2026-07-03"]])
+def test_rn002_data_nao_texto_e_invalida_e_sai_nula(entrada, despesa, data):
+    """RN-002 / seção 4: `data` que não é texto → inválida, `data` nula."""
+    resultado = _uma(entrada, despesa(data=data))
+    assert isinstance(resultado, DespesaInvalida)
+    assert resultado.data_texto is None
+
+
+def test_rn002_data_com_escapes_na_despesa_e_valida(entrada):
+    """Seção 4: `"2026\\u002d07\\u002d03"` é a data `2026-07-03`."""
+    texto = (
+        '{"colaborador": {"id": "c-1", "nome": "Ana"}, '
+        '"periodo": {"inicio": "2026-07-01", "fim": "2026-07-31"}, '
+        '"despesas": [{"id": "d-1", "data": "2026\\u002d07\\u002d03", '
+        '"categoria": "alimentacao", "fornecedor": "R", "valor": 10, '
+        '"tem_nota_fiscal": true}]}'
+    )
+    (resultado,) = ler_entrada(texto.encode()).despesas
+    assert resultado.data == date(2026, 7, 3)
+    assert resultado.data_texto == "2026-07-03"
+
+
+@pytest.mark.parametrize("valor", ["10", "10.00", True, False, None, [10], {"v": 10}])
+def test_rn002_valor_nao_numero_e_invalido_e_sai_nulo(entrada, despesa, valor):
+    """RN-002 / DT-003: `valor` não número (inclusive booleano) → inválida, nulo."""
+    resultado = _uma(entrada, despesa(valor=valor))
+    assert isinstance(resultado, DespesaInvalida)
+    # seção 4: `valor_informado` nulo se não numérico
+    assert resultado.valor_informado is None
+
+
+@pytest.mark.parametrize("tem_nota", [1, 0, "sim", "true", None, [True]])
+def test_rn002_tem_nota_fiscal_nao_booleano_e_invalido(entrada, despesa, tem_nota):
+    """RN-002 / DT-003: `tem_nota_fiscal` não booleano (`1`, `"sim"`) → inválida."""
+    assert isinstance(
+        _uma(entrada, despesa(tem_nota_fiscal=tem_nota)), DespesaInvalida
+    )
+
+
+@pytest.mark.parametrize("campo", ["id", "categoria", "fornecedor"])
+@pytest.mark.parametrize("valor", [17, True, None, ["x"], {"x": "y"}])
+def test_rn002_id_categoria_fornecedor_nao_texto_e_invalido(
+    entrada, despesa, campo, valor
+):
+    """RN-002: `id`/`categoria`/`fornecedor` que não é texto → inválida."""
+    assert isinstance(_uma(entrada, despesa(**{campo: valor})), DespesaInvalida)
+
+
+@pytest.mark.parametrize("campo", ["id", "categoria", "fornecedor"])
+@pytest.mark.parametrize("valor", _SO_ESPACOS)
+def test_rn002_id_categoria_fornecedor_vazio_ou_so_espacos_e_invalido(
+    entrada, despesa, campo, valor
+):
+    """RN-002: `id`/`categoria`/`fornecedor` vazio ou só White_Space → inválida."""
+    assert isinstance(_uma(entrada, despesa(**{campo: valor})), DespesaInvalida)
+
+
+@pytest.mark.parametrize("id_", ["-", "\u200b", "\u200b\u200b", "\ufeff", "\u001f"])
+def test_rn002_id_sem_white_space_e_valido_e_copiado_como_veio(entrada, despesa, id_):
+    """RN-002: `id` `"-"` ou só de U+200B é válido; `id` não é normalizado."""
+    resultado = _uma(entrada, despesa(id=id_))
+    assert isinstance(resultado, Despesa)
+    assert resultado.id == id_
+
+
+@pytest.mark.parametrize("campo", ["categoria", "fornecedor"])
+@pytest.mark.parametrize("valor", ["-", "***", "\u200b", "²½", "(-_-)", "\U0001f600"])
+def test_rn002_categoria_fornecedor_normalizado_vazio_e_invalido(
+    entrada, despesa, campo, valor
+):
+    """RN-002 / seção 5: texto normalizado vazio (`"-"`, `"***"`) → inválida."""
+    assert isinstance(_uma(entrada, despesa(**{campo: valor})), DespesaInvalida)
+
+
+@pytest.mark.parametrize(
+    "valor",
+    [
+        Decimal("1000000000"),  # exatamente o teto: "a partir de" → inválida
+        Decimal("1000000000.00"),
+        Decimal("1000000000.001"),
+        Decimal("-1000000000"),  # valor absoluto
+        Decimal("-1E+12"),
+        Decimal("1E+999999"),
+        Decimal("1" + "0" * 4999),  # inteiro de 5.000 dígitos
+    ],
+)
+def test_amb018_valor_a_partir_de_um_bilhao_e_invalido(entrada, despesa, valor):
+    """RN-002 / AMB-018: `abs(valor) >= 1.000.000.000,00` → inválida; valor guardado."""
+    resultado = _uma(entrada, despesa(valor=valor))
+    assert isinstance(resultado, DespesaInvalida)
+    # seção 4: `valor_informado` é o número recebido, exato
+    assert resultado.valor_informado == valor
+
+
+def test_amb018_valor_com_expoente_enorme_lido_do_texto_e_invalido():
+    """RN-002 / AMB-018: `1e999999` e `-1e12` escritos no arquivo → inválidas."""
+    texto = (
+        '{"colaborador": {"id": "c-1", "nome": "Ana"}, '
+        '"periodo": {"inicio": "2026-07-01", "fim": "2026-07-31"}, '
+        '"despesas": ['
+        '{"id": "d-1", "data": "2026-07-03", "categoria": "alimentacao", '
+        '"fornecedor": "R", "valor": 1e999999, "tem_nota_fiscal": true}, '
+        '{"id": "d-2", "data": "2026-07-03", "categoria": "alimentacao", '
+        '"fornecedor": "R", "valor": -1e12, "tem_nota_fiscal": true}]}'
+    )
+    primeira, segunda = ler_entrada(texto.encode()).despesas
+    assert isinstance(primeira, DespesaInvalida)
+    assert primeira.valor_informado == Decimal("1E+999999")
+    assert isinstance(segunda, DespesaInvalida)
+    assert segunda.valor_informado == Decimal("-1E+12")
+
+
+@pytest.mark.parametrize(
+    "valor",
+    [
+        Decimal("999999999.995"),
+        Decimal("999999999.99999999999"),
+        Decimal("999999999.99"),
+        Decimal("-999999999.99"),  # negativo abaixo do teto: segue (RN-004 decide)
+        Decimal("-999999999.995"),  # |valor| < teto antes do arredondamento
+        Decimal("0"),
+    ],
+)
+def test_amb018_valor_abaixo_de_um_bilhao_e_valido(entrada, despesa, valor):
+    """RN-002 / AMB-018: teto sobre o número recebido, antes do arredondamento."""
+    resultado = _uma(entrada, despesa(valor=valor))
+    assert isinstance(resultado, Despesa)
+    assert resultado.valor_informado == valor
+
+
+def test_rn002_id_numero_e_invalido_com_id_nulo(entrada, despesa):
+    """RN-002: `"id": 17` → inválida, `id` nulo; demais campos copiados."""
+    resultado = _uma(entrada, despesa(id=17))
+    assert resultado == DespesaInvalida(
+        posicao=0,
+        id=None,
+        data_texto="2026-07-03",
+        categoria_saida="alimentacao",
+        valor_informado=Decimal("10.00"),
+        avisos=(),
+    )
+
+
+@pytest.mark.parametrize("categoria", ["ALIMENTACAO", "Alimentação", " alimentação "])
+def test_rn002_categoria_reconhecida_em_despesa_invalida_sai_normalizada(
+    entrada, despesa, categoria
+):
+    """RN-002 / RN-006: `"ALIMENTACAO"` sem `tem_nota_fiscal` → `alimentacao`."""
+    documento = despesa(categoria=categoria)
+    del documento["tem_nota_fiscal"]
+    resultado = _uma(entrada, documento)
+    assert isinstance(resultado, DespesaInvalida)
+    assert resultado.categoria_saida == "alimentacao"
+
+
+@pytest.mark.parametrize("categoria", ["Lavanderia", "-", "  ", ""])
+def test_rn002_categoria_nao_reconhecida_em_despesa_invalida_sai_como_veio(
+    entrada, despesa, categoria
+):
+    """RN-002 / seção 4: categoria não reconhecida, se texto → como veio."""
+    documento = despesa(categoria=categoria)
+    del documento["tem_nota_fiscal"]
+    resultado = _uma(entrada, documento)
+    assert isinstance(resultado, DespesaInvalida)
+    assert resultado.categoria_saida == categoria
+
+
+@pytest.mark.parametrize("categoria", [17, None, ["alimentacao"]])
+def test_rn002_categoria_nao_texto_em_despesa_invalida_sai_nula(
+    entrada, despesa, categoria
+):
+    """RN-002 / seção 4: `categoria` que não é texto → nula."""
+    resultado = _uma(entrada, despesa(categoria=categoria))
+    assert isinstance(resultado, DespesaInvalida)
+    assert resultado.categoria_saida is None
+
+
+def test_rn002_despesa_invalida_guarda_textos_e_valor(entrada, despesa):
+    """RN-002 / seção 4: sem `tem_nota_fiscal`, 33.333 → `valor_informado` 33.333."""
+    documento = despesa(id="d-9", data="2026-07-05", valor=Decimal("33.333"))
+    del documento["tem_nota_fiscal"]
+    assert _uma(entrada, documento) == DespesaInvalida(
+        posicao=0,
+        id="d-9",
+        data_texto="2026-07-05",
+        categoria_saida="alimentacao",
+        valor_informado=Decimal("33.333"),
+        avisos=(),
+    )
+
+
+def test_rn002_campo_ausente_sai_nulo_na_despesa_invalida(entrada, despesa):
+    """Seção 4: `id`, `data`, `categoria` e `valor` ausentes → nulos."""
+    assert _uma(entrada, {"fornecedor": "R", "tem_nota_fiscal": True}) == (
+        DespesaInvalida(
+            posicao=0,
+            id=None,
+            data_texto=None,
+            categoria_saida=None,
+            valor_informado=None,
+            avisos=(),
+        )
+    )
+
+
+def test_rn002_campo_extra_na_despesa_e_ignorado(entrada, despesa):
+    """RN-002: hospedagem com `"noites": 2` e `descricao` → campos ignorados."""
+    com_extra = _uma(
+        entrada,
+        despesa(categoria="hospedagem", noites=2, descricao=None, obs={"a": [1]}),
+    )
+    sem_extra = _uma(entrada, despesa(categoria="hospedagem"))
+    assert isinstance(com_extra, Despesa)
+    assert com_extra == sem_extra
+
+
+def test_rn002_despesas_mantem_posicao_e_ordem(entrada, despesa):
+    """RN-001 / RN-002: uma despesa inválida não afeta as demais; ordem mantida."""
+    resultado = _despesas(
+        entrada(despesas=[despesa(id="a"), None, despesa(id="c", valor="1")])
+    )
+    assert [type(r) for r in resultado] == [Despesa, DespesaInvalida, DespesaInvalida]
+    assert [r.posicao for r in resultado] == [0, 1, 2]
+    assert [r.id for r in resultado] == ["a", None, "c"]
+
+
+def test_rn013_avisos_anexados_a_despesa_valida_e_invalida_e_ao_topo():
+    """RN-013: avisos de cada elemento vão para a despesa; os demais, para o topo."""
+    texto = (
+        '{"colaborador": {"id": "c-1", "nome": "Ana", "nome": "Ana"}, '
+        '"periodo": {"inicio": "2026-07-01", "fim": "2026-07-31"}, '
+        '"despesas": ['
+        '{"id": "d-1", "data": "2026-07-03", "categoria": "alimentacao", '
+        '"fornecedor": "R", "valor": 50, "valor": 10, "tem_nota_fiscal": true}, '
+        '{"id": "d-2", "id": "d-2"}, '
+        '[{"a": 1, "a": 2}]]}'
+    )
+    entrada_lida = ler_entrada(texto.encode())
+    primeira, segunda, terceira = entrada_lida.despesas
+    assert entrada_lida.avisos == (
+        "chave repetida: colaborador.nome (2 ocorrências; valeu a última)",
+    )
+    assert isinstance(primeira, Despesa)
+    # vale a última: 10
+    assert primeira.valor_informado == Decimal("10")
+    assert primeira.avisos == (
+        "chave repetida: valor (2 ocorrências; valeu a última)",
+    )
+    assert isinstance(segunda, DespesaInvalida)
+    assert segunda.avisos == ("chave repetida: id (2 ocorrências; valeu a última)",)
+    # seção 7: elemento-lista → inválida, aviso `[0].a`
+    assert isinstance(terceira, DespesaInvalida)
+    assert terceira.avisos == ("chave repetida: [0].a (2 ocorrências; valeu a última)",)
+
+
+def test_rn002_ler_entrada_devolve_colaborador_e_periodo(entrada):
+    """RN-002: `ler_entrada` junta cabeçalho validado, despesas e avisos."""
+    lida = ler_entrada(
+        simplejson.dumps(entrada(), use_decimal=True).encode()
+    )
+    assert lida.colaborador == Colaborador(id="c-1", nome="Ana")
+    assert lida.periodo.inicio == date(2026, 7, 1)
+    assert lida.despesas == []
+    assert lida.avisos == ()
+
+
+def test_rn002_ler_entrada_propaga_erro_de_arquivo(entrada):
+    """RN-002: erro de arquivo do cabeçalho continua erro de arquivo."""
+    documento = entrada()
+    del documento["colaborador"]
+    with pytest.raises(ErroDeArquivo):
+        ler_entrada(simplejson.dumps(documento).encode())
