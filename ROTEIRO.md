@@ -58,29 +58,46 @@ Checklist pessoal para organizar os 2 dias. Marque `[x]` conforme avança.
 - [x] Commit `docs(tasks): ...` — `70b9d31` (tasks 1.0)
 
 ### 1.4 `CLAUDE.md`
-- [x] Convenções do projeto (stack, como rodar testes, padrão de commit, "spec é a fonte da verdade") — "Convenções de código" e "Fora de escopo" ainda com `<...>`
+- [x] Convenções do projeto (stack, como rodar testes, padrão de commit, "spec é a fonte da verdade")
 - [x] Commit — `b8efb2b docs(claude)`
+- [ ] **Pendente:** "Convenções de código" e "Fora de escopo" ainda com `<...>` do template (dinheiro em `Decimal` → DT-001; fora de escopo → spec seção 3) — commit `docs(claude)`
 
 - [x] `/export` da sessão + commit — sessões 05 a 09 (`docs/sessions/`)
 
 ## Fase 2 — Dia 1, tarde: implementar guiado pelas tasks
 
-- [ ] Esqueleto da CLI: `<comando> calcular --input X --output Y`
-- [ ] Executar task por task (teste + código + commit com `T-00N`)
-- [ ] Ler o diff de cada entrega do Claude antes de aceitar; rodar testes
-- [ ] Ao descobrir lacuna na spec: parar → corrigir spec → `DECISIONS.md` → seguir
-- [ ] Teste de ponta a ponta com `exemplos/despesas-exemplo.json`
-- [ ] `README.md` do projeto (como rodar, como testar) substituindo o atual
-- [ ] Sistema base funcionando e testado **antes do Dia 2**
-- [ ] `/export` da sessão + commit + push
+Avaliação em 2026-10-02 09:50 (antes do envelope): T-001…T-021 concluídas, 649 testes passando, ruff limpo.
+
+- [x] Esqueleto da CLI: `uv run reembolso calcular --input X --output Y` — T-019 `00cf730`; exemplo roda com exit 0
+- [x] Executar task por task (teste + código + commit com `T-00N`) — 21 tasks, cada uma com commit `feat|test|chore(T-NNN)` + `docs(tasks): conclui` + hash preenchido em `tasks.md`
+- [x] Ler o diff de cada entrega do Claude antes de aceitar; rodar testes — skill `/task` + `revisor-de-task` em 15 tasks de regra (`docs/reviews/`); hooks `pre-commit`/`commit-msg` ativos
+- [x] Ao descobrir lacuna na spec: parar → corrigir spec → `DECISIONS.md` → seguir — spec 1.8 (D-005, durante T-003) e 1.9 (D-006, durante T-006/T-008), sempre spec → plan → tasks → código
+- [x] Teste de ponta a ponta com `exemplos/despesas-exemplo.json` — T-020 `45f014f` (tabela da seção 9 transcrita à mão + determinismo)
+- [x] Rastreabilidade automática RN/casos de borda → testes — T-021 `672cc34`; tabela de Cobertura preenchida
+- [ ] **`README.md` do projeto (como rodar, como testar) substituindo o atual** — ainda é o README do desafio (risco de −3). Não é task de código: commit `docs(readme)`
+- [x] Sistema base funcionando e testado **antes do Dia 2**
+- [ ] **Push** — `main` está 80 commits à frente de `origin/main`; nada do trabalho está no fork público ainda
+- [ ] `/export` da sessão desta avaliação (sessão 33) + commit + push
+
+### Anotações para o relatório (coletadas até aqui)
+- Revisões BLOQUEADAS pelo `revisor-de-task`: T-003 (2×) e T-007 (2×) — candidatas a **Discernimento** (o que o Claude entregou, o que o revisor pegou, o que foi corrigido); ver `docs/reviews/T-003.md`, `docs/reviews/T-007.md` e sessões 13 e 17.
+- Mudanças de spec durante a implementação: D-005 (normalização) e D-006 (forma do arquivo) — candidatas a **Descrição**/Diligência.
+- Commits sem task a explicar: `994a491 chore:` (estrutura inicial) e `683f161 docs:` (export da sessão 01), anteriores ao hook `commit-msg`.
+- Versões da spec puladas (1.4, 1.5, 1.7): explicar no relatório que foram intermediárias dentro de D-004/D-005, ou citar isso no próprio `DECISIONS.md`.
+- Tasks estruturais sem revisão (T-001, T-004, T-005, T-006, T-019, T-021) — dispensa prevista no `CLAUDE.md`.
+- Ressalvas dos revisores marcadas como opcionais e não aplicadas: levantar uma vez para o relatório (Diligência: "o que aceitei sem verificar").
+- Sessão 33: `/task T-022` pedida sem a task existir — o fluxo parou em vez de inventar (exemplo de guarda-corpo funcionando).
 
 ## Fase 3 — Dia 2, ~10h: o envelope (20 pts)
 
-- [ ] Anotar hora de início
-- [ ] Ler a mudança e mapear o impacto: quais RFs, tasks e testes ela toca
+- [ ] Anotar hora de início e o hash de partida (`git rev-parse --short HEAD`) para o `git diff --stat` do relatório
+- [ ] Ler a mudança e mapear o impacto: quais RN-/AMB-, casos de borda (seção 7), tabela da seção 9, tasks e testes ela toca
 - [ ] Atualizar `spec.md` primeiro
-- [ ] Entrada no `DECISIONS.md`: o que mudou, por quê, o que quebrou, tasks afetadas
-- [ ] Novas/alteradas tasks no `tasks.md`
+- [ ] Entrada no `DECISIONS.md` (D-007): o que mudou, por quê, o que quebrou, tasks afetadas
+- [ ] Rodar `spec-adversary` na spec nova; decisões BLOQUEANTES → spec + `DECISIONS.md` antes do código
+- [ ] Atualizar `plan.md` se a arquitetura/DT mudar (`docs(plan)`)
+- [ ] Novas tasks a partir de **T-022** na Fase 5 do `tasks.md` (+ tasks antigas reabertas, se houver); `docs(tasks)`
+- [ ] Executar cada uma com `/task T-NNN`; contar quantas foram reexecução de task vs. edição manual (bônus da rubrica)
 - [ ] Implementar com commits rastreáveis; todos os testes verdes
 - [ ] Anotar hora de fim e nº de arquivos tocados na mão
 - [ ] `/export` da sessão + commit
