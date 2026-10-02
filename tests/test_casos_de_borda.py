@@ -7,6 +7,7 @@ import simplejson
 
 from conftest import construir_despesa as despesa
 from conftest import construir_entrada
+from reembolso.cli import main
 
 
 def _json(*despesas, **cabecalho):
@@ -809,3 +810,67 @@ CASOS = [
 def test_caso_de_borda(processar, texto, verificar):
     """Seção 7 da spec: comportamento esperado de cada caso."""
     verificar(processar(texto))
+
+
+def _cli(*argumentos: str) -> int:
+    """`main` da CLI; erro de uso do `argparse` vira o código do `SystemExit`."""
+    try:
+        return main(list(argumentos))
+    except SystemExit as saida:
+        return saida.code
+
+
+_SEM_COLABORADOR = simplejson.dumps(
+    {k: v for k, v in construir_entrada().items() if k != "colaborador"}
+)
+_SAIDA_ANTERIOR = b"saida anterior\n"
+
+CASOS_DA_CLI = [
+    # (texto da entrada, saída preexistente?, pasta da saída existe?, usar --output?)
+    pytest.param(_json(), False, False, True, id="Saída não gravável"),
+    pytest.param(_SEM_COLABORADOR, False, True, True, id="Colaborador ausente"),
+    pytest.param(
+        _json(colaborador={"id": "", "nome": "Ana"}), False, True, True,
+        id="Colaborador com texto vazio",
+    ),
+    pytest.param(
+        _json(colaborador={"id": "c-1", "nome": "  "}), False, True, True,
+        id="Colaborador com texto vazio (nome)",
+    ),
+    pytest.param(_SEM_COLABORADOR, True, True, True, id="Saída preexistente com erro"),
+    pytest.param(
+        _json(despesa()).replace('"Restaurante"', '"X\\ud800"'), False, True, True,
+        id="Escape sem caractere válido",
+    ),
+    pytest.param(
+        _json().replace('"despesas"', '"\\ud800": 1, "despesas"'), False, True, True,
+        id="Escape sem caractere válido (chave)",
+    ),
+    pytest.param(_json(), True, True, False, id="Erro de uso"),
+]
+
+
+@pytest.mark.parametrize(
+    ("texto", "saida_preexistente", "pasta_existe", "com_output"), CASOS_DA_CLI
+)
+def test_caso_de_borda_da_cli(tmp_path, texto, saida_preexistente, pasta_existe,
+                              com_output):
+    """Seção 7 da spec: erro de arquivo (RN-002) e erro de uso (seção 4) terminam
+    com código diferente de 0 e não criam nem alteram o arquivo de saída."""
+    entrada = tmp_path / "entrada.json"
+    entrada.write_text(texto, encoding="utf-8")
+    pasta = tmp_path / "saidas"
+    if pasta_existe:
+        pasta.mkdir()
+    saida = pasta / "saida.json"
+    if saida_preexistente:
+        saida.write_bytes(_SAIDA_ANTERIOR)
+    argumentos = ["calcular", "--input", str(entrada)]
+    if com_output:
+        argumentos += ["--output", str(saida)]
+
+    assert _cli(*argumentos) != 0
+    if saida_preexistente:
+        assert saida.read_bytes() == _SAIDA_ANTERIOR
+    else:
+        assert not saida.exists()
