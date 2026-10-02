@@ -14,7 +14,7 @@ from reembolso.modelo import (
     Status,
     Totais,
 )
-from reembolso.politica import LIMITES_DIARIOS
+from reembolso.politica import CATEGORIAS_RECONHECIDAS, LIMITES_DIARIOS
 
 CENTAVO = Decimal("0.01")
 ZERO = Decimal("0.00")
@@ -63,6 +63,39 @@ def _item_invalido(despesa: DespesaInvalida) -> ItemResultado:
     )
 
 
+def _item_valor_invalido(despesa: Despesa, considerado: Decimal) -> ItemResultado:
+    """Etapa 3 (RN-004): recusado, `valor_invalido`; não consome limite."""
+    status, motivo = Status.RECUSADO, Motivo.VALOR_INVALIDO
+    # seção 4: normalizada se reconhecida; senão como veio
+    categoria = (
+        despesa.categoria
+        if despesa.categoria in CATEGORIAS_RECONHECIDAS
+        else despesa.categoria_texto
+    )
+    return ItemResultado(
+        id=despesa.id,
+        data=despesa.data_texto,
+        categoria=categoria,
+        valor_informado=despesa.valor_informado,
+        valor_considerado=considerado,
+        valor_reembolsado=ZERO,
+        status=status,
+        motivo=motivo,
+        em_viagem=None,
+        limite_diario=None,
+        justificativa=justificar(
+            status,
+            motivo,
+            data=despesa.data,
+            categoria=categoria,
+            valor_considerado=considerado,
+            valor_reembolsado=ZERO,
+            limite_diario=None,
+        ),
+        avisos=despesa.avisos,
+    )
+
+
 def _aplicar_limite(despesas: list[Despesa]) -> dict[int, ItemResultado]:
     """Etapa 9 (RN-009): saldo por (data, categoria), consumido na ordem da entrada."""
     saldos: dict[tuple[date, str], Decimal] = {}
@@ -103,13 +136,15 @@ def _aplicar_limite(despesas: list[Despesa]) -> dict[int, ItemResultado]:
 def _totais(itens: list[ItemResultado]) -> Totais:
     """Seção 4: solicitado e reembolsado somados; glosado = diferença (RN-001).
 
-    O solicitado não soma itens recusados por `entrada_invalida` (RN-002).
+    O solicitado não soma itens recusados por `entrada_invalida` (RN-002) nem
+    com `valor_considerado` ≤ 0 (RN-004).
     """
     solicitado = sum(
         (
             item.valor_considerado
             for item in itens
             if item.motivo is not Motivo.ENTRADA_INVALIDA
+            and item.valor_considerado > 0
         ),
         ZERO,
     )
@@ -124,7 +159,15 @@ def _totais(itens: list[ItemResultado]) -> Totais:
 def calcular(entrada: Entrada) -> Resultado:
     """Um item por despesa, na ordem da entrada (RN-001), e os totais."""
     validas = [d for d in entrada.despesas if isinstance(d, Despesa)]
-    por_posicao = _aplicar_limite(validas)
+    por_posicao: dict[int, ItemResultado] = {}
+    positivas = []
+    for despesa in validas:
+        considerado = arredondar(despesa.valor_informado)
+        if considerado <= 0:
+            por_posicao[despesa.posicao] = _item_valor_invalido(despesa, considerado)
+        else:
+            positivas.append(despesa)
+    por_posicao.update(_aplicar_limite(positivas))
     itens = [
         por_posicao[d.posicao] if isinstance(d, Despesa) else _item_invalido(d)
         for d in entrada.despesas

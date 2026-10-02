@@ -28,6 +28,13 @@ def _recusado_entrada_invalida(item):
     assert (item["em_viagem"], item["limite_diario"]) == (None, None)
 
 
+def _recusado_valor_invalido(item):
+    # RN-004: recusado, `valor_invalido`, sem reembolso, nulos de antes do limite
+    assert (item["status"], item["motivo"]) == ("recusado", "valor_invalido")
+    assert item["valor_reembolsado"] == 0
+    assert (item["em_viagem"], item["limite_diario"]) == (None, None)
+
+
 def _fora_dos_totais(saida):
     assert saida["totais"] == {
         "valor_solicitado": 0, "valor_reembolsado": 0, "valor_glosado": 0,
@@ -163,6 +170,36 @@ def _caso_valor_com_expoente_enorme(saida):
     (item,) = saida["itens"]
     _recusado_entrada_invalida(item)
     assert item["valor_informado"] == Decimal("1E+999999")
+
+
+def _caso_estorno(saida):
+    # -45,00 → `valor_invalido`; não altera o dia: 50,00 aprovado; saldo 10,00;
+    # min(30,00; 10,00) = 10,00 parcial
+    a, estorno, b = saida["itens"]
+    _recusado_valor_invalido(estorno)
+    assert (a["status"], a["valor_reembolsado"]) == ("aprovado", Decimal("50.00"))
+    assert (b["status"], b["valor_reembolsado"]) == ("parcial", Decimal("10.00"))
+    assert saida["totais"]["valor_solicitado"] == Decimal("80.00")
+
+
+def _caso_valor_zero(saida):
+    (item,) = saida["itens"]
+    _recusado_valor_invalido(item)
+
+
+def _caso_arredondamento_da_metade_negativa(saida):
+    # -0,005 → -0,01 (metade afasta do zero) → `valor_invalido`
+    (item,) = saida["itens"]
+    assert item["valor_considerado"] == Decimal("-0.01")
+    _recusado_valor_invalido(item)
+
+
+def _caso_valor_minusculo(saida):
+    # 10^-999999 → 0,00 → `valor_invalido`; informado copiado sem arredondar
+    (item,) = saida["itens"]
+    assert item["valor_considerado"] == Decimal("0.00")
+    assert item["valor_informado"] == Decimal("1E-999999")
+    _recusado_valor_invalido(item)
 
 
 def _aviso(caminho, n):
@@ -341,6 +378,26 @@ CASOS = [
                       valor=Decimal("999999999.99999999999"))),
         _caso_abaixo_do_teto_segue,
         id="Muitas casas logo abaixo do teto",
+    ),
+    pytest.param(
+        _json(despesa(id="a", valor=Decimal("50.00"), fornecedor="A"),
+              despesa(id="e", valor=Decimal("-45.00"), fornecedor="A"),
+              despesa(id="b", valor=Decimal("30.00"), fornecedor="B")),
+        _caso_estorno,
+        id="Estorno",
+    ),
+    pytest.param(
+        _json(despesa(valor=Decimal("0.00"))), _caso_valor_zero, id="Valor zero"
+    ),
+    pytest.param(
+        _json(despesa(valor=Decimal("-0.005"))),
+        _caso_arredondamento_da_metade_negativa,
+        id="Arredondamento da metade negativa",
+    ),
+    pytest.param(
+        _json(despesa(valor=Decimal("1"))).replace('"valor": 1', '"valor": 1e-999999'),
+        _caso_valor_minusculo,
+        id="Valor minúsculo",
     ),
     pytest.param(
         _com_campos('"valor": 30.00, "valor": 50.00'),
