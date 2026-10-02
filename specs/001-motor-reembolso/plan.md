@@ -1,6 +1,6 @@
 # Plano Técnico — Motor de Cálculo de Reembolso
 
-**Versão:** 1.1 · **Baseado na spec:** 1.8
+**Versão:** 1.2 · **Baseado na spec:** 1.9
 
 > Aqui mora o COMO. Este arquivo pode e deve falar de linguagem, biblioteca e
 > arquitetura. O que ele **não** pode é introduzir regra de negócio nova — se
@@ -121,7 +121,7 @@ Os limites em viagem ficam escritos por extenso (90,00 / 120,00 / 250,00), e nã
 ### DT-002 — Rejeitar o que não é JSON estrito
 
 **Contexto:** RN-002: arquivo que não é JSON válido é erro de arquivo. O `json` da biblioteca padrão aceita `NaN`, `Infinity` e `-Infinity`, que não são JSON.
-**Decisão:** `simplejson` ≥ 4 já os rejeita na leitura por padrão (`allow_nan=False`); a versão mínima fica fixada no `pyproject.toml` e um teste garante que `"valor": NaN` é erro de arquivo, para a proteção não sumir numa troca de versão. Erro de parse → `ErroDeArquivo`. Bytes decodificados como UTF-8 estrito (`utf-8-sig`, aceitando BOM, que a RFC 8259 permite ignorar); falha de decodificação → `ErroDeArquivo`. O parser aceita em silêncio um escape `\ud800` sem par (vira um caractere substituto isolado na `str`, que a gravação em UTF-8 recusaria depois); por isso, depois do parse, `entrada.py` percorre todas as chaves e textos e levanta `ErroDeArquivo` se algum contiver caractere entre U+D800 e U+DFFF (seção 4 da spec). Pares de escapes válidos já chegam combinados num único caractere.
+**Decisão:** `simplejson` ≥ 4 já os rejeita na leitura por padrão (`allow_nan=False`); a versão mínima fica fixada no `pyproject.toml` e um teste garante que `"valor": NaN` é erro de arquivo, para a proteção não sumir numa troca de versão. Erro de parse → `ErroDeArquivo`. Bytes decodificados como UTF-8 estrito (`utf-8-sig`, aceitando um BOM, que a RFC 8259 permite ignorar); falha de decodificação → `ErroDeArquivo`. O `simplejson` também descarta um U+FEFF inicial por conta própria, o que faria dois BOMs passarem; por isso um U+FEFF que sobra depois do `utf-8-sig` → `ErroDeArquivo` (spec 1.9, D-006). Caractere de controle cru em texto e números fora da gramática (`01.5`, `.5`, `1.`, `+1`) já são rejeitados pelo parser estrito (`strict=True`, padrão). O parser e o percurso de `entrada.py` são recursivos: aninhamento além do limite de recursão do Python (~1.000 níveis) levanta `RecursionError`, convertido em `ErroDeArquivo` (risco aceito na seção 10 da spec, D-006). O parser aceita em silêncio um escape `\ud800` sem par (vira um caractere substituto isolado na `str`, que a gravação em UTF-8 recusaria depois); por isso, depois do parse, `entrada.py` percorre todas as chaves e textos — inclusive os das ocorrências descartadas por chave repetida, pelos pares guardados no `ObjetoJson` (DT-010; spec 1.9, D-006) — e levanta `ErroDeArquivo` se algum contiver caractere entre U+D800 e U+DFFF (seção 4 da spec). Pares de escapes válidos já chegam combinados num único caractere.
 **Alternativa descartada:** aceitar `NaN` e tratar como "valor não é número" na despesa: transformaria arquivo inválido em processamento normal.
 **Consequência:** `"valor": NaN` encerra a execução sem saída, como qualquer JSON inválido.
 
