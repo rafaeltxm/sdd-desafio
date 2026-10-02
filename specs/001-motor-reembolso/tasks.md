@@ -167,13 +167,13 @@ O motor segue o DT-005: fase individual (lista ordenada de verificações, etapa
 
 ## Fase 4 — Saída e CLI
 
-- [ ] **T-019** — CLI: `reembolso calcular --input X --output Y` com `argparse`, leitura de bytes, pipeline em memória, gravação atômica (temporário no mesmo diretório + `os.replace`), códigos 0 / 1 / 2 e mensagem `erro: ...` em stderr, sem stack trace em erro previsto (DT-006, DT-007).
+- [x] **T-019** — CLI: `reembolso calcular --input X --output Y` com `argparse`, leitura de bytes, pipeline em memória, gravação atômica (temporário no mesmo diretório + `os.replace`), códigos 0 / 1 / 2 e mensagem `erro: ...` em stderr, sem stack trace em erro previsto (DT-006, DT-007).
   - **Tipo:** estrutura (CLI)
   - **Atende:** seção 4 da spec (Interface), RN-002 (erro de arquivo, saída não gravável), DT-006, DT-007
   - **Depende de:** T-018
   - **Aceite:** `tests/test_cli.py` passa: sucesso → código 0 e arquivo de saída igual a `processar()` da mesma entrada; arquivo de entrada ausente → código 1, sem saída; erro de arquivo com saída preexistente → arquivo intacto byte a byte; pasta de saída inexistente → código 1; sem `--input`, sem `--output` ou subcomando diferente de `calcular` → código 2, sem saída; nenhum temporário sobra no diretório em erro; stderr sem `Traceback`.
   - **Casos de borda:** Saída não gravável · Colaborador ausente · Colaborador com texto vazio · Saída preexistente com erro · Escape sem caractere válido · Erro de uso
-  - **Commit:**
+  - **Commit:** 00cf730
 
 - [ ] **T-020** — Aceite com o arquivo de exemplo: `exemplos/despesas-exemplo.json` pela CLI contra a tabela da seção 9 da spec, **transcrita à mão** no teste.
   - **Tipo:** regra
