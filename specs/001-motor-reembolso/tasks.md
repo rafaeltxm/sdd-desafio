@@ -141,13 +141,13 @@ O motor segue o DT-005: fase individual (lista ordenada de verificações, etapa
   - **Casos de borda:** Categoria em maiúsculas · Categoria com acento · Categoria com separador diferente · Categoria com tabulação no fim
   - **Commit:** `154c679`
 
-- [ ] **T-016** — Nota fiscal: etapa 6, `nota_fiscal_ausente` para `valor_considerado` > 100,00 sem nota, comparando o valor individual antes do limite.
+- [x] **T-016** — Nota fiscal: etapa 6, `nota_fiscal_ausente` para `valor_considerado` > 100,00 sem nota, comparando o valor individual antes do limite.
   - **Tipo:** regra
   - **Atende:** RN-008, AMB-007, AMB-008
   - **Depende de:** T-015
   - **Aceite:** `tests/test_rn008_nota_fiscal.py` passa: 100,00 sem nota → segue (transporte: `parcial` com 80,00); 100,01 sem nota → `nota_fiscal_ausente`; 100,01 com nota → segue; 100.004 sem nota (considerado 100,00) → segue; 100.005 sem nota (considerado 100,01) → `nota_fiscal_ausente`; despesa recusada aqui não consome limite (alimentação de 150,00 sem nota seguida de 50,00 no mesmo dia → a segunda `aprovado` com 50,00); categoria desconhecida acima de 100,00 sem nota → `categoria_fora_da_politica` (etapa 5 vem antes).
   - **Casos de borda:** Valor exatamente no limite de nota · Um centavo acima do limite de nota
-  - **Commit:**
+  - **Commit:** `09573f7`
 
 - [ ] **T-017** — Duplicatas: etapa 7, agrupa as despesas que passaram pelas etapas 1 a 6 por (data, categoria normalizada, fornecedor normalizado, `valor_considerado`); a original é a primeira com nota, ou a primeira na ordem; as demais → `duplicata`.
   - **Tipo:** regra
