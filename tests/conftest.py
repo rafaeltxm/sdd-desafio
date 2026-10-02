@@ -8,6 +8,11 @@ use_decimal=True)`; valores numéricos são `Decimal`.
 from decimal import Decimal
 
 import pytest
+import simplejson
+
+from reembolso.entrada import ler_entrada
+from reembolso.motor import calcular
+from reembolso.saida import para_dicionario
 
 
 def construir_despesa(**campos):
@@ -47,3 +52,24 @@ def despesa():
 @pytest.fixture
 def entrada():
     return construir_entrada
+
+
+def processar(texto_json: str) -> dict:
+    """Texto JSON da entrada → motor → dicionário da saída (seção 4 da spec)."""
+    return para_dicionario(calcular(ler_entrada(texto_json.encode())))
+
+
+def avaliar(*despesas, **cabecalho) -> dict:
+    """Despesas (dicionários) numa entrada mínima válida → saída de `processar`."""
+    documento = construir_entrada(despesas, **cabecalho)
+    return processar(simplejson.dumps(documento, use_decimal=True))
+
+
+@pytest.fixture(name="processar")
+def _processar():
+    return processar
+
+
+@pytest.fixture(name="avaliar")
+def _avaliar():
+    return avaliar
