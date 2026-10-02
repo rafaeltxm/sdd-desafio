@@ -45,12 +45,12 @@ O esperado de todo teste é calculado à mão a partir da spec, nunca copiado da
   - **Aceite:** `tests/test_normalizacao.py` passa: exemplos da seção 5 (`"Transporte Urbano"`, `"transporte-urbano"`, `" TRANSPORTE__urbano "`, `"Transporte – Urbano"` → `transporte_urbano`; `"Pão  Quente"`, `"pao-quente"` → `pao_quente`; `"-Bistro"`, `"_Bistro"`, `"Bistro -"`, `" -_Bistro"` → `bistro`; `"Padaria (Centro)"` → `padaria_centro`; `"McDonald's"` → `mcdonald_s`; `"Straße"` → `strasse`; `"Padaria Nº 1"` → `padaria_nº_1` e `"Padaria N° 1"` → `padaria_n_1`; `"Loja²"` → `loja`; `"Smørrebrød"` → `smørrebrød`; `"-"` → vazio); acento pré-composto e combinante dão o mesmo resultado; `ç`, `ô`, `ü`, `ñ`; sinal combinante solto (no início, sobre hífen no fim) é descartado; tabulação, quebra de linha, espaço não separável, espaço de largura zero e caractere de controle nas pontas; mistura de separadores internos de qualquer tipo vira um `_`; letras de qualquer alfabeto e algarismos decimais de qualquer escrita são mantidos como estão; número que não é dígito decimal (`²`, `½`) é separador.
   - **Commit:** aaf201a
 
-- [ ] **T-004** — Justificativa: `justificativa.py` gera a frase em português de um item já decidido, para cada status e motivo, com formatação própria `1.234,56` e `DD/MM` sem `locale` (DT-009).
+- [x] **T-004** — Justificativa: `justificativa.py` gera a frase em português de um item já decidido, para cada status e motivo, com formatação própria `1.234,56` e `DD/MM` sem `locale` (DT-009).
   - **Tipo:** estrutura (texto não contratual)
   - **Atende:** RN-011 (todo item tem justificativa), DT-009
   - **Depende de:** T-002
   - **Aceite:** `tests/test_justificativa.py` passa: `test_rn011_justificativa_nao_vazia_para_todo_status_e_motivo` (todas as combinações de status × motivo da seção 4); `test_formata_decimal_em_reais` (`Decimal("1234.5")` → `1.234,50`); `test_formata_data_dd_mm`. O texto exato da frase não é testado.
-  - **Commit:**
+  - **Commit:** 18a8117
 
 - [ ] **T-005** — Serialização da saída: `saida.py` converte `Resultado` em dicionário com os campos na ordem da tabela de saída da seção 4 e em texto JSON (`use_decimal`, `ensure_ascii=False`, `indent=2`, quebra de linha final) (DT-001, DT-008).
   - **Tipo:** estrutura (escrita de JSON)
