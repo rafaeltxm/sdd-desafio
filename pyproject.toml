@@ -1,0 +1,31 @@
+[project]
+name = "reembolso"
+version = "0.1.0"
+description = "Motor de cálculo de reembolso de despesas corporativas"
+requires-python = ">=3.12"
+dependencies = [
+    "simplejson>=4",
+]
+
+[project.scripts]
+reembolso = "reembolso.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.12,<0.13"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.10",
+]
