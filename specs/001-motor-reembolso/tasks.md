@@ -68,12 +68,12 @@ O esperado de todo teste é calculado à mão a partir da spec, nunca copiado da
   - **Aceite:** `tests/test_leitura_json.py` passa: `test_rn002_nan_e_erro_de_arquivo` (`NaN`, `Infinity`, `-Infinity`); `test_rn002_json_malformado_e_erro_de_arquivo`; `test_rn002_utf8_invalido_e_erro_de_arquivo`; `test_rn002_escape_sem_par_em_valor_e_erro_de_arquivo` e `..._em_chave_...` (`\ud800`); `test_bom_e_aceito`; `test_numero_lido_pelo_valor_exato` (`33.333`, `999999999.99999999999`, `1e999999`, `1e-999999` e inteiro de 5.000 dígitos lidos como `Decimal` exato, sem erro); `test_escapes_validos_decodificados` (`"2026-07-03"` → `2026-07-03`; emoji em par de escapes igual ao emoji direto).
   - **Commit:** e84693c
 
-- [ ] **T-007** — Chaves repetidas: `ObjetoJson` via `object_pairs_hook` (vale a última ocorrência) e percurso que gera os avisos do topo e de cada elemento de `despesas`, com texto, caminho, contagem e ordem da RN-013 (DT-010).
+- [x] **T-007** — Chaves repetidas: `ObjetoJson` via `object_pairs_hook` (vale a última ocorrência) e percurso que gera os avisos do topo e de cada elemento de `despesas`, com texto, caminho, contagem e ordem da RN-013 (DT-010).
   - **Tipo:** regra
   - **Atende:** RN-013, AMB-019, DT-010
   - **Depende de:** T-006
   - **Aceite:** `tests/test_rn013_chave_repetida.py` passa, cobrindo o **Aceite** da RN-013 no nível da leitura: `valor` duas vezes → vale a última, aviso `chave repetida: valor (2 ocorrências; valeu a última)` no elemento; `colaborador.nome` → aviso no topo com caminho da raiz; `valor` três vezes → um aviso com `3 ocorrências`; `despesas` repetida → só a última lista, um aviso `despesas`, chaves repetidas da lista descartada sem aviso; `extra`/`obs`/`extra.x` na ordem `extra`, `obs`, `extra.x`, cada um com 2; `"valor"` igual a `valor`; forma composta e decomposta de letra acentuada são chaves diferentes; `m[0][0].x`; elemento-lista `[0].a`; `obs` 1000 vezes → `1000 ocorrências`; objeto sem repetição → nenhum aviso.
-  - **Commit:**
+  - **Commit:** ae9e75b
 
 - [ ] **T-008** — Validação do cabeçalho: `colaborador`, `periodo` e `despesas` conforme o primeiro item da RN-002; erro → `ErroDeArquivo`. `competencia` copiada se texto, senão nula.
   - **Tipo:** regra
