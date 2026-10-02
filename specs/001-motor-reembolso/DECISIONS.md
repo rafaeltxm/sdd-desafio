@@ -10,6 +10,34 @@ Ordem cronológica inversa: a mais recente primeiro.
 
 ---
 
+## D-002 — Segunda revisão adversarial: spec 1.1 → 1.2 · `2026-10-01`
+
+**Gatilho:** nova rodada do `spec-adversary` sobre a 1.1 (commit `d35f68d`), focada no que a D-001 mudou: 6 problemas, 1 bloqueante. Decididos um a um pelo responsável (sessão `docs/sessions/05-*`).
+
+**O que mudou na spec:**
+
+| # | Ponto | De (1.1) | Para (1.2) | Onde |
+|---|---|---|---|---|
+| 1 | Duplicata de hospedagem ≤ 100,00 em que só uma cópia tem nota (**bloqueante**) | sobrevivia a primeira na ordem; com a cópia sem nota primeiro, a viagem sumia — contradizia a justificativa da D-001 (4a) de independência da ordem | a original é a **primeira com nota fiscal**; se nenhuma tem, a primeira na ordem | RN-007, seção 8 (etapa 7), AMB-010 |
+| 2 | Hospedagem irrisória com nota declarada | AMB-004 afirmava que exigir nota fechava a brecha — **erro de justificativa da 1.1** (a nota é só declarada) | regra mantida; justificativa corrigida; registrado como risco aceito; indicação explícita de viagem na entrada registrada como evolução (o formato fixo não permite) | AMB-004, seção 3, seção 10 |
+| 3 | Normalização de texto | só espaço comum nas pontas e 3 exemplos de acento; separadores internos preservados (`Transporte Urbano`, como o RH escreveu, era recusada) | regra completa em 4 passos: espaços em branco de qualquer tipo nas pontas, caixa, qualquer diacrítico (independentemente da codificação), espaço/hífen/sublinhado internos = um `_` | seção 5, RN-006, AMB-011 |
+| 4a | Campo com tipo errado (`"id": 17`) | "como veio" × "texto ou nulo" | `entrada_invalida`; campo sai nulo se não for texto | RN-002, seção 4 |
+| 4b | `competencia` não textual | indefinido | copiada se for texto; nula caso contrário; nunca é erro | RN-002, seção 4 |
+| 4c | Arredondamento da metade negativa | "metade para cima" | "metade afastando do zero" (-0,005 → -0,01); positivos inalterados | RN-003, AMB-014 |
+| 4d | Falha ao gravar a saída | não listada | erro de arquivo | RN-002, seção 4 (Interface) |
+| 5 | Texto vazio em `id`/`categoria`/`fornecedor` | aceito como texto | `entrada_invalida` | RN-002 |
+| 6 | D-001 sem o ponto 12 | tabela pulava do 11 ao 13 — **erro de registro** | linha 12 incluída na D-001 antes do commit da 1.1 | `DECISIONS.md` |
+
+**Por quê:** o ponto 1 obrigaria o código a escolher entre a regra literal e a justificativa; os pontos 3, 4 e 5 deixavam saídas indefinidas ou não determinísticas; os pontos 2 e 6 eram erros de redação/registro da revisão anterior.
+
+**O que isso invalidou:** nenhum código ou teste (ainda não existem). Nenhum valor do resultado esperado do exemplo mudou (seção 9). Casos de borda novos: 10 linhas na seção 7.
+
+**Tasks afetadas:** nenhuma (o `tasks.md` ainda não foi escrito).
+
+**Custo:** 2 arquivos (`spec.md`, `DECISIONS.md`); 6 pontos decididos na mesma sessão.
+
+---
+
 ## D-001 — Revisão adversarial e análise dos dados: spec 1.0 → 1.1 · `2026-10-01`
 
 **Gatilho:** revisão da spec 1.0 (commit `c8bcad9`) antes do plano, em duas frentes: o subagente `spec-adversary` (9 problemas, 2 bloqueantes) e uma nova análise item a item de `exemplos/despesas-exemplo.json`. Os 13 pontos resultantes foram decididos um a um pelo responsável (sessão `docs/sessions/05-*`).

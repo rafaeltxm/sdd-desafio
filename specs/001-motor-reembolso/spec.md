@@ -1,6 +1,6 @@
 # Spec — Motor de Cálculo de Reembolso
 
-**Versão:** 1.1 · **Status:** aprovada para planejamento · **Última alteração:** 2026-10-01 (ver `DECISIONS.md` D-001)
+**Versão:** 1.2 · **Status:** aprovada para planejamento · **Última alteração:** 2026-10-01 (ver `DECISIONS.md` D-001 e D-002)
 
 > **Regra de ouro deste arquivo:** ele descreve o QUÊ e o PORQUÊ. Nenhuma linha
 > aqui pode citar linguagem, biblioteca, classe, função ou estrutura de pasta.
@@ -29,6 +29,7 @@ Dado o conjunto de despesas de um colaborador num período, calcular de forma de
 - Não guarda histórico entre execuções: duplicatas só são detectadas dentro da mesma entrada.
 - Não usa campos além dos previstos na seção 4; campos extras são ignorados (RN-002). Em particular, não usa datas de entrada e saída de hospedagem: seriam a solução ideal para AMB-005, mas o formato de entrada é fixo. Fica registrado como evolução recomendada.
 - Não tem categoria nem limite de representação (refeição com cliente): fica registrado como evolução recomendada (AMB-017).
+- Não recebe indicação explícita de viagem na entrada (ex.: um indicador `em_viagem` ou um código de viagem aprovada): a viagem é inferida da hospedagem (RN-010). Uma indicação explícita eliminaria a inferência e o risco registrado na seção 10; fica registrada como evolução recomendada, pois exige mudar o formato fixo.
 - Não trata feriados nem fins de semana de forma especial (AMB-015).
 
 ## 4. Entrada e saída
@@ -38,7 +39,7 @@ Dado o conjunto de despesas de um colaborador num período, calcular de forma de
 `<comando> calcular --input <arquivo de entrada> --output <arquivo de saída>`
 
 - Sucesso: grava o arquivo de saída e termina com código 0.
-- Erro de arquivo (RN-002): não grava o arquivo de saída, escreve uma mensagem de erro e termina com código diferente de 0.
+- Erro de arquivo (RN-002), inclusive quando o arquivo de saída não pode ser gravado: não deixa arquivo de saída, escreve uma mensagem de erro e termina com código diferente de 0.
 
 ### Entrada
 
@@ -68,11 +69,11 @@ Campos não listados acima são ignorados.
 | Campo | Tipo | Significado |
 |---|---|---|
 | `colaborador` | objeto | `id` e `nome`, copiados da entrada |
-| `periodo` | objeto | `competencia` (ou nulo, se ausente), `inicio` e `fim`, copiados da entrada |
+| `periodo` | objeto | `inicio` e `fim`, copiados da entrada; `competencia` copiada se for texto (em qualquer formato), nula se ausente ou não for texto |
 | `itens` | lista | um item por elemento de `despesas`, **na mesma ordem** |
-| `itens[].id` | texto ou nulo | id da despesa como veio; nulo se ausente ou se o elemento não é um objeto |
-| `itens[].data` | texto ou nulo | data da despesa como veio; nulo se ausente ou se o elemento não é um objeto |
-| `itens[].categoria` | texto ou nulo | categoria normalizada (RN-006) se reconhecida; senão, como veio (nulo se ausente) |
+| `itens[].id` | texto ou nulo | id da despesa como veio, se for texto; nulo se ausente, se não for texto ou se o elemento não é um objeto |
+| `itens[].data` | texto ou nulo | data da despesa como veio, se for texto; nulo se ausente, se não for texto ou se o elemento não é um objeto |
+| `itens[].categoria` | texto ou nulo | categoria normalizada (RN-006) se reconhecida; senão, como veio, se for texto; nulo se ausente ou não for texto |
 | `itens[].valor_informado` | número ou nulo | o número recebido em `valor`, sem arredondamento; nulo se ausente ou não numérico |
 | `itens[].valor_considerado` | número ou nulo | valor arredondado ao centavo (RN-003); **nulo se a despesa foi recusada por `entrada_invalida`** |
 | `itens[].valor_reembolsado` | número | quanto será reembolsado (0 se recusado) |
@@ -123,7 +124,14 @@ Todos os valores monetários **calculados** da saída (`valor_considerado`, `val
 
 As regras são aplicadas a cada despesa na ordem da seção 8. A primeira regra que recusa uma despesa encerra a avaliação dela: cada despesa recusada tem exatamente um motivo.
 
-**Normalização de texto** (usada em RN-006 e RN-007): remover espaços no início e no fim, ignorar maiúsculas/minúsculas e ignorar acentos e cedilha (letras acentuadas e `ç` comparadas como a letra base: `á`→`a`, `ç`→`c`, `ô`→`o`). Espaços internos não são alterados.
+**Normalização de texto** (usada em RN-006 e RN-007), aplicada nesta ordem:
+
+1. remover todo espaço em branco do início e do fim (espaço comum, tabulação, quebra de linha, espaço não separável e demais caracteres de espaço em branco);
+2. ignorar maiúsculas/minúsculas;
+3. toda letra com acento ou sinal diacrítico é comparada como a letra base, qualquer que seja a forma como o caractere foi codificado no arquivo (`á`→`a`, `ç`→`c`, `ô`→`o`, `ü`→`u`, `ñ`→`n`);
+4. toda sequência interna de espaços em branco, hífens (`-`) e sublinhados (`_`) vale como um único `_`.
+
+Exemplos: `"Transporte Urbano"`, `"transporte-urbano"` e `" TRANSPORTE__urbano "` → `transporte_urbano`; `"Pão  Quente"` e `"pao-quente"` → `pao_quente`.
 
 ### RN-001 — Um resultado por despesa
 
@@ -134,16 +142,17 @@ As regras são aplicadas a cada despesa na ordem da seção 8. A primeira regra 
 ### RN-002 — Validação da entrada
 
 **Regra:**
-- **Erro de arquivo** (nenhuma saída é gerada): arquivo ausente ou que não é JSON válido; `colaborador` ausente ou sem `id`/`nome` em texto; `periodo.inicio`, `periodo.fim` ou `despesas` ausentes; `inicio` ou `fim` que não são datas válidas `AAAA-MM-DD`; `inicio` posterior a `fim`; `despesas` que não é lista.
-- **Despesa inválida** (vira item `recusado` com motivo `entrada_invalida`; as demais despesas seguem): elemento de `despesas` que não é um objeto; falta `id`, `data`, `categoria`, `fornecedor`, `valor` ou `tem_nota_fiscal`; `data` não é data válida `AAAA-MM-DD`; `valor` não é número; `tem_nota_fiscal` não é booleano; `id`, `categoria` ou `fornecedor` não são texto.
+- **Erro de arquivo** (nenhuma saída é deixada): arquivo de entrada ausente ou que não é JSON válido; `colaborador` ausente ou sem `id`/`nome` em texto; `periodo.inicio`, `periodo.fim` ou `despesas` ausentes; `inicio` ou `fim` que não são datas válidas `AAAA-MM-DD`; `inicio` posterior a `fim`; `despesas` que não é lista; arquivo de saída que não pode ser gravado. `periodo.competencia` nunca causa erro: se não for texto, sai nula.
+- **Despesa inválida** (vira item `recusado` com motivo `entrada_invalida`; as demais despesas seguem): elemento de `despesas` que não é um objeto; falta `id`, `data`, `categoria`, `fornecedor`, `valor` ou `tem_nota_fiscal`; `data` não é data válida `AAAA-MM-DD`; `valor` não é número; `tem_nota_fiscal` não é booleano; `id`, `categoria` ou `fornecedor` não são texto, ou são texto vazio ou só com espaços em branco.
+- Na saída de uma despesa inválida, `id`, `data` e `categoria` são copiados se forem texto e saem nulos caso contrário (tipo errado, ausente ou elemento que não é objeto).
 - Uma despesa recusada por `entrada_invalida` tem `valor_considerado` nulo, categoria como veio, `em_viagem` e `limite_diario` nulos, e não entra nos totais.
 - Campos extras, no arquivo ou nas despesas, são ignorados.
 **Origem:** necessidade operacional (a política não trata entrada malformada); pontos 7 e 9 de D-001.
-**Aceite:** despesa sem `tem_nota_fiscal` com `valor` 33.333 → `recusado`, `entrada_invalida`, `valor_informado` 33.333, `valor_considerado` nulo, fora de `valor_solicitado`; as demais despesas são processadas normalmente. Elemento `null` em `despesas` → item com `id` e `data` nulos, `entrada_invalida`. Arquivo sem `colaborador` → nenhuma saída, código diferente de 0. Hospedagem com campo extra `"noites": 2` → avaliada como uma diária (RN-012).
+**Aceite:** despesa sem `tem_nota_fiscal` com `valor` 33.333 → `recusado`, `entrada_invalida`, `valor_informado` 33.333, `valor_considerado` nulo, fora de `valor_solicitado`; as demais despesas são processadas normalmente. Elemento `null` em `despesas` → item com `id` e `data` nulos, `entrada_invalida`. Arquivo sem `colaborador` → nenhuma saída, código diferente de 0. Hospedagem com campo extra `"noites": 2` → avaliada como uma diária (RN-012). Despesa com `"id": 17` → `entrada_invalida`, `id` nulo na saída. Despesa com `fornecedor` `"   "` → `entrada_invalida`. `competencia` 202607 (número) → processamento normal, `competencia` nula na saída. Caminho de saída em pasta inexistente → nenhuma saída, código diferente de 0.
 
 ### RN-003 — Arredondamento ao centavo
 
-**Regra:** antes de qualquer outra regra de valor, `valor` é arredondado para 2 casas decimais, com a metade arredondada para cima (0,005 → 0,01). Todas as regras usam o valor arredondado (`valor_considerado`), e todos os cálculos são exatos ao centavo.
+**Regra:** antes de qualquer outra regra de valor, `valor` é arredondado para 2 casas decimais, com a metade arredondada afastando do zero (0,005 → 0,01; -0,005 → -0,01). Todas as regras usam o valor arredondado (`valor_considerado`), e todos os cálculos são exatos ao centavo.
 **Origem:** AMB-014.
 **Aceite:** `valor` 33.333 → `valor_considerado` 33.33; `valor` 10.005 → 10.01; `valor` 10.004 → 10.00.
 
@@ -163,13 +172,13 @@ As regras são aplicadas a cada despesa na ordem da seção 8. A primeira regra 
 
 **Regra:** a categoria é comparada depois da normalização de texto (seção 5). Só três categorias são reconhecidas: `alimentacao`, `transporte_urbano` e `hospedagem`. Na saída, categorias reconhecidas aparecem nessa forma normalizada. Qualquer outra → `recusado`, motivo `categoria_fora_da_politica`.
 **Origem:** política do RH, item 9; AMB-011; AMB-012.
-**Aceite:** `ALIMENTACAO`, `" Alimentacao "` e `alimentação` → tratadas como `alimentacao`; `coworking` → `categoria_fora_da_politica`.
+**Aceite:** `ALIMENTACAO`, `" Alimentacao "`, `"alimentacao\t"` e `alimentação` → tratadas como `alimentacao`; `"Transporte Urbano"` e `"transporte-urbano"` → `transporte_urbano`; `coworking` → `categoria_fora_da_politica`.
 
 ### RN-007 — Duplicatas
 
-**Regra:** duas despesas são duplicatas quando têm a mesma `data`, a mesma categoria normalizada, o mesmo `fornecedor` normalizado (seção 5) e o mesmo `valor_considerado`. `id`, `descricao` e `tem_nota_fiscal` não entram na comparação. Só participam da comparação despesas que passaram pelas etapas 1 a 6 da seção 8 (inclusive a nota fiscal): uma despesa recusada antes disso não é "original" de ninguém. Entre duplicatas, só a primeira na ordem da entrada segue avaliada; as seguintes são `recusado`, motivo `duplicata`, e não consomem limite. A comparação é exata: datas, valores ou fornecedores diferentes após a normalização não são duplicatas (risco aceito, seção 10).
+**Regra:** duas despesas são duplicatas quando têm a mesma `data`, a mesma categoria normalizada, o mesmo `fornecedor` normalizado (seção 5) e o mesmo `valor_considerado`. `id`, `descricao` e `tem_nota_fiscal` não entram na comparação. Só participam da comparação despesas que passaram pelas etapas 1 a 6 da seção 8 (inclusive a nota fiscal): uma despesa recusada antes disso não é "original" de ninguém. Dentro de cada grupo de despesas duplicatas entre si, segue avaliada uma só, a **original**: a primeira na ordem da entrada que tem `tem_nota_fiscal` verdadeiro; se nenhuma do grupo tem, a primeira na ordem da entrada. Todas as outras do grupo são `recusado`, motivo `duplicata`, e não consomem limite nem comprovam viagem. Assim, qual cópia sobrevive não depende da ordem quando só uma delas tem nota. A comparação é exata: datas, valores ou fornecedores diferentes após a normalização não são duplicatas (risco aceito, seção 10).
 **Origem:** política do RH, item 8; AMB-010.
-**Aceite:** d-006 e d-007 (mesmos data, categoria, fornecedor e valor 54,90, ambas com nota) → d-006 avaliada normalmente, d-007 `duplicata`. Táxi de 110,00 sem nota seguido do mesmo táxi com nota → o primeiro `nota_fiscal_ausente`, o segundo segue avaliado (não é duplicata), em qualquer ordem. "Bistro Central" e "Bistrô Central" → mesmo fornecedor.
+**Aceite:** d-006 e d-007 (mesmos data, categoria, fornecedor e valor 54,90, ambas com nota) → d-006 avaliada normalmente, d-007 `duplicata`. Táxi de 110,00 sem nota seguido do mesmo táxi com nota → o primeiro `nota_fiscal_ausente`, o segundo segue avaliado (não é duplicata), em qualquer ordem. Hospedagem de 90,00 sem nota e a mesma com nota, em qualquer ordem → a com nota é a original (comprova viagem, RN-010), a sem nota é `duplicata`. "Bistro Central" e "Bistrô Central" → mesmo fornecedor.
 
 ### RN-008 — Nota fiscal obrigatória acima de R$ 100
 
@@ -244,7 +253,7 @@ Tipo: **U** = unidade de aplicação · **F** = fronteira · **D** = dado ausent
 **Texto original do RH:** "Colaborador em viagem tem limites ampliados em 50%."
 **O que não está claro:** a entrada não tem campo de viagem. Também não está claro se uma hospedagem barata e sem nota basta como prova, e se o dia seguinte ao pernoite conta (d-011, café no hotel em 15/07, depois da diária de 14/07).
 **Decisão:** uma hospedagem **com nota fiscal** que não foi recusada antes do limite comprova viagem na data dela e no dia seguinte.
-**Justificativa:** hospedagem é a única evidência objetiva de viagem nos dados, e só a nota a torna verificável (sem a exigência, uma hospedagem de 0,01 ampliaria o teto do dia em 70,00); uma diária é uma noite, então o colaborador acorda em viagem no dia seguinte.
+**Justificativa:** hospedagem é a única evidência objetiva de viagem nos dados, e exigir a nota a torna verificável na conferência humana; uma diária é uma noite, então o colaborador acorda em viagem no dia seguinte. A exigência **não** elimina o abuso: o sistema confia no `tem_nota_fiscal` declarado (seção 3), então uma hospedagem irrisória com nota declarada ainda amplia os limites de D e D+1 (risco aceito, seção 10).
 **Regra afetada:** RN-010
 
 ### AMB-005 — Uma despesa de hospedagem com várias diárias (D, U)
@@ -291,16 +300,16 @@ Tipo: **U** = unidade de aplicação · **F** = fronteira · **D** = dado ausent
 
 **Texto original do RH:** "Duplicatas devem ser tratadas."
 **O que não está claro:** quais campos definem uma duplicata (d-006 e d-007 só diferem no id), o que fazer com ela, e se uma despesa relançada com a nota fiscal que faltava é duplicata da original.
-**Decisão:** mesma data, categoria, fornecedor e valor (texto normalizado, comparação exata); a nota fiscal é verificada antes, e só despesas que passaram por ela são comparadas; a primeira na ordem da entrada é avaliada, as demais são recusadas com motivo `duplicata`.
-**Justificativa:** o id é gerado no lançamento e não identifica o gasto; verificar a nota antes torna o resultado independente da ordem e permite corrigir uma nota faltante; recusar com motivo explícito deixa visível um eventual gasto legítimo repetido, para o colaborador contestar.
+**Decisão:** mesma data, categoria, fornecedor e valor (texto normalizado, comparação exata); a nota fiscal é verificada antes, e só despesas que passaram por ela são comparadas; a original é a primeira com nota fiscal (ou, se nenhuma tem, a primeira na ordem da entrada), e as demais são recusadas com motivo `duplicata`.
+**Justificativa:** o id é gerado no lançamento e não identifica o gasto; verificar a nota antes e preferir a cópia com nota tornam o resultado independente da ordem e permitem corrigir uma nota faltante, inclusive abaixo de 100,00, onde a nota importa para comprovar viagem; recusar com motivo explícito deixa visível um eventual gasto legítimo repetido, para o colaborador contestar.
 **Regra afetada:** RN-007
 
 ### AMB-011 — Categoria com grafia diferente (F)
 
 **Texto original do RH:** (não tratado)
 **O que não está claro:** se `ALIMENTACAO` (d-014) é a mesma categoria que `alimentacao`; e uma grafia com acento (`alimentação`).
-**Decisão:** ignora maiúsculas/minúsculas, espaços nas pontas e acentos/cedilha (normalização da seção 5). A mesma normalização vale para o fornecedor.
-**Justificativa:** são variações de escrita da mesma palavra; recusar `alimentação` puniria quem escreve corretamente em português.
+**Decisão:** normalização completa da seção 5: espaços em branco nas pontas, maiúsculas/minúsculas, qualquer acento ou sinal diacrítico, e separadores internos (espaço, hífen, sublinhado) equivalentes. A mesma normalização vale para o fornecedor.
+**Justificativa:** são variações de escrita da mesma palavra; recusar `alimentação` puniria quem escreve corretamente em português, e recusar `Transporte Urbano` recusaria a grafia que o próprio RH usou na política.
 **Regra afetada:** RN-006, RN-007
 
 ### AMB-012 — Categoria fora da política: recusar ou omitir? (U)
@@ -323,7 +332,7 @@ Tipo: **U** = unidade de aplicação · **F** = fronteira · **D** = dado ausent
 
 **Texto original do RH:** (não tratado)
 **O que não está claro:** d-011 tem 33,333: arredondar, truncar ou recusar, e quando.
-**Decisão:** arredonda para o centavo, metade para cima, antes de qualquer regra. A saída mostra o número recebido (`valor_informado`) e o arredondado (`valor_considerado`).
+**Decisão:** arredonda para o centavo, metade afastando do zero, antes de qualquer regra. A saída mostra o número recebido (`valor_informado`) e o arredondado (`valor_considerado`).
 **Justificativa:** reembolso é pago em centavos; arredondar no início garante que todas as regras usem o mesmo valor.
 **Regra afetada:** RN-003
 
@@ -368,8 +377,12 @@ Tipo: **U** = unidade de aplicação · **F** = fronteira · **D** = dado ausent
 | Despesa antiga lançada no período | d-008, data 15/04 num período de julho | `fora_do_periodo` | RN-005 |
 | Categoria em maiúsculas | `ALIMENTACAO` | tratada como `alimentacao` | RN-006 |
 | Categoria com acento | `alimentação` | tratada como `alimentacao` | RN-006 |
+| Categoria com separador diferente | `"Transporte Urbano"`, `"transporte-urbano"` | tratada como `transporte_urbano` | RN-006 |
+| Categoria com tabulação no fim | `"alimentacao\t"` | tratada como `alimentacao` | RN-006 |
 | Duplicata exata | mesmos data, categoria, fornecedor, valor (≤ 100) | segunda `duplicata` | RN-007 |
 | Fornecedor com acento | "Bistro Central" e "Bistrô Central", demais campos iguais | segunda `duplicata` | RN-007 |
+| Fornecedor com espaços internos | "Pão  Quente" e "Pao Quente", demais campos iguais | segunda `duplicata` | RN-007 |
+| Duplicata de hospedagem só uma com nota | hospedagem 90,00 sem nota e a mesma com nota, mesma data, em qualquer ordem | a com nota é a original e comprova viagem; a sem nota é `duplicata` | RN-007, RN-010 |
 | Quase duplicata | mesmo valor, data vizinha ou fornecedor diferente | as duas avaliadas | RN-007 |
 | Cópias idênticas sem nota acima de 100 | duas despesas de 150,00 sem nota | as duas `nota_fiscal_ausente` | RN-008, RN-007 |
 | Relançamento com nota | 110,00 sem nota e depois o mesmo com nota (ou ordem inversa) | sem nota `nota_fiscal_ausente`; com nota segue avaliada | RN-007, RN-008 |
@@ -377,6 +390,7 @@ Tipo: **U** = unidade de aplicação · **F** = fronteira · **D** = dado ausent
 | Valor zero | 0,00 | `valor_invalido` | RN-004 |
 | Três casas decimais | 33,333 | `valor_informado` 33.333, `valor_considerado` 33,33 | RN-003 |
 | Arredondamento da metade | 10,005 | considerado 10,01 | RN-003 |
+| Arredondamento da metade negativa | -0,005 | considerado -0,01; `valor_invalido` | RN-003, RN-004 |
 | Hospedagem com várias diárias na descrição | 480,00 "2 diarias", com nota, em 14/07 | 1 diária: `parcial` com 250,00; 14/07 e 15/07 em viagem | RN-012, RN-010 |
 | Dia seguinte à diária | hospedagem com nota em 14/07; alimentação 80,00 em 15/07 | 15/07 em viagem: limite 90,00, `aprovado` com 80,00 | RN-010 |
 | Dois dias depois da diária | hospedagem com nota em 14/07; alimentação 80,00 em 16/07 | limite 60,00, `parcial` com 60,00 | RN-010 |
@@ -388,6 +402,10 @@ Tipo: **U** = unidade de aplicação · **F** = fronteira · **D** = dado ausent
 | Campo obrigatório ausente | despesa sem `tem_nota_fiscal` | `entrada_invalida`, `valor_considerado` nulo, fora dos totais; demais processadas | RN-002 |
 | Elemento que não é objeto | `null` dentro de `despesas` | item com `id` e `data` nulos, `entrada_invalida` | RN-002 |
 | Campo extra | hospedagem com `"noites": 2` | campo ignorado; uma diária | RN-002, RN-012 |
+| Campo com tipo errado | `"id": 17` | `entrada_invalida`; `id` nulo na saída | RN-002 |
+| Texto vazio em campo obrigatório | `fornecedor` `""` ou `"   "` | `entrada_invalida` | RN-002 |
+| Competência não textual | `competencia` 202607 | processamento normal; `competencia` nula na saída | RN-002 |
+| Saída não gravável | caminho de saída em pasta inexistente | erro de arquivo: código diferente de 0 | RN-002 |
 | Colaborador ausente | arquivo sem `colaborador` | erro de arquivo: sem saída, código diferente de 0 | RN-002 |
 | Lista de despesas vazia | `despesas: []` | `itens` vazio, totais 0 | RN-001 |
 | Despesa em sábado | 18/07 (sábado) | avaliada normalmente | AMB-015 |
@@ -402,7 +420,7 @@ Cada despesa passa pelas etapas abaixo, nesta ordem. A primeira etapa que a recu
 4. **Período** — RN-005 (`fora_do_periodo`).
 5. **Categoria** — RN-006 (`categoria_fora_da_politica`).
 6. **Nota fiscal** — RN-008 (`nota_fiscal_ausente`).
-7. **Duplicata** — RN-007 (`duplicata`), comparando só com despesas anteriores que passaram pelas etapas 1 a 6.
+7. **Duplicata** — RN-007 (`duplicata`), comparando só despesas que passaram pelas etapas 1 a 6; em cada grupo de duplicatas, a original é a primeira com nota fiscal (ou a primeira na ordem, se nenhuma tem).
 8. **Viagem** — RN-010: com todas as despesas já avaliadas pelas etapas 1 a 7, marca as datas em viagem.
 9. **Limite diário** — RN-009, por data e categoria, consumindo o limite na ordem da entrada.
 
@@ -453,4 +471,5 @@ Totais: `valor_solicitado` = 1.861,84 · `valor_reembolsado` = 585,43 · `valor_
 ### Riscos conhecidos e aceitos
 
 - **Fracionamento para escapar da nota fiscal** (AMB-008): três hospedagens sem nota de 100,00 + 99,99 + 50,01 na mesma data recebem 250,00, enquanto uma de 250,00 sem nota recebe 0. O ganho é limitado aos casos em que o limite diário passa de 100,00 (hospedagem e transporte em viagem). Aceito para não recusar despesas pequenas legítimas sem nota.
-- **Quase-duplicatas** (AMB-010): o mesmo gasto relançado com data vizinha, valor diferente em um centavo ou fornecedor com outra grafia (além de caixa, acentos e espaços nas pontas) não é detectado. Aceito porque qualquer critério aproximado seria regra inventada e poderia recusar gastos legítimos repetidos.
+- **Viagem por hospedagem irrisória com nota declarada** (AMB-004): uma hospedagem de 0,01 com `tem_nota_fiscal` verdadeiro põe D e D+1 em viagem e amplia os limites de alimentação e transporte em até 70,00 por dia (140,00 nos dois dias). Aceito porque o sistema não verifica notas (seção 3) e qualquer valor mínimo seria regra inventada; a saída expõe `em_viagem` por item para a conferência humana. Mitigação definitiva: indicação explícita de viagem na entrada (evolução, seção 3).
+- **Quase-duplicatas** (AMB-010): o mesmo gasto relançado com data vizinha, valor diferente em um centavo ou fornecedor com outra grafia (além do que a normalização da seção 5 cobre) não é detectado. Aceito porque qualquer critério aproximado seria regra inventada e poderia recusar gastos legítimos repetidos.
