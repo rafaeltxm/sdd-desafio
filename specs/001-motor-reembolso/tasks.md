@@ -38,12 +38,12 @@ O esperado de todo teste é calculado à mão a partir da spec, nunca copiado da
   - **Aceite:** `tests/test_politica.py` passa: `test_rn009_limites_conferem_tabela_da_spec` (60/90, 80/120, 250/250), `test_rn006_tres_categorias_reconhecidas`, `test_rn008_valor_de_nota_e_100`, `test_rn002_teto_de_um_bilhao`, `test_rn010_viagem_cobre_d_e_d_mais_1`, `test_motivos_na_ordem_da_secao_8`; todas as constantes monetárias são `Decimal`.
   - **Commit:** 6e1f498
 
-- [ ] **T-003** — Normalização de texto: `normalizar_texto()` com os passos da seção 5 da spec (DT-004).
+- [x] **T-003** — Normalização de texto: `normalizar_texto()` com os passos da seção 5 da spec (DT-004).
   - **Tipo:** regra
   - **Atende:** seção 5 da spec (normalização), AMB-011, D-005; usada por RN-002, RN-006 e RN-007
   - **Depende de:** T-001
   - **Aceite:** `tests/test_normalizacao.py` passa: exemplos da seção 5 (`"Transporte Urbano"`, `"transporte-urbano"`, `" TRANSPORTE__urbano "`, `"Transporte – Urbano"` → `transporte_urbano`; `"Pão  Quente"`, `"pao-quente"` → `pao_quente`; `"-Bistro"`, `"_Bistro"`, `"Bistro -"`, `" -_Bistro"` → `bistro`; `"Padaria (Centro)"` → `padaria_centro`; `"McDonald's"` → `mcdonald_s`; `"Straße"` → `strasse`; `"Padaria Nº 1"` → `padaria_nº_1` e `"Padaria N° 1"` → `padaria_n_1`; `"Loja²"` → `loja`; `"Smørrebrød"` → `smørrebrød`; `"-"` → vazio); acento pré-composto e combinante dão o mesmo resultado; `ç`, `ô`, `ü`, `ñ`; sinal combinante solto (no início, sobre hífen no fim) é descartado; tabulação, quebra de linha, espaço não separável, espaço de largura zero e caractere de controle nas pontas; mistura de separadores internos de qualquer tipo vira um `_`; letras de qualquer alfabeto e algarismos decimais de qualquer escrita são mantidos como estão; número que não é dígito decimal (`²`, `½`) é separador.
-  - **Commit:**
+  - **Commit:** aaf201a
 
 - [ ] **T-004** — Justificativa: `justificativa.py` gera a frase em português de um item já decidido, para cada status e motivo, com formatação própria `1.234,56` e `DD/MM` sem `locale` (DT-009).
   - **Tipo:** estrutura (texto não contratual)
