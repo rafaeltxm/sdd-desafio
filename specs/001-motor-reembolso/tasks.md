@@ -31,12 +31,12 @@ O esperado de todo teste é calculado à mão a partir da spec, nunca copiado da
   - **Aceite:** `uv run pytest -q` e `uv run ruff check .` verdes; `tests/test_setup.py::test_fixture_entrada_minima_e_json_valido` passa (a entrada do construtor é um documento com `colaborador`, `periodo` e `despesas` conforme a seção 4 da spec).
   - **Commit:** 805aee5
 
-- [ ] **T-002** — Modelo de dados e política: `modelo.py` (dataclasses e enums da seção 3 do plano, com `Motivo` na ordem da seção 8 da spec) e `politica.py` (constantes literais da seção 4 do plano).
+- [x] **T-002** — Modelo de dados e política: `modelo.py` (dataclasses e enums da seção 3 do plano, com `Motivo` na ordem da seção 8 da spec) e `politica.py` (constantes literais da seção 4 do plano).
   - **Tipo:** regra
   - **Atende:** RN-006 (categorias), RN-008 (100,00), RN-009 (tabela de limites), RN-010 (D e D+1), RN-002 (teto de 1.000.000.000,00), AMB-006, AMB-018
   - **Depende de:** T-001
   - **Aceite:** `tests/test_politica.py` passa: `test_rn009_limites_conferem_tabela_da_spec` (60/90, 80/120, 250/250), `test_rn006_tres_categorias_reconhecidas`, `test_rn008_valor_de_nota_e_100`, `test_rn002_teto_de_um_bilhao`, `test_rn010_viagem_cobre_d_e_d_mais_1`, `test_motivos_na_ordem_da_secao_8`; todas as constantes monetárias são `Decimal`.
-  - **Commit:**
+  - **Commit:** 6e1f498
 
 - [ ] **T-003** — Normalização de texto: `normalizar_texto()` com os 4 passos da seção 5 da spec (DT-004).
   - **Tipo:** regra
