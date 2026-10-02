@@ -117,13 +117,13 @@ O motor segue o DT-005: fase individual (lista ordenada de verificações, etapa
   - **Casos de borda:** Chave repetida na despesa · Chave repetida fora das despesas · Chave repetida dentro de valor descartado · Mesma chave aninhada no valor descartado e no que valeu · Chave repetida escrita com escape · Lista dentro de lista no caminho · Chave repetida mil vezes · Chave repetida em elemento que é lista
   - **Commit:** b787957
 
-- [ ] **T-013** — Valor positivo: etapa 3, `valor_invalido` para `valor_considerado` ≤ 0.
+- [x] **T-013** — Valor positivo: etapa 3, `valor_invalido` para `valor_considerado` ≤ 0.
   - **Tipo:** regra
   - **Atende:** RN-004, AMB-013
   - **Depende de:** T-010
   - **Aceite:** `tests/test_rn004_valor_positivo.py` passa: -45,00 → `recusado`, `valor_invalido`, reembolsado 0, e as demais despesas do mesmo dia têm o mesmo resultado que teriam sem ela; 0 → `valor_invalido`; 0.004 → `valor_invalido`; item recusado aqui tem `em_viagem` e `limite_diario` nulos e fica fora de `valor_solicitado`.
   - **Casos de borda:** Estorno · Valor zero · Arredondamento da metade negativa · Valor minúsculo
-  - **Commit:**
+  - **Commit:** `3c6131a`
 
 - [ ] **T-014** — Período: etapa 4, `fora_do_periodo` para data fora de `[inicio, fim]`.
   - **Tipo:** regra
