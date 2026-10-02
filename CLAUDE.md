@@ -1,10 +1,5 @@
 # CLAUDE.md
 
-> Este arquivo é lido pelo Claude Code no início de toda sessão. É onde moram as
-> convenções que você não quer repetir em todo prompt.
-> Substitua os `<...>` e apague o que não usar. Mantenha curto — CLAUDE.md longo
-> é CLAUDE.md ignorado.
-
 ## O projeto
 
 Motor de cálculo de reembolso de despesas corporativas. CLI que lê um JSON de
@@ -82,9 +77,36 @@ Detalhes e justificativas em `plan.md` seção 1.
 
 ## Convenções de código
 
-- `<nomenclatura, estrutura de pastas, tratamento de erro, o que for relevante>`
-- Valores monetários: `<como são representados — decimal, centavos em inteiro, etc.>`
+Detalhes em `plan.md` seções 2, 3 e 5; aqui só o que não pode ser esquecido.
+
+- **Dinheiro é `Decimal`, nunca `float`** (DT-001): lido direto do texto JSON
+  (`simplejson`, `use_decimal=True`), arredondado só com
+  `quantize(Decimal("0.01"), ROUND_HALF_UP)` (RN-003). Um teste de propriedade
+  garante que nenhum valor monetário da saída é `float`.
+- **Fronteiras dos módulos** (plan seção 2): só `cli.py` faz I/O (disco, argv,
+  stderr, código de saída); o resto é função pura. Regra de negócio fica em
+  `motor.py` + `politica.py` + `normalizacao.py`; constantes da política só em
+  `politica.py`; `entrada.py` só aplica a RN-002 e a RN-013.
+- **Erros** (DT-007, RN-002): problema no arquivo ou no cabeçalho → `ErroDeArquivo`,
+  mensagem `erro: ...` em stderr, código 1, saída não criada nem alterada
+  (gravação atômica, DT-006). Despesa inválida não é exceção: vira item
+  `recusado`/`entrada_invalida`. Nenhum stack trace para erro previsto.
+- **Ordem das etapas** do motor segue a seção 8 da spec (DT-005); nova verificação
+  individual entra na lista ordenada, não como `if` solto.
+- **Saída determinística** (DT-008): campos na ordem da seção 4 da spec, itens na
+  ordem da entrada, sem depender de `locale` nem de ordem de `set`.
+- **Justificativa** é texto livre não contratual (DT-009): os testes não fixam o
+  texto exato.
+- **Testes**: um arquivo por regra (`tests/test_rnNNN_*.py`), nome
+  `test_rnNNN_<comportamento>`, docstring `"""RN-NNN / AMB-NNN: ..."""`, esperado
+  calculado à mão a partir da spec com a conta em comentário. Caso de borda novo
+  na seção 7 da spec → linha em `tests/test_casos_de_borda.py` com o nome do caso
+  como `id` (`test_rastreabilidade.py` falha se faltar).
 
 ## Fora de escopo
 
-- `<o que este projeto explicitamente não faz — evita que o agente invente feature>`
+A lista oficial é a seção 3 da spec. Não implementar sem mudança de spec:
+pagamento ou integração, mais de um colaborador ou período por execução,
+leitura da `descricao`, conversão de moeda, histórico entre execuções, campos de
+entrada além dos da seção 4, categoria de representação, indicação explícita de
+viagem, tratamento especial de feriado ou fim de semana.
