@@ -101,13 +101,13 @@ O motor segue o DT-005: fase individual (lista ordenada de verificações, etapa
   - **Casos de borda:** Duas alimentações no mesmo dia somando mais que o limite · Valor exatamente no limite diário · Um centavo acima do limite diário · Duas hospedagens na mesma data · Três casas decimais · Arredondamento da metade · Lista de despesas vazia · Despesa em sábado
   - **Commit:** b50dbfa
 
-- [ ] **T-011** — Despesa inválida na saída: `DespesaInvalida` vira item `recusado` / `entrada_invalida`, com `valor_considerado`, `em_viagem` e `limite_diario` nulos, fora de `valor_solicitado`, sem afetar as demais.
+- [x] **T-011** — Despesa inválida na saída: `DespesaInvalida` vira item `recusado` / `entrada_invalida`, com `valor_considerado`, `em_viagem` e `limite_diario` nulos, fora de `valor_solicitado`, sem afetar as demais.
   - **Tipo:** regra
   - **Atende:** RN-002 (saída de despesa inválida), RN-001 (totais), seção 4 da spec (`itens[].id`, `data`, `categoria`, `valor_informado`), AMB-018
   - **Depende de:** T-010
   - **Aceite:** `tests/test_rn002_validacao_da_entrada.py` passa os testes de saída: o **Aceite** da RN-002 inteiro, exceto os itens de erro de arquivo e CLI (cobertos na T-008 e na T-019) — despesa sem `tem_nota_fiscal` com 33.333 → `valor_informado` 33.333, `valor_considerado` nulo, fora de `valor_solicitado`, demais processadas; `null` em `despesas`; `"id": 17`; `fornecedor` `"   "`; `competencia` 202607; `"ALIMENTACAO"` sem `tem_nota_fiscal`; `"noites": 2`; `valor` 1000000000; `-1e12` → `entrada_invalida`, não `valor_invalido`; `999999999.995` → `valor_considerado` 1000000000.00.
   - **Casos de borda:** Campo obrigatório ausente · Elemento que não é objeto · Campo extra · Campo com tipo errado · Texto vazio em campo obrigatório · Competência não textual · Texto com escapes válidos · Categoria reconhecível em despesa inválida · Valor a partir de um bilhão · Valor logo abaixo de um bilhão · Valor negativo gigante · Valor com expoente enorme · Muitas casas logo abaixo do teto
-  - **Commit:**
+  - **Commit:** c576a24
 
 - [ ] **T-012** — Avisos de chave repetida na saída: avisos da T-007 chegam a `itens[].avisos` e a `avisos` do topo, sem mudar status, motivo nem valores, inclusive em item recusado.
   - **Tipo:** regra
