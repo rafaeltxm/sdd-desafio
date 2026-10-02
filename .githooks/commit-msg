@@ -19,10 +19,31 @@ if [[ "$subject" =~ $code_re ]] || [[ "$subject" =~ $chore_re ]]; then
     echo "commit-msg: ✗ $task não existe em $tasks_file. Crie a task antes do commit."
     exit 1
   fi
-  exit 0
+  [[ "$subject" =~ ^chore ]] || exit 0
 fi
 
-if [[ "$subject" =~ $docs_re ]]; then exit 0; fi
+if [[ "$subject" =~ $docs_re ]] || [[ "$subject" =~ $chore_re ]]; then
+  # Fim de bloco = qualquer commit exceto feat|test|fix|refactor(T-NNN) (meio da task)
+  # e docs(sessions) (export avulso). O export da sessão vai no mesmo commit que fecha o bloco.
+  # Commit no meio de um bloco que não é de código: SEM_EXPORT=1 git commit ...
+  if [[ "$subject" == docs\(sessions\):* ]] || [ "${SEM_EXPORT:-}" = "1" ]; then exit 0; fi
+  if git diff --cached --name-only --diff-filter=A | grep -qE '^docs/sessions/[0-9]{2}-.+\.md$'; then
+    exit 0
+  fi
+  last=$(ls docs/sessions/ 2>/dev/null | grep -oE '^[0-9]{2}' | sort -n | tail -1)
+  next=$(printf '%02d' $((10#${last:-0} + 1)))
+  cat <<MSG
+commit-msg: ✗ commit de fim de bloco sem o export da sessão:
+  "$subject"
+
+Peça o export ao usuário e inclua-o neste mesmo commit:
+  /export docs/sessions/${next}-<descricao-curta>.md
+  git add docs/sessions/${next}-*.md
+
+Se este commit não fecha o bloco de trabalho: SEM_EXPORT=1 git commit ...
+MSG
+  exit 1
+fi
 
 cat <<MSG
 commit-msg: ✗ mensagem fora do padrão:

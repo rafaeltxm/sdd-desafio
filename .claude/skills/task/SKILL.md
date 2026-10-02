@@ -97,7 +97,11 @@ Se houver qualquer item em "Decisões ou interpretações" ou em "Decisões nece
 - Mensagem no padrão do projeto: `feat|test|fix|refactor(T-NNN): <descrição>`. O hook `commit-msg` valida o formato e se a task existe; o `pre-commit` roda ruff + pytest.
 - Se um hook bloquear: corrija a causa. **Nunca** use `--no-verify`.
 
-### 12. Marcar a task como concluída (só após o commit)
+### 12. Marcar a task como concluída e fechar o bloco (só após o commit)
 - Em `tasks.md`: troque `- [ ]` por `- [x]` na task e preencha `**Commit:**` com o hash curto do passo 11.
-- Commit separado: `docs(tasks): conclui T-NNN`.
-- Repasse ao usuário o lembrete de export do hook `post-commit` e **não inicie a próxima task** sem novo pedido.
+- **Antes do commit, pare e peça o export da sessão** com o comando pronto:
+  `/export docs/sessions/NN-<descricao-curta>.md` (NN = último número em `docs/sessions/` + 1).
+  Aguarde o usuário confirmar que exportou; não commite antes disso.
+- Commit único com `tasks.md` + o export: `docs(tasks): conclui T-NNN`. O hook `commit-msg`
+  bloqueia commit de fim de bloco sem um `docs/sessions/NN-*.md` novo staged.
+- **Não inicie a próxima task** sem novo pedido.

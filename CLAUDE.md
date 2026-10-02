@@ -53,11 +53,12 @@ que detalha o fluxo abaixo e para para aprovação humana antes do commit.
 Git hooks em `.githooks/` (ativar uma vez por clone: `git config core.hooksPath .githooks`):
 - `pre-commit` — `ruff check` + `pytest`; bloqueia se falhar.
 - `commit-msg` — valida o padrão de mensagem e que o `T-NNN` existe em `tasks.md`.
-- `post-commit` — no fim de um bloco (qualquer commit exceto `feat|test|fix|refactor(T-NNN)`
-  e `docs(sessions)`), lembra de exportar a sessão para `docs/sessions/NN-*.md`. O hook
-  `.claude/hooks/lembrete-export.sh` (em `.claude/settings.json`) mostra o mesmo lembrete
-  ao usuário quando o commit é feito pelo Claude. Ao vê-lo, não iniciar o próximo bloco
-  sem o usuário.
+- `commit-msg` também exige o export da sessão no commit que fecha um bloco (qualquer commit
+  exceto `feat|test|fix|refactor(T-NNN)` e `docs(sessions)`): precisa haver um
+  `docs/sessions/NN-*.md` novo staged. Por isso, **antes** desse commit, parar e pedir ao
+  usuário `/export docs/sessions/NN-<descricao>.md` (NN = último + 1), esperar, e commitar
+  tudo junto, num commit só. Commit que não fecha bloco: `SEM_EXPORT=1 git commit ...`.
+  Depois do commit de fim de bloco, não iniciar o próximo bloco sem o usuário.
 
 Formatos de commit aceitos: `feat|test|fix|refactor(T-NNN):`,
 `docs(spec|plan|tasks|decisions|readme|relatorio|sessions|claude):`,
