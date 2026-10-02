@@ -24,12 +24,12 @@ O esperado de todo teste é calculado à mão a partir da spec, nunca copiado da
 
 ## Fase 1 — Fundação
 
-- [ ] **T-001** — Setup do projeto: `pyproject.toml` com `uv` (Python ≥ 3.12, `simplejson` ≥ 4, `pytest`, `ruff` com regras `E`, `F`, `I`, `B`, `UP`), pacote `src/reembolso/` com os módulos vazios da seção 2 do plano, entry point `reembolso = "reembolso.cli:main"` e `tests/conftest.py` com os construtores `entrada(...)` e `despesa(**campos)` (entrada mínima válida).
+- [x] **T-001** — Setup do projeto: `pyproject.toml` com `uv` (Python ≥ 3.12, `simplejson` ≥ 4, `pytest`, `ruff` com regras `E`, `F`, `I`, `B`, `UP`), pacote `src/reembolso/` com os módulos vazios da seção 2 do plano, entry point `reembolso = "reembolso.cli:main"` e `tests/conftest.py` com os construtores `entrada(...)` e `despesa(**campos)` (entrada mínima válida).
   - **Tipo:** estrutura
   - **Atende:** plan seções 1, 2 e 6 (fixtures)
   - **Depende de:** —
   - **Aceite:** `uv run pytest -q` e `uv run ruff check .` verdes; `tests/test_setup.py::test_fixture_entrada_minima_e_json_valido` passa (a entrada do construtor é um documento com `colaborador`, `periodo` e `despesas` conforme a seção 4 da spec).
-  - **Commit:**
+  - **Commit:** 805aee5
 
 - [ ] **T-002** — Modelo de dados e política: `modelo.py` (dataclasses e enums da seção 3 do plano, com `Motivo` na ordem da seção 8 da spec) e `politica.py` (constantes literais da seção 4 do plano).
   - **Tipo:** regra
