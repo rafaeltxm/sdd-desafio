@@ -59,7 +59,7 @@ def _item_invalido(despesa: DespesaInvalida) -> ItemResultado:
             valor_reembolsado=ZERO,
             limite_diario=None,
         ),
-        avisos=(),
+        avisos=despesa.avisos,
     )
 
 
@@ -95,7 +95,7 @@ def _aplicar_limite(despesas: list[Despesa]) -> dict[int, ItemResultado]:
                 valor_reembolsado=reembolsado,
                 limite_diario=limite,
             ),
-            avisos=(),
+            avisos=despesa.avisos,
         )
     return itens
 
@@ -134,5 +134,5 @@ def calcular(entrada: Entrada) -> Resultado:
         periodo=entrada.periodo,
         itens=itens,
         totais=_totais(itens),
-        avisos=(),
+        avisos=entrada.avisos,
     )

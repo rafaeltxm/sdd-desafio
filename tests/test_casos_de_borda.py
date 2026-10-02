@@ -165,6 +165,77 @@ def _caso_valor_com_expoente_enorme(saida):
     assert item["valor_informado"] == Decimal("1E+999999")
 
 
+def _aviso(caminho, n):
+    return f"chave repetida: {caminho} ({n} ocorrências; valeu a última)"
+
+
+def _com_campos(campos, despesas=None, colaborador='{"id": "c-1", "nome": "Ana"}'):
+    """Texto JSON com `campos` escritos literalmente numa despesa (chave repetida)."""
+    if despesas is None:
+        despesas = (
+            '[{"id": "d-1", "data": "2026-07-03", "categoria": "alimentacao", '
+            '"fornecedor": "Restaurante", "tem_nota_fiscal": true, ' + campos + "}]"
+        )
+    return (
+        '{"colaborador": ' + colaborador + ", "
+        '"periodo": {"inicio": "2026-07-01", "fim": "2026-07-31"}, '
+        '"despesas": ' + despesas + "}"
+    )
+
+
+def _caso_chave_repetida_na_despesa(saida):
+    # vale 50,00 ≤ 60,00 → aprovado; aviso no item, nenhum no topo
+    (item,) = saida["itens"]
+    assert (item["valor_reembolsado"], item["status"]) == (Decimal("50.00"), "aprovado")
+    assert item["avisos"] == [_aviso("valor", 2)]
+    assert saida["avisos"] == []
+
+
+def _caso_chave_repetida_fora_das_despesas(saida):
+    assert saida["colaborador"]["nome"] == "Bia"
+    assert saida["avisos"] == [_aviso("colaborador.nome", 2)]
+    assert saida["itens"][0]["avisos"] == []
+
+
+def _caso_chave_repetida_dentro_de_valor_descartado(saida):
+    # só a última lista (uma despesa de 20,00) é avaliada; `valor` repetido na
+    # primeira lista não gera aviso
+    (item,) = saida["itens"]
+    assert (item["id"], item["valor_reembolsado"]) == ("d-2", Decimal("20.00"))
+    assert item["avisos"] == []
+    assert saida["avisos"] == [_aviso("despesas", 2)]
+
+
+def _caso_mesma_chave_aninhada(saida):
+    (item,) = saida["itens"]
+    assert item["avisos"] == [
+        _aviso("extra", 2), _aviso("obs", 2), _aviso("extra.x", 2),
+    ]
+
+
+def _caso_chave_repetida_escrita_com_escape(saida):
+    # vale 90,00; min(90,00; 60,00) = 60,00 → parcial
+    (item,) = saida["itens"]
+    assert (item["valor_reembolsado"], item["status"]) == (Decimal("60.00"), "parcial")
+    assert item["avisos"] == [_aviso("valor", 2)]
+
+
+def _caso_lista_dentro_de_lista(saida):
+    (item,) = saida["itens"]
+    assert item["avisos"] == [_aviso("m[0][0].x", 2)]
+
+
+def _caso_chave_repetida_mil_vezes(saida):
+    (item,) = saida["itens"]
+    assert item["avisos"] == [_aviso("obs", 1000)]
+
+
+def _caso_chave_repetida_em_elemento_lista(saida):
+    (item,) = saida["itens"]
+    _recusado_entrada_invalida(item)
+    assert item["avisos"] == [_aviso("[0].a", 2)]
+
+
 CASOS = [
     pytest.param(
         _json(despesa(id="a", valor=Decimal("72.50")),
@@ -270,6 +341,56 @@ CASOS = [
                       valor=Decimal("999999999.99999999999"))),
         _caso_abaixo_do_teto_segue,
         id="Muitas casas logo abaixo do teto",
+    ),
+    pytest.param(
+        _com_campos('"valor": 30.00, "valor": 50.00'),
+        _caso_chave_repetida_na_despesa,
+        id="Chave repetida na despesa",
+    ),
+    pytest.param(
+        _com_campos('"valor": 10.00',
+                    colaborador='{"id": "c-1", "nome": "Ana", "nome": "Bia"}'),
+        _caso_chave_repetida_fora_das_despesas,
+        id="Chave repetida fora das despesas",
+    ),
+    pytest.param(
+        '{"colaborador": {"id": "c-1", "nome": "Ana"}, '
+        '"periodo": {"inicio": "2026-07-01", "fim": "2026-07-31"}, '
+        '"despesas": [{"id": "d-1", "data": "2026-07-03", '
+        '"categoria": "alimentacao", "fornecedor": "R", "tem_nota_fiscal": true, '
+        '"valor": 1, "valor": 2}], '
+        '"despesas": [{"id": "d-2", "data": "2026-07-03", '
+        '"categoria": "alimentacao", "fornecedor": "R", "tem_nota_fiscal": true, '
+        '"valor": 20.00}]}',
+        _caso_chave_repetida_dentro_de_valor_descartado,
+        id="Chave repetida dentro de valor descartado",
+    ),
+    pytest.param(
+        _com_campos('"valor": 10.00, "extra": {"x": 1, "x": 2}, "obs": "a", '
+                    '"obs": "b", "extra": {"x": 3, "x": 4}'),
+        _caso_mesma_chave_aninhada,
+        id="Mesma chave aninhada no valor descartado e no que valeu",
+    ),
+    pytest.param(
+        _com_campos('"valor": 30.00, "\\u0076alor": 90.00'),
+        _caso_chave_repetida_escrita_com_escape,
+        id="Chave repetida escrita com escape",
+    ),
+    pytest.param(
+        _com_campos('"valor": 10.00, "m": [[{"x": 1, "x": 2}]]'),
+        _caso_lista_dentro_de_lista,
+        id="Lista dentro de lista no caminho",
+    ),
+    pytest.param(
+        _com_campos('"valor": 10.00, '
+                    + ", ".join(f'"obs": "{i}"' for i in range(1000))),
+        _caso_chave_repetida_mil_vezes,
+        id="Chave repetida mil vezes",
+    ),
+    pytest.param(
+        _com_campos("", despesas='[[{"a": 1, "a": 2}]]'),
+        _caso_chave_repetida_em_elemento_lista,
+        id="Chave repetida em elemento que é lista",
     ),
 ]
 

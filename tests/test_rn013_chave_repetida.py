@@ -214,3 +214,93 @@ def test_rn013_objeto_sem_repeticao_nenhum_aviso():
     )
     assert topo == ()
     assert por_despesa == ((),)
+
+
+# --- Ponta a ponta: avisos na saída (T-012) ---
+
+
+def test_rn013_saida_valor_repetido_avaliada_com_ultimo_e_aviso_no_item(processar):
+    """RN-013 / AMB-019: despesa avaliada com 50,00; aviso em `itens[].avisos`."""
+    saida = processar(
+        _documento("[" + _despesa('"valor": 30.00, "valor": 50.00') + "]")
+    )
+    (item,) = saida["itens"]
+    # vale 50,00; alimentação fora de viagem, 50,00 ≤ 60,00 → aprovado com 50,00
+    assert item["valor_considerado"] == Decimal("50.00")
+    assert (item["valor_reembolsado"], item["status"], item["motivo"]) == (
+        Decimal("50.00"), "aprovado", None,
+    )
+    assert item["avisos"] == [_aviso("valor", 2)]
+    assert saida["avisos"] == []
+
+
+def test_rn013_saida_colaborador_nome_repetido_avisa_no_topo_itens_vazios(processar):
+    """RN-013: `colaborador.nome` repetido → aviso no topo; itens com `avisos` []."""
+    saida = processar(
+        _documento(
+            "[" + _despesa('"valor": 10.00') + ", "
+            + _despesa('"valor": 20.00').replace('"d-1"', '"d-2"') + "]",
+            colaborador='{"id": "c-1", "nome": "Ana", "nome": "Bia"}',
+        )
+    )
+    assert saida["colaborador"]["nome"] == "Bia"
+    assert saida["avisos"] == [_aviso("colaborador.nome", 2)]
+    assert [item["avisos"] for item in saida["itens"]] == [[], []]
+
+
+def test_rn013_saida_aviso_em_item_recusado_por_entrada_invalida(processar):
+    """RN-013: `tem_nota_fiscal` true e depois "sim" → `entrada_invalida` com aviso."""
+    despesa = (
+        '{"id": "d-1", "data": "2026-07-03", "categoria": "alimentacao", '
+        '"fornecedor": "Restaurante", "valor": 10.00, '
+        '"tem_nota_fiscal": true, "tem_nota_fiscal": "sim"}'
+    )
+    saida = processar(_documento("[" + despesa + "]"))
+    (item,) = saida["itens"]
+    # vale "sim" (não booleano) → RN-002: recusado, `entrada_invalida`
+    assert (item["status"], item["motivo"]) == ("recusado", "entrada_invalida")
+    assert item["valor_considerado"] is None
+    assert item["avisos"] == [_aviso("tem_nota_fiscal", 2)]
+
+
+def test_rn013_saida_chave_com_escape_parcial_com_aviso(processar):
+    """RN-013 / RN-009: `valor` 30,00 e `\\u0076alor` 90,00 → parcial 60,00, aviso."""
+    saida = processar(
+        _documento("[" + _despesa('"valor": 30.00, "\\u0076alor": 90.00') + "]")
+    )
+    (item,) = saida["itens"]
+    # vale 90,00; alimentação fora de viagem: min(90,00; 60,00) = 60,00 → parcial
+    assert item["valor_considerado"] == Decimal("90.00")
+    assert (item["valor_reembolsado"], item["status"], item["motivo"]) == (
+        Decimal("60.00"), "parcial", "limite_diario_excedido",
+    )
+    assert item["avisos"] == [_aviso("valor", 2)]
+
+
+def test_rn013_saida_aviso_nao_muda_status_motivo_nem_valores(processar):
+    """RN-013: a mesma despesa com e sem chave repetida dá o mesmo resultado."""
+    # `obs` repetida não entra em regra: só `avisos` difere
+    com = processar(
+        _documento("[" + _despesa('"valor": 75.00, "obs": 1, "obs": 2') + "]")
+    )
+    sem = processar(_documento("[" + _despesa('"valor": 75.00, "obs": 2') + "]"))
+    (item_com,), (item_sem,) = com["itens"], sem["itens"]
+    assert item_com["avisos"] == [_aviso("obs", 2)]
+    assert {**item_com, "avisos": []} == item_sem
+    assert com["totais"] == sem["totais"]
+
+
+def test_rn013_saida_aviso_em_item_recusado_por_limite(processar):
+    """RN-013 / RN-009: aviso aparece também em item recusado pelo limite diário."""
+    primeira = _despesa('"valor": 60.00')
+    segunda = _despesa('"valor": 10.00, "obs": "a", "obs": "b"').replace(
+        '"d-1"', '"d-2"'
+    )
+    saida = processar(_documento("[" + primeira + ", " + segunda + "]"))
+    a, b = saida["itens"]
+    # 60,00 consome o limite de 60,00; a segunda: min(10,00; 0,00) = 0 → recusado
+    assert (a["status"], a["avisos"]) == ("aprovado", [])
+    assert (b["valor_reembolsado"], b["status"], b["motivo"]) == (
+        Decimal("0"), "recusado", "limite_diario_excedido",
+    )
+    assert b["avisos"] == [_aviso("obs", 2)]
