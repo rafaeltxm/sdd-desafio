@@ -10,6 +10,103 @@ Ordem cronológica inversa: a mais recente primeiro.
 
 ---
 
+## D-007 — Política de Reembolso v4 (envelope do Dia 2): spec 1.9 → 2.0 · `2026-10-02`
+
+**Gatilho:** mudança de requisito do RH, "Política de Reembolso v4" (`exemplos/envelope/00-ENVELOPE-LACRADO.md`), com os arquivos `politica-v4.json`, `cambio.json`, `despesas-envelope.json` e `despesas-envelope-cc-desconhecido.json`. Três itens:
+- **A.** Limites por centro de custo, lidos de um arquivo, com tabela padrão.
+- **B.** Despesas em moeda estrangeira, convertidas pela taxa da data.
+- **C.** Opcional: fila de aprovação acima de R$ 500.
+
+Ponto de partida: commit `edeeb2d`, 2026-10-02 19:51.
+
+**Como foi decidido:** antes de editar a spec, foram feitos um mapeamento de impacto e uma rodada do `spec-adversary` sobre o envelope contra a spec 1.9. A revisão apontou 17 problemas: 11 bloqueantes, 4 importantes e 2 menores. O mais grave foi que o exemplo da seção 9 é do `CC-ENG-PLATAFORMA`, e a v4 muda o seu resultado.
+
+O responsável decidiu os 17 pontos um a um. Dois pontos tiveram ajuste durante a discussão:
+- **Limite 0 (ponto 2).** A recomendação inicial ("categoria vedada, mas comprova viagem") era incoerente com a seção 8. A revisão expôs o erro, e a decisão ficou "categoria vedada, não comprova viagem".
+- **Limite ampliado (ponto 10c).** O responsável perguntou se arredondar o limite poderia interagir com a nota fiscal. Não pode: a nota compara o valor da despesa, antes do limite, na AMB-008. Mesmo assim, o responsável escolheu truncar, pelo argumento de que o limite é um teto.
+
+A recomendação para a vigência (ponto 15) mudou de "recusar" para "informativa" depois que o ponto 11 tornou a política um argumento explícito. Sessão `docs/sessions/37-*`.
+
+**O que mudou na spec** (numeração dos pontos = numeração da revisão adversarial):
+
+| # | Ponto | De (1.9) | Para (2.0) | Onde |
+|---|---|---|---|---|
+| 11 | Como política e câmbio entram na execução (**bloqueante**) | limites e nota fixos na spec; sem câmbio | `--politica` e `--cambio` obrigatórios; defeito em qualquer um dos dois arquivos é erro de arquivo; `dia` e `diaria` têm o mesmo significado | seção 4, RN-016, AMB-031 |
+| 1 | Exemplo da seção 9 é do `CC-ENG-PLATAFORMA` (**bloqueante**) | 585,43 reembolsado (limites fixos) | recalculado com a tabela do `CC-ENG-PLATAFORMA`: 351,43. Seção 7 passa a declarar política v4, sem centro de custo (`padrao`) e em reais | seções 7 e 9 |
+| 3 | "Aplica-se a política padrão" (**bloqueante**) | não existia | padrão = bloco `padrao` do arquivo, só para centro de custo fora da tabela; tabela aplicada fechada; categoria fora dela → `categoria_fora_da_politica` | RN-014, RN-006, AMB-020 |
+| 4 | Identificação do centro de custo (**bloqueante**) | campo opcional, ignorado | comparação exata; ausente, nulo ou só espaços → `padrao`; outro tipo → erro de arquivo; autodeclarado = risco aceito | seção 4, RN-002, RN-014, seção 10 |
+| 2 | Limite 0 ("não reembolsa de forma alguma") (**bloqueante**) | não existia | `categoria_fora_da_politica` (etapa 5); não comprova viagem | RN-006, RN-010, AMB-021 |
+| 10 | Acréscimo de viagem (**bloqueante**) | tabela fixa 90 / 120 / 250 | percentual do arquivo; só `alimentacao` e `transporte_urbano`; limite ampliado truncado ao centavo | RN-009, AMB-006, AMB-022 |
+| 9 | Moeda estrangeira caracteriza viagem? (**bloqueante**) | não existia | não; só hospedagem com nota | RN-010, AMB-023, seção 3, seção 10 |
+| 6 | Data sem cotação (**bloqueante**) | não existia | cotação anterior mais próxima, até D-3; sem ela → `cambio_indisponivel`; nunca cotação posterior | RN-015, AMB-024, AMB-015 |
+| 7 | Moeda sem cotação, mal escrita ou nula (**bloqueante**) | `moeda` era campo extra ignorado | 3 letras maiúsculas `A`–`Z` exatas, senão `entrada_invalida`; nulo = `BRL`; `BRL` taxa 1; sem cotação → `cambio_indisponivel`; sem lista ISO | seção 4, RN-002, RN-015, AMB-025 |
+| 8 | Arredondamento × conversão; teto; valor positivo (**bloqueante**) | arredonda `valor` em reais | converte o valor exato e arredonda uma vez, em reais; teto sobre o número recebido; valor positivo sobre o valor em reais | RN-002, RN-003, RN-004, AMB-026 |
+| 5 | Nota fiscal em qual moeda; origem do mínimo (**bloqueante**) | 100,00 fixo | mínimo do arquivo, único para todos os centros de custo, comparado em reais | RN-008, AMB-007, AMB-027 |
+| 12 | Etapa da conversão | — | etapa 2 (conversão + arredondamento); sem cotação recusa ali; ordem das demais etapas mantida | seção 8 |
+| 13 | Duplicata entre moedas | compara `valor_considerado` | compara o valor recebido arredondado na moeda original + a moeda | RN-003, RN-007, AMB-028 |
+| 14 | Saída sem moeda, taxa e política | — | item: `moeda`, `taxa_cambio`, `data_cotacao`; topo: `colaborador.centro_custo`, `politica` (`versao`, `vigencia`, `tabela_aplicada`) | seção 4 |
+| 15 | Vigência | — | informativa, copiada para a saída; aplicar a política fora da vigência é risco aceito | RN-016, AMB-029, seção 10 |
+| 16 | Item C (aprovação manual) | — | não implementado; com a v4, nunca dispara por item (máximo de 400,00) | seção 3, AMB-030 |
+| 17 | Textos que a v4 contradiz | "não converte moedas", "sem representação", "100,00 fixo", riscos com valores fixos | reescritos: seção 3, AMB-006, AMB-007, AMB-015, AMB-017, riscos de fracionamento e hospedagem irrisória sem valores fixos; 5 riscos novos | seções 3, 6, 10 |
+
+**Segunda rodada do `spec-adversary` (sobre a redação da 2.0):** 10 problemas, sendo 2 bloqueantes, 4 importantes e 4 menores. As três tabelas da seção 9 e os casos novos da seção 7 conferem à mão.
+
+A rodada mostrou que parte dos "detalhes fixados na redação" eram decisões novas, não consequências das 17. Alguns já tinham sido decididos no ponto 11, cuja pergunta listava como defeito limite com 3 casas, taxa ≤ 0, periodicidade desconhecida e falta de `padrao`. Os demais o responsável decidiu um a um:
+
+| # | Ponto | Decisão | Onde |
+|---|---|---|---|
+| R2-1 | Hospedagem paga em moeda estrangeira comprova viagem? (**bloqueante**) | sim, como qualquer hospedagem com nota; a moeda, sozinha, nunca comprova | RN-010, RN-015, AMB-023, seção 7 |
+| R2-2 | Busca D-1 a D-3 quando a data intermediária não cota a moeda (**bloqueante**) | procura a data mais próxima com cotação **daquela moeda** | RN-015, AMB-024, seção 7 |
+| R2-3 / R2-6c | `moeda_base` e `centros_custo` ausentes | opcionais: `moeda_base` ausente vale BRL (presente e diferente de BRL é erro); sem `centros_custo`, todos usam o `padrao` | RN-016 |
+| R2-4a | "Mais de 2 casas decimais": pela forma ou pelo valor | pelo valor exato (`60.000` vale) | RN-016 |
+| R2-4b | Números gigantes na política ou no câmbio | mesmo teto de 1 bilhão da AMB-018 → erro de arquivo | RN-016, AMB-018 |
+| R2-5 | Moeda autodeclarada como multiplicador do valor | risco aceito | seção 10 |
+| R2-6a | Chave repetida na política ou no câmbio | erro de arquivo (a RN-013 vale só para a entrada) | RN-016 |
+| R2-6b | `versao` e `vigencia` ausentes | opcionais, saem nulas; presentes com tipo ou formato errado → erro | seção 4, RN-016, AMB-029 |
+| R2-6d | Dois nomes de categoria iguais depois da normalização | erro de arquivo | RN-016 |
+| R2-6e | Código de moeda fora do formato no câmbio | erro de arquivo | RN-016 |
+| R2-7 | `centro_custo` vazio; chave `"padrao"` em `centros_custo` | vazio ou só espaços → `padrao`, sem consultar `centros_custo`; chave `"padrao"`, vazia ou só espaços em `centros_custo` → erro de arquivo | seção 4, RN-014, RN-016 |
+| R2-8 | Casos da seção 7 sem data ou sem categoria | completados (duplicatas em 14/07; transporte em EUR no caso de viagem); 4 casos novos | seção 7 |
+| R2-9 | Categoria com limite 0 sai normalizada? | sim, está na tabela aplicada | seção 4 |
+| R2-10 | Textos desatualizados | AMB-010, AMB-014, AMB-018 e legenda da seção 9 reescritos; risco novo: categorias reconhecidas pelo nome | seções 6, 9, 10 |
+
+**Rodada de confirmação:** nenhum problema bloqueante ou importante. As decisões R2-1 a R2-10 conferem em todos os lugares, e os números dos casos novos e corrigidos também. Três achados menores, decididos pelo responsável:
+
+| # | Ponto | Decisão | Onde |
+|---|---|---|---|
+| R3-1 | Caso "Data intermediária sem a moeda" sem câmbio fechado, categoria e nota | câmbio só com 13/07 e 14/07; alimentação com nota → 118,20, `parcial` com 60,00 | seção 7 |
+| R3-2 | A validação vale para a entrada `BRL` do câmbio e para campos ignorados? | não: valida todos os campos listados (inclusive taxas não usadas); `BRL` e campos não listados são ignorados sem validação | RN-016 |
+| R3-3 | `null` e texto só com espaços nos campos opcionais | `null` = ausente; `versao` só com espaços = erro (a mesma regra de `colaborador.nome`) | RN-016 |
+
+Também ficou confirmado que a despesa com `cambio_indisponivel` tem `valor_considerado` nulo e fica fora de `valor_solicitado`: sem cotação, não existe valor em reais.
+
+**Por quê:** o comunicado manda ler a política de fora do código e converter pela taxa da data. As decisões seguem três princípios já usados na 1.x:
+- **Nada implícito.** Os arquivos chegam na linha de comando e a saída registra a tabela, a moeda, a taxa e a data da cotação usadas.
+- **Não inventar regra.** A tabela do centro de custo é fechada, nenhuma categoria nova é ampliada em viagem e não há lista ISO própria.
+- **Fechar brechas exploráveis com dados declarados.** O limite 0 não comprova viagem e a moeda estrangeira também não comprova. As brechas que restam viram riscos aceitos e expostos na saída.
+
+As justificativas de cada ponto estão nas AMB-020 a AMB-031.
+
+**O que isso invalidou:**
+- **Resultados.** O resultado da seção 9 (todo o cálculo do exemplo); a tabela de limites da RN-009; o motivo de d-013 (`nota_fiscal_ausente` → `categoria_fora_da_politica`); o contrato de saída (campos novos); a interface da CLI (dois argumentos obrigatórios).
+- **Código.** `politica.py` deixa de ter constantes de limite, nota e percentual. `motor.py`, `entrada.py` (categoria reconhecida passa a depender da tabela aplicada; `moeda` e `centro_custo` validados), `justificativa.py` (mínimo da nota), `saida.py` e `cli.py` mudam.
+- **Testes.** `test_politica.py` e `test_exemplo.py` são reescritos. Os testes de regra que não definem centro de custo continuam válidos com a tabela `padrao` da v4, cujos valores são iguais aos da 1.9.
+- **Rastreabilidade.** `test_rastreabilidade.py` passa a exigir testes para a RN-014 a RN-016 e para os 37 casos novos da seção 7. A suíte fica vermelha até as tasks do envelope serem concluídas.
+
+**Tasks afetadas:** reabertas por substituição, numeradas a partir da T-022 em `tasks.md` (a definir depois do `plan.md`):
+- T-002 (política como dados, não constantes);
+- T-009 (validação de `moeda` e `centro_custo`; categoria dependente da tabela);
+- T-010 e T-015 (tabela aplicada);
+- T-016 (mínimo da nota vindo do arquivo, em reais);
+- T-017 (duplicata com moeda);
+- T-018 (percentual do arquivo, truncamento, limite 0);
+- T-019 (CLI com `--politica` e `--cambio`);
+- T-020 (três tabelas da seção 9).
+
+**Custo:** a medir no fechamento (arquivos tocados à mão × tasks reexecutadas), para o relatório.
+
+---
+
 ## D-006 — Arquivo defeituoso: escape inválido em ocorrência descartada e codificação da entrada: spec 1.8 → 1.9 · `2026-10-01`
 
 **Gatilho:** revisão independente da T-007 (`docs/reviews/T-007.md`, revisões 1 e 2, "Decisões necessárias" 1). A seção 4 dizia que escape sem caractere válido "em qualquer chave ou valor" é erro de arquivo; a RN-013 dizia que as ocorrências descartadas por chave repetida "nenhuma regra as considera". Para `"obs": "\uD800", "obs": "ok"` as duas leituras davam resultados opostos (erro de arquivo × despesa processada com aviso). O código da T-006 seguia a segunda sem decisão explícita: só verificava os valores que valeram. Decidido pelo responsável (ponto 1). A rodada do `spec-adversary` sobre a primeira redação da 1.9 apontou 3 problemas (1 bloqueante): a codificação da entrada não estava na spec (só no DT-002 do plano), o parêntese `\uD800` a `\uDFFF` podia ser lido como exemplo e não como lista, e o alcance do descarte em profundidade era ambíguo na RN-013. O responsável aceitou as 3 recomendações (pontos 2 a 4), que registram na spec o que o plano e o código já faziam. A rodada de confirmação apontou 4 problemas (2 bloqueantes): a seção 8 podia ser lida como se todo erro de arquivo da RN-002 valesse para a ocorrência descartada; "JSON válido" não tinha definição (caractere de controle cru, `NaN`, `01.5`); "par correspondente" e BOM repetido sem resultado. O responsável aceitou as 4 recomendações (pontos 5 a 8). A confirmação final não apontou bloqueante; o único achado (limites de profundidade e tamanho que a RFC 8259 deixa à implementação) virou risco aceito (ponto 9), depois de o teste mostrar que a leitura quebrava com erro interno a partir de alguns milhares de níveis. Sessão `docs/sessions/18-*`.
