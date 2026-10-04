@@ -135,7 +135,7 @@ Aberto em 02/10 às 19:51 (não às ~10h previstas); planejamento retomado só e
 - [x] `git log` legível: todo commit com task ou `docs(...)` — conferido em 04/10: só `994a491` e `683f161` fora do padrão, já explicados
 - [x] Rastreabilidade fecha: RN → task → commit → teste (`test_rastreabilidade.py` verde, tabela de Cobertura em `tasks.md`)
 - [x] Testes passando a partir de um clone limpo, seguindo o README (os três exemplos com `--politica`/`--cambio`)
-- [x] `docs/sessions/` com um export por sessão (01 a 60, sem lacuna)
+- [x] `docs/sessions/` com um export por sessão (01 a 61, sem lacuna)
 - [x] `/export` final (sessão 60) + commit de fim de bloco
 - [ ] **Push** do commit final (até `cfd22df` já está no fork, conferido com `git fetch`)
 - [ ] Confirmar no GitHub que o fork público mostra o último commit

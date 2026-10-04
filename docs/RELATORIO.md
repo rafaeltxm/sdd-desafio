@@ -77,7 +77,7 @@ propagasse para código e testes.
 > **Decisão:** uma data está em viagem se há na entrada uma hospedagem válida (não recusada antes do limite) nessa data.
 > **Justificativa:** hospedagem é a única evidência objetiva de viagem nos dados; uma hospedagem recusada não comprova a viagem.
 
-**Versão final (spec 1.9):**
+**Versão final (spec 1.9, inalterada na 2.1):**
 > **Decisão:** uma hospedagem **com nota fiscal** que não foi recusada antes do limite comprova viagem na data dela e no dia seguinte.
 > **Justificativa:** hospedagem é a única evidência objetiva de viagem nos dados, e exigir a nota a torna verificável na conferência humana; uma diária é uma noite, então o colaborador acorda em viagem no dia seguinte. A exigência **não** elimina o abuso: o sistema confia no `tem_nota_fiscal` declarado (seção 3), então uma hospedagem irrisória com nota declarada ainda amplia os limites de D e D+1 (risco aceito, seção 10).
 
@@ -119,7 +119,7 @@ que ela poderia produzir um comportamento inesperado.
 
 **O que ele propôs:** com a spec 1.7 bloqueada (quais caracteres contam como hífen e espaço), o Claude recomendou definir listas por categoria Unicode: traços da categoria Pd, espaço pela propriedade White_Space, exceções para U+2212, U+200B e BOM (`13-task-t003-normalizacao.md` l. 1104–1135).
 **Por que estava errado:** trocava uma lista indefinida por outra mais longa; cada caractere esquecido viraria um novo achado e a regra não era verificável sem tabela Unicode.
-**Como foi detectado:** eu perguntei "não tem como limpar tudo que entre de caracteres especial?" (l. 1163). A forma como a solução estava sendo pensada abria margem para mais complicações e cenários de erro: cada lista nova trazia novas exceções. Achei melhor uma regra única para mitigar esses problemas. O Claude respondeu "Dá, sim. E é mais simples que a minha recomendação" (l. 1165).
+**Como foi detectado:** eu perguntei "não tem como limpar tudo que entre de caracteres especial?" (l. 1163). A forma como a solução estava sendo pensada abria margem para mais complicações e cenários de erro: cada lista nova trazia novas exceções. Achei melhor uma regra única para mitigar esses problemas. O Claude respondeu "Dá, sim. E é mais simples que a minha recomendação" (l. 1167).
 **O que eu fiz:** adotei "só letras e algarismos contam" + texto vazio após normalização é `entrada_invalida`; spec 1.8 (`6cc8554`, D-005), plan 1.1, tasks 1.1, T-003 (`aaf201a`).
 **Evidência:** `docs/sessions/13-task-t003-normalizacao.md` l. 1104–1250.
 
@@ -162,7 +162,7 @@ produziu a primeira versão.
 
 **Procedimento (o que o fluxo impunha):** cada task pela skill `/task`: testes primeiro, falhando pelo motivo certo; pytest + ruff completos; `revisor-de-task` nas tasks de regra; resumo com "Decisões ou interpretações realizadas"; commit só depois do meu "pode commitar". Hooks bloqueiam commit com teste vermelho ou mensagem fora do padrão.
 
-**Números:** no Dia 1: 21 tasks, 22 commits `T-NNN`, 649 testes, 15 revisões independentes, 33 sessões exportadas, 6 mudanças de spec registradas (D-001 a D-006). Com o envelope e a revisão final: 37 tasks concluídas, 38 commits `T-NNN`, 1043 testes, 26 revisões independentes, 60 sessões exportadas, 8 mudanças de spec registradas (D-001 a D-008).
+**Números:** no Dia 1: 21 tasks, 22 commits `T-NNN`, 649 testes, 15 revisões independentes, 33 sessões exportadas, 6 mudanças de spec registradas (D-001 a D-006). Com o envelope e a revisão final: 37 tasks concluídas, 38 commits `T-NNN`, 1043 testes, 26 revisões independentes, 61 sessões exportadas, 8 mudanças de spec registradas (D-001 a D-008).
 
 **Exemplo de pergunta antes de aceitar:** T-018, proteção contra 9999-12-31 — perguntei "faz sentido registrar?" antes de commitar (`29-t018-viagem.md` l. 608).
 
@@ -230,7 +230,7 @@ nem no terminal.
 | Etapa | Quando | Duração |
 |---|---|---|
 | Ler o envelope, mapear o impacto, `spec-adversary` (3 rodadas, 30 pontos decididos) → spec 2.0 + D-007 (`9f993c5`) | 02/10, 19:51 → 21:22 | 1h31 |
-| `plan.md` 2.0 e tasks da Fase 5 (`eb47e11`) | 02/10, 21:22 → 21:29, retomado em 04/10, 14:26 → 14:35 (a sessão parou por falta de acesso à assinatura, `38-…` l. 1458) | ~0h20 |
+| `plan.md` 2.0 e tasks da Fase 5 (`eb47e11`) | 02/10, 21:22 → 21:29, retomado em 04/10, 14:26 → 14:35 (a sessão parou por falta de acesso à assinatura, `38-…` l. 1460) | ~0h20 |
 | T-022 a T-034 (13 tasks) | 04/10, 14:35 → 16:02 | 1h27 |
 | **Subtotal: envelope absorvido, seção 9 conferida** | | **~3h20** |
 | Revisão adversarial da spec final → spec 2.1 + D-008 (`d725054`) | 04/10, 16:03 → 17:24 | 1h21 |
@@ -240,7 +240,7 @@ O envelope foi aberto mais tarde do que o previsto (~10h no roteiro) porque o
 início da etapa de implementação não ocorreu no horário planejado. O histórico
 registra a abertura efetiva às 19:51 do Dia 2, e a sessão seguinte, de
 planejamento, só foi retomada em 04/10, depois de uma interrupção por falta de
-acesso à assinatura (`38-…` l. 1458). Registro o horário efetivamente observado
+acesso à assinatura (`38-…` l. 1460). Registro o horário efetivamente observado
 no histórico, sem atribuir ao atraso uma causa que as sessões não documentam.
 
 **Diff de absorção** (`git diff edeeb2d d7d1301 --stat`, sem exports, pareceres e
@@ -377,6 +377,12 @@ branco a mais no teste, que o `ruff` confirmou não ser problema. Com isso, cód
 ---
 
 ## Fechamento
+
+**Entrega após o prazo.** O prazo era o Dia 2 (02/10) às 18h. O envelope foi
+aberto às 19:51 desse dia, e a absorção (T-022 a T-037) só foi concluída em
+04/10, depois da interrupção de acesso à assinatura registrada na sessão 38
+(`38-…` l. 1460). O formulário de entrega não tem campo para observações, por
+isso o registro está aqui.
 
 **Commits sem task:** `994a491 chore:` (estrutura inicial do template) e `683f161 docs:` (export da sessão 01), feitos antes de existir o hook `commit-msg` (`f717aed`). Não reescrevi o histórico.
 
