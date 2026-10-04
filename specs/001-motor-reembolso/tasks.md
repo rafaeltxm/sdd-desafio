@@ -388,12 +388,12 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
     - **Determinismo e propriedade:** `avisos` vazios no topo e nos itens dos três arquivos; determinismo byte a byte e nenhum valor monetário `float` também nos dois arquivos do envelope.
   - **Commit:** b1f1708
 
-- [ ] **T-034** — Fim das pendências: apagar `PENDENTES` e o código que o lê em `tests/test_rastreabilidade.py` (DT-016); docstrings para "RN-001 a RN-016"; tabela de Cobertura atualizada com RN-014 a RN-016, AMB-020 a AMB-031, seção 7 (100 casos) e seção 9 (três arquivos).
+- [x] **T-034** — Fim das pendências: apagar `PENDENTES` e o código que o lê em `tests/test_rastreabilidade.py` (DT-016); docstrings para "RN-001 a RN-016"; tabela de Cobertura atualizada com RN-014 a RN-016, AMB-020 a AMB-031, seção 7 (100 casos) e seção 9 (três arquivos).
   - **Tipo:** estrutura
   - **Atende:** seção 9 da spec (cada caso de borda e cada RN com teste), DT-016
   - **Depende de:** T-033
   - **Aceite:** `tests/test_rastreabilidade.py` passa sem nenhuma pendência; remover qualquer teste de RN-014 a RN-016 ou de um caso novo o faz falhar (verificado à mão uma vez e registrado no resumo da task); tabela de Cobertura sem célula vazia, e nenhum `test_politica.py` citado.
-  - **Commit:** —
+  - **Commit:** e0d9bfa
 
 ---
 
