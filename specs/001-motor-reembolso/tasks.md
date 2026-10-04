@@ -429,7 +429,7 @@ Tasks das decisões da D-008 que mudam código ou exigem teste novo. Os demais p
 
 O levantamento dos fatos do envelope achou o código divergindo do plano: a DT-012 manda rodar **toda** conta com dinheiro em `contexto_exato()`, inclusive o saldo do limite e os totais, mas em `motor.py` só a conversão roda nele. O `revisor-de-task` apontou isso na T-031 (`docs/reviews/T-031.md`, problema 2, BAIXA, anterior à task) e deixou para decisão humana. O responsável decidiu corrigir o código, sem mudar a spec nem o plano (`docs/RELATORIO.md`, seção "O envelope").
 
-- [ ] **T-037** — Saldo do limite e totais no contexto exato: em `motor.py`, `_aplicar_limite` (saldo por data e categoria) e `_totais` (somas e glosado) passam a rodar em `contexto_exato()`, como a conversão e o limite em viagem. O resultado não depende mais do contexto `Decimal` de quem chama.
+- [x] **T-037** — Saldo do limite e totais no contexto exato: em `motor.py`, `_aplicar_limite` (saldo por data e categoria) e `_totais` (somas e glosado) passam a rodar em `contexto_exato()`, como a conversão e o limite em viagem. O resultado não depende mais do contexto `Decimal` de quem chama.
   - **Tipo:** regra
   - **Atende:** RN-003 (cálculos exatos ao centavo), RN-009 (saldo do limite), RN-001 (totais), DT-012, DT-001
   - **Depende de:** T-036
@@ -439,6 +439,7 @@ O levantamento dos fatos do envelope achou o código divergindo do plano: a DT-0
     - Os dois testes falham com o código atual e passam depois da correção.
     - Nenhum outro resultado muda: `test_exemplo.py` e o restante da suíte passam sem alteração.
   - **Casos de borda:** nenhum novo (a correção é de implementação, sem linha nova na seção 7)
+  - **Commit:** 80639e1
 
 ---
 
