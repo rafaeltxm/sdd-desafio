@@ -1,6 +1,6 @@
 # Spec — Motor de Cálculo de Reembolso
 
-**Versão:** 2.0 · **Status:** aprovada para planejamento (Política v4) · **Última alteração:** 2026-10-02 (ver `DECISIONS.md` D-001 a D-007)
+**Versão:** 2.1 · **Status:** aprovada para planejamento (Política v4) · **Última alteração:** 2026-10-04 (ver `DECISIONS.md` D-001 a D-008)
 
 > **Regra de ouro deste arquivo:** ele descreve o QUÊ e o PORQUÊ. Nenhuma linha
 > aqui pode citar linguagem, biblioteca, classe, função ou estrutura de pasta.
@@ -44,7 +44,9 @@ A partir da Política v4 (D-007), os limites não são mais fixos: vêm de um **
 
 - Sucesso: grava o arquivo de saída e termina com código 0.
 - Erro de arquivo (RN-002 para a entrada, RN-016 para a política e o câmbio), inclusive quando o arquivo de saída não pode ser gravado: não cria nem altera o arquivo de saída (se já existia, permanece como estava), escreve uma mensagem de erro e termina com código diferente de 0.
-- Erro de uso (subcomando diferente de `calcular`, `--input`, `--politica`, `--cambio` ou `--output` ausentes): mesmo comportamento do erro de arquivo. Os cinco argumentos são sempre obrigatórios, inclusive quando todas as despesas são em reais (AMB-031).
+- Erro de uso (subcomando diferente de `calcular`; `--input`, `--politica`, `--cambio` ou `--output` ausentes; qualquer um deles repetido, mesmo com o mesmo arquivo; argumento desconhecido ou sobrando): mesmo comportamento do erro de arquivo. Nunca vale "a última ocorrência": uma linha de comando que mostra duas políticas não é executada.
+- Argumento conhecido é exatamente `--input`, `--politica`, `--cambio` ou `--output`, escrito por inteiro, seguido do valor como argumento separado ou na forma `--opção=valor` (as duas formas são a mesma opção, inclusive para a repetição). Prefixo abreviado (`--inp`), `--` e opção antes do subcomando são argumentos desconhecidos.
+- Ajuda (`-h` ou `--help`, antes ou depois do subcomando): mostra o uso e termina com código 0, sem ler nenhum arquivo e sem criar nem alterar o arquivo de saída. Os cinco argumentos são sempre obrigatórios, inclusive quando todas as despesas são em reais (AMB-031).
 
 ### Entrada
 
@@ -62,7 +64,7 @@ Formato fixo, conforme `exemplos/despesas-exemplo.json`.
 | `despesas[].id` | texto | identificador da despesa | sim (`entrada_invalida`) |
 | `despesas[].data` | data `AAAA-MM-DD` | data em que a despesa ocorreu | sim (`entrada_invalida`) |
 | `despesas[].categoria` | texto | categoria da despesa | sim (`entrada_invalida`) |
-| `despesas[].descricao` | texto | descrição livre; não usada em regras | não |
+| `despesas[].descricao` | qualquer | descrição livre; não usada em regras. Nunca torna a despesa inválida: ausente, nula ou de qualquer tipo, a despesa segue (RN-002). Como todo o arquivo, continua sujeita aos erros de forma (UTF-8, JSON, escapes) e ao aviso de chave repetida (RN-013) | não |
 | `despesas[].fornecedor` | texto | estabelecimento; usado na detecção de duplicatas | sim (`entrada_invalida`) |
 | `despesas[].valor` | número | valor na moeda da despesa | sim (`entrada_invalida`) |
 | `despesas[].moeda` | texto ou nulo | código ISO 4217 da moeda do `valor`: exatamente 3 letras maiúsculas de `A` a `Z` (RN-015) | não; ausente ou nulo → `BRL`; outro tipo ou outro formato → `entrada_invalida` |
@@ -115,7 +117,7 @@ Todo número da entrada vale pelo seu **valor decimal exato, como escrito no arq
 | Código | Quando | Status resultante |
 |---|---|---|
 | `entrada_invalida` | elemento que não é objeto; campo obrigatório ausente ou com tipo/formato errado; `moeda` fora do formato; ou `valor` com valor absoluto a partir de 1.000.000.000,00 (RN-002) | `recusado` |
-| `cambio_indisponivel` | moeda diferente de `BRL` sem cotação no arquivo de câmbio na data da despesa nem nos 3 dias anteriores (RN-015) | `recusado` |
+| `cambio_indisponivel` | moeda diferente de `BRL` sem cotação no arquivo de câmbio na data da despesa nem nos 4 dias anteriores (RN-015) | `recusado` |
 | `valor_invalido` | valor considerado menor ou igual a zero (RN-004) | `recusado` |
 | `fora_do_periodo` | data fora de `[inicio, fim]` (RN-005) | `recusado` |
 | `categoria_fora_da_politica` | categoria ausente da tabela aplicada ou com limite 0 nela (RN-006, RN-014) | `recusado` |
@@ -178,6 +180,8 @@ Exemplos: `"Transporte Urbano"`, `"transporte-urbano"`, `" TRANSPORTE__urbano "`
 - Uma despesa recusada por `entrada_invalida` tem `valor_considerado`, `taxa_cambio`, `data_cotacao`, `em_viagem` e `limite_diario` nulos, e não entra nos totais.
 - Espaço em branco, nesta regra e em toda a spec, é o caractere com a propriedade White_Space do Unicode (espaço comum, tabulação, quebra de linha, espaço não separável e semelhantes). Tabulação, quebra de linha (LF, CR) e NEL têm essa propriedade e são espaço em branco. Espaço de largura zero, BOM e caracteres de controle sem essa propriedade (como U+001C a U+001F) não são espaço em branco: um `id` ou `nome` feito só deles é texto válido.
 - `id` (da despesa e do colaborador) e `nome` não passam pela normalização da seção 5: só são repetidos, nunca comparados. Um `id` `"-"` é válido.
+- `descricao` nunca torna a despesa inválida: ausente, nula, texto ou de qualquer outro tipo (número, booleano, lista, objeto), ela é ignorada, como um campo extra (seção 3: o sistema não lê a descrição). Como todo o arquivo, a `descricao` continua sujeita aos erros de forma da leitura (UTF-8, JSON, escapes: `"Almoço \uD800"` é erro de arquivo) e ao aviso de chave repetida (RN-013: `{"x": 1, "x": 2}` gera o aviso de `descricao.x`).
+- **Data válida `AAAA-MM-DD`**, nesta regra e em toda a spec (RN-016, `vigencia` e chaves de `taxas`): texto de exatamente 10 caracteres, com 4, 2 e 2 dígitos ASCII (`0` a `9`) separados por `-`, que forma uma data existente no calendário gregoriano estendido para trás (proléptico: a regra de bissexto gregoriana vale para todos os anos, sem o salto de outubro de 1582), entre 0001-01-01 e 9999-12-31. `1582-10-10` é válida; `1500-02-29` não é. Dígitos de outras escritas (`"٢٠٢٦-٠٧-٠٣"`), ano `0000`, `"2026-7-3"`, `"20260703"` e `"2026-02-30"` não são datas válidas. Diferente da normalização da seção 5, que aceita algarismos de qualquer escrita em texto livre.
 - Campos extras, no arquivo ou nas despesas, são ignorados.
 **Origem:** necessidade operacional (a política não trata entrada malformada); pontos 7 e 9 de D-001; AMB-018; D-005; AMB-020 e AMB-025 (D-007).
 **Aceite:** despesa sem `tem_nota_fiscal` com `valor` 33.333 → `recusado`, `entrada_invalida`, `valor_informado` 33.333, `valor_considerado` nulo, fora de `valor_solicitado`; as demais despesas são processadas normalmente. Elemento `null` em `despesas` → item com `id` e `data` nulos, `entrada_invalida`. Arquivo sem `colaborador` → nenhuma saída, código diferente de 0. Hospedagem com campo extra `"noites": 2` → avaliada como uma diária (RN-012). Despesa com `"id": 17` → `entrada_invalida`, `id` nulo na saída. Despesa com `fornecedor` `"   "` → `entrada_invalida`. Despesa com `fornecedor` `"-"` → `entrada_invalida`. `competencia` 202607 (número) → processamento normal, `competencia` nula na saída. Caminho de saída em pasta inexistente → nenhuma saída, código diferente de 0. Despesa `"categoria": "ALIMENTACAO"` sem `tem_nota_fiscal` → `entrada_invalida`, `categoria` `alimentacao` na saída. `colaborador.nome` `"  "` → erro de arquivo. Erro de arquivo com arquivo de saída preexistente → o arquivo continua com o conteúdo anterior. Chamada sem `--output` → código diferente de 0. `valor` 1000000000 → `entrada_invalida`, `valor_informado` 1000000000, fora dos totais. `valor` -1e12 → `entrada_invalida` (não `valor_invalido`). `valor` 999999999.995 → segue, com `valor_considerado` 1000000000.00 (o teto vale para o número recebido). `"moeda": "eur"` → `entrada_invalida`, `moeda` `eur` na saída. `"moeda": 978` → `entrada_invalida`, `moeda` nula na saída. `"centro_custo": 17` → erro de arquivo.
@@ -239,15 +243,19 @@ O limite é consumido pelas despesas na ordem da entrada: cada despesa recebe `m
 
 ### RN-010 — Colaborador em viagem
 
-**Regra:** uma despesa de `hospedagem` **comprova viagem** quando tem `tem_nota_fiscal` verdadeiro e passou pelas etapas 1 a 7 da seção 8. Uma hospedagem que comprova viagem na data D coloca em viagem as datas **D e D+1** (a noite da diária e o dia seguinte). Em datas em viagem, os limites de `alimentacao` e `transporte_urbano` são ampliados pelo percentual da política (RN-009). A condição de viagem vale para todas as despesas da data, independentemente da ordem em que aparecem na entrada. Hospedagem recusada por `categoria_fora_da_politica` (inclusive por limite 0, AMB-021) não comprova viagem. A moeda não importa para a comprovação: uma hospedagem com nota em moeda estrangeira comprova viagem como qualquer outra, e nenhuma outra despesa comprova viagem por estar em moeda estrangeira (AMB-023).
+**Regra:** uma despesa de `hospedagem` **comprova viagem** quando tem `tem_nota_fiscal` verdadeiro e passou pelas etapas 1 a 7 da seção 8. Uma hospedagem que comprova viagem na data D coloca em viagem as datas **D e D+1** (a noite da diária e o dia seguinte); se D é 9999-12-31, D+1 não existe e só D fica em viagem. Em datas em viagem, os limites de `alimentacao` e `transporte_urbano` são ampliados pelo percentual da política (RN-009). A condição de viagem vale para todas as despesas da data, independentemente da ordem em que aparecem na entrada. Hospedagem recusada por `categoria_fora_da_politica` (inclusive por limite 0, AMB-021) não comprova viagem. A moeda não importa para a comprovação: uma hospedagem com nota em moeda estrangeira comprova viagem como qualquer outra, e nenhuma outra despesa comprova viagem por estar em moeda estrangeira (AMB-023).
 **Origem:** política do RH, item 6; AMB-004; AMB-021 e AMB-023 (D-007).
 **Aceite** (tabela `padrao` da v4): hospedagem com nota em 14/07 → 14/07 e 15/07 em viagem; alimentação de 80,00 em 15/07 → limite 90,00, `aprovado` com 80,00; alimentação de 80,00 em 16/07 → limite 60,00, `parcial` com 60,00. Hospedagem de 80,00 **sem** nota em 03/07 → reembolsada pelas regras normais, mas 03/07 e 04/07 **não** ficam em viagem. Hospedagem com nota em 30/06, fora de um período que começa em 01/07 → recusada por `fora_do_periodo`, e 01/07 não fica em viagem. `CC-ENG-PLATAFORMA`: hospedagem com nota em 14/07 → `categoria_fora_da_politica`; alimentação de 100,00 com nota em 15/07 → limite 75,00, `parcial` com 75,00. Alimentação de 22,00 EUR com nota em 14/07, sem hospedagem → 14/07 não fica em viagem.
 
 ### RN-011 — Status e justificativa
 
-**Regra:** `aprovado` quando `valor_reembolsado = valor_considerado`; `parcial` quando `0 < valor_reembolsado < valor_considerado`; `recusado` quando `valor_reembolsado = 0`. Todo item `parcial` ou `recusado` tem um `motivo` da tabela da seção 4; todo item tem uma `justificativa` em texto.
-**Origem:** objetivo do sistema.
-**Aceite:** nenhum item da saída tem status incompatível com os seus valores.
+**Regra:** o status é decidido em duas partes, seguindo a seção 8:
+- despesa recusada numa das etapas 1 a 7 da seção 8 é `recusado`, com o motivo dessa etapa e `valor_reembolsado` 0, qualquer que seja o seu `valor_considerado` (nulo, negativo, zero ou positivo);
+- despesa que chega à etapa 9 (limite diário), cujo `valor_considerado` é sempre maior que zero (RN-004), é `aprovado` quando `valor_reembolsado = valor_considerado`; `parcial`, motivo `limite_diario_excedido`, quando `0 < valor_reembolsado < valor_considerado`; `recusado`, motivo `limite_diario_excedido`, quando `valor_reembolsado = 0`.
+
+Todo item `parcial` ou `recusado` tem um `motivo` da tabela da seção 4; todo item `aprovado` tem `motivo` nulo; todo item tem uma `justificativa` em texto.
+**Origem:** objetivo do sistema; D-008 (antes, a fórmula única admitia `aprovado` e `recusado` ao mesmo tempo com `valor_considerado` 0,00).
+**Aceite:** `valor` 0 ou 0.004 BRL → `recusado`, `valor_invalido` (nunca `aprovado`, embora reembolsado = considerado = 0). `valor` -45.00 → `recusado`, `valor_invalido`. Despesa na etapa 9 com 45,00 e limite livre → `aprovado`; com 30,00 e 15,00 livres → `parcial` com 15,00; com limite esgotado → `recusado`, `limite_diario_excedido`. Nenhum item da saída tem status incompatível com essas duas partes.
 
 ### RN-012 — Hospedagem: um lançamento é uma diária
 
@@ -290,14 +298,14 @@ A tabela aplicada é **fechada**: suas categorias são as únicas reconhecidas (
 **Regra:**
 - A moeda da despesa é o campo `moeda`; ausente ou nulo vale `BRL`. Formato inválido é `entrada_invalida` (RN-002).
 - `BRL` tem taxa 1, sem consultar o arquivo de câmbio (uma entrada `BRL` no arquivo é ignorada).
-- Para outra moeda, a taxa é a do arquivo de câmbio para essa moeda **na data da despesa**. Se essa data não tem cotação para a moeda, usa-se a cotação **dessa moeda** na data anterior mais próxima que a tenha, **até 3 dias corridos antes** (D-1, D-2 ou D-3); uma data intermediária que só cota outras moedas é ignorada: um sábado ou domingo usa a sexta-feira; uma segunda-feira de feriado usa a sexta-feira. Sem cotação de D a D-3 → `recusado`, motivo `cambio_indisponivel`. Cotação posterior à data da despesa nunca é usada.
+- Para outra moeda, a taxa é a do arquivo de câmbio para essa moeda **na data da despesa**. Se essa data não tem cotação para a moeda, usa-se a cotação **dessa moeda** na data anterior mais próxima que a tenha, **até 4 dias corridos antes** (D-1, D-2, D-3 ou D-4); uma data intermediária que só cota outras moedas é ignorada: um sábado ou domingo usa a sexta-feira; uma segunda-feira de feriado usa a sexta-feira; a terça-feira de Carnaval (segunda e terça sem cotação) usa a sexta-feira. Datas anteriores a 0001-01-01 não existem: a busca para ali (em 0001-01-02, só D e D-1 são consultadas). Sem cotação de D a D-4 → `recusado`, motivo `cambio_indisponivel`. Cotação posterior à data da despesa nunca é usada.
 - Moeda bem formada que não aparece no arquivo de câmbio (inclusive código que não existe na ISO 4217, como `XYZ`) → `cambio_indisponivel`. Não há lista própria de códigos ISO.
 - Taxa é "reais por uma unidade da moeda": `valor_considerado` = `valor` × taxa, arredondado uma vez (RN-003).
 - Uma despesa recusada por `cambio_indisponivel` tem `valor_considerado`, `taxa_cambio`, `data_cotacao`, `em_viagem` e `limite_diario` nulos, e não entra nos totais.
 - A moeda não muda nenhuma outra regra: por si só não caracteriza viagem, nem impede que uma hospedagem com nota a comprove (AMB-023); todos os limites e o mínimo da nota são comparados em reais.
 
 **Origem:** Política v4, item B; AMB-024, AMB-025, AMB-026 (D-007).
-**Aceite** (`cambio.json` do envelope): 22,00 EUR em 14/07 → taxa 5,93, `data_cotacao` 2026-07-14, `valor_considerado` 130,46. 30,00 EUR em 18/07 (sábado) → taxa 5,96 de 17/07, `valor_considerado` 178,80. Sem `moeda` → `BRL`, taxa 1, `data_cotacao` nula. `"moeda": null` → `BRL`. 55,00 GBP em 21/07 → `cambio_indisponivel`, `valor_considerado` nulo, fora de `valor_solicitado`. USD em 2026-07-12 (nenhuma cotação de 09/07 a 12/07) → `cambio_indisponivel`. Câmbio só com 13/07: USD em 16/07 → usa 13/07 (D-3); USD em 17/07 → `cambio_indisponivel` (D-4).
+**Aceite** (`cambio.json` do envelope): 22,00 EUR em 14/07 → taxa 5,93, `data_cotacao` 2026-07-14, `valor_considerado` 130,46. 30,00 EUR em 18/07 (sábado) → taxa 5,96 de 17/07, `valor_considerado` 178,80. Sem `moeda` → `BRL`, taxa 1, `data_cotacao` nula. `"moeda": null` → `BRL`. 55,00 GBP em 21/07 → `cambio_indisponivel`, `valor_considerado` nulo, fora de `valor_solicitado`. USD em 2026-07-12 (nenhuma cotação de 08/07 a 12/07) → `cambio_indisponivel`. Câmbio só com 13/07: USD em 17/07 → usa 13/07 (D-4); USD em 18/07 → `cambio_indisponivel` (D-5). Câmbio só com 05/02/2027 (sexta; segunda 08/02 e terça 09/02 de Carnaval sem cotação): EUR em 09/02 → usa 05/02 (D-4).
 
 ### RN-016 — Arquivos de política e de câmbio
 
@@ -534,8 +542,8 @@ Tipo: **U** = unidade de aplicação · **F** = fronteira · **D** = dado ausent
 
 **Texto original do RH:** "A conversão usa a taxa da data da despesa, não a taxa de hoje." No arquivo: "Cotações publicadas apenas em dias úteis bancários", de 13/07 a 28/07.
 **O que não está claro:** que taxa usar num fim de semana ou feriado (e-004, sábado 18/07), e numa data sem nenhuma cotação próxima no arquivo. A escolha muda a aprovação, não só o valor: 16,70 EUR sem nota num sábado dá 99,53 com a taxa de sexta (não exige nota) e 100,37 com a de segunda (`nota_fiscal_ausente`).
-**Decisão:** usa a cotação da moeda na data; sem ela, a da mesma moeda na data anterior mais próxima que a tenha, até 3 dias corridos antes; sem nenhuma, `cambio_indisponivel`. Nunca uma cotação posterior.
-**Justificativa:** é a prática da PTAX: a cotação vigente num sábado é a de sexta. A cotação posterior ainda não existia na data da despesa. O limite de 3 dias cobre fim de semana e feriado de segunda ou sexta adjacente; sem limite, uma lacuna de semanas no arquivo passaria em silêncio com uma taxa velha.
+**Decisão:** usa a cotação da moeda na data; sem ela, a da mesma moeda na data anterior mais próxima que a tenha, até 4 dias corridos antes; sem nenhuma, `cambio_indisponivel`. Nunca uma cotação posterior. (Até a spec 2.0 eram 3 dias; ampliado na D-008.)
+**Justificativa:** é a prática da PTAX: a cotação vigente num sábado é a de sexta. A cotação posterior ainda não existia na data da despesa. O limite de 4 dias cobre fim de semana com feriado de segunda ou sexta adjacente e também os dois dias de Carnaval (segunda e terça sem PTAX), em que a última cotação da terça é a de sexta, D-4; com 3 dias, uma despesa legítima na terça de Carnaval seria recusada sem caminho de reembolso; sem limite, uma lacuna de semanas no arquivo passaria em silêncio com uma taxa velha.
 **Regra afetada:** RN-015
 
 ### AMB-025 — Moeda sem cotação, mal escrita ou nula (D, F)
@@ -590,7 +598,7 @@ Tipo: **U** = unidade de aplicação · **F** = fronteira · **D** = dado ausent
 
 **Texto original do RH:** "O motor precisa ler a política de fora, não de dentro do código." / "As taxas estão em `cambio.json`."
 **O que não está claro:** se os arquivos são argumentos, caminhos fixos ou parte da entrada; se o câmbio é exigido quando todas as despesas são em reais; o que fazer com um arquivo defeituoso.
-**Decisão:** dois argumentos obrigatórios, `--politica` e `--cambio`, sempre; qualquer defeito em um deles é erro de arquivo (RN-016).
+**Decisão:** dois argumentos obrigatórios, `--politica` e `--cambio`, sempre; qualquer defeito em um deles é erro de arquivo (RN-016). Argumento repetido, desconhecido ou sobrando é erro de uso (seção 4; D-008).
 **Justificativa:** tudo o que entra no cálculo aparece na linha de comando, e a mesma linha de comando dá sempre o mesmo resultado (seção 9). Um caminho implícito faria o resultado mudar sem nada visível mudar. Com política ou câmbio defeituosos nenhum cálculo é confiável; recusar despesa por despesa esconderia o defeito atrás de recusas.
 **Regra afetada:** seção 4, RN-016
 
@@ -678,11 +686,16 @@ Salvo indicação na linha, cada caso usa a política `politica-v4.json` e o câ
 | Moeda nula | `"moeda": null`, alimentação 45,00 | como `BRL`: `moeda` `BRL`, `taxa_cambio` 1, `data_cotacao` nula, `aprovado` com 45,00 | RN-015 |
 | Moeda estrangeira com cotação | 22,00 EUR em 14/07, alimentação com nota | taxa 5,93, `data_cotacao` 2026-07-14; `valor_considerado` 130,46; `parcial` com 60,00 | RN-015, RN-003 |
 | Moeda estrangeira em sábado | 30,00 EUR em 18/07 (sábado), alimentação com nota | taxa 5,96 de 17/07; `data_cotacao` 2026-07-17; `valor_considerado` 178,80 | RN-015 |
-| Cotação exatamente 3 dias antes | câmbio só com 13/07 (USD 5,42); 10,00 USD em 16/07 | usa 13/07; `valor_considerado` 54,20 | RN-015 |
-| Cotação 4 dias antes | câmbio só com 13/07; 10,00 USD em 17/07 | `cambio_indisponivel`; `valor_considerado` nulo; fora dos totais | RN-015 |
+| Cotação exatamente 4 dias antes | câmbio só com 13/07 (USD 5,42); 10,00 USD em 17/07 | usa 13/07; `valor_considerado` 54,20 | RN-015 |
+| Cotação 5 dias antes | câmbio só com 13/07; 10,00 USD em 18/07 | `cambio_indisponivel`; `valor_considerado` nulo; fora dos totais | RN-015 |
+| Terça de Carnaval | câmbio só com 05/02/2027 (sexta; EUR 6,00); período de fevereiro de 2027; 10,00 EUR em 09/02 (terça), alimentação com nota | usa 05/02 (D-4); `data_cotacao` 2027-02-05; `valor_considerado` 60,00; `aprovado` com 60,00 | RN-015 |
 | Moeda sem cotação no arquivo | 55,00 GBP em 21/07 | `cambio_indisponivel`; `moeda` `GBP`; `taxa_cambio` e `valor_considerado` nulos; fora de `valor_solicitado` | RN-015 |
 | Moeda em minúsculas | `"moeda": "eur"` | `entrada_invalida`; `moeda` `eur` na saída | RN-002 |
 | Moeda de tipo errado | `"moeda": 978` | `entrada_invalida`; `moeda` nula na saída | RN-002 |
+| Argumento repetido | `calcular --input e.json --politica politica-v4.json --politica outra.json --cambio c.json --output s.json` (e a mesma linha com o `--politica` repetido no fim, ou com o mesmo arquivo nas duas vezes) | erro de uso; código diferente de 0; saída não criada nem alterada | seção 4, AMB-031 |
+| Argumento desconhecido | linha completa com `--verbose` a mais; e a linha com `--inp e.json` no lugar de `--input e.json` | erro de uso; código diferente de 0; saída não criada nem alterada | seção 4 |
+| Argumento sobrando | linha completa com um argumento posicional a mais (`extra`) | erro de uso; código diferente de 0; saída não criada nem alterada | seção 4 |
+| Descrição nula ou de outro tipo | alimentação 45,00 em 03/07 sem nota, com `"descricao": null`; a mesma com `"descricao": 17` e com `"descricao": {}` | as três `aprovado` com 45,00 (cada uma num arquivo próprio) | RN-002 |
 | Sem cotação e fora do período | 10,00 USD em 15/04, período de julho | `cambio_indisponivel` (etapa 2 antes da 4) | RN-015 |
 | Conversão arredondada uma vez | 16,8649 EUR em 14/07, alimentação sem nota | 100,008857 → `valor_considerado` 100,01 → `nota_fiscal_ausente` | RN-003, RN-008 |
 | Nota fiscal comparada em reais | 40,00 USD em 20/07, transporte sem nota | 220,00 → `nota_fiscal_ausente` | RN-008 |
@@ -800,7 +813,7 @@ Totais: `valor_solicitado` = 623,76 · `valor_reembolsado` = 373,76 · `valor_gl
 
 ### Decisões provisórias
 
-- **Datas de entrada e saída de hospedagem.** A solução correta para AMB-005 exige mudar o formato de entrada. Decisão provisória: um lançamento = uma diária. Consequência conhecida: uma hospedagem de 480,00 "2 diarias" recebe 250,00 no `padrao` mesmo se forem de fato duas diárias (no envelope, e-007 "3 noites" recebe 400,00 de 1.200,00).
+- **Datas de entrada e saída de hospedagem.** A solução correta para AMB-005 exige mudar o formato de entrada. Decisão provisória: um lançamento = uma diária. Consequência conhecida: uma hospedagem de 480,00 "2 diarias" recebe 250,00 no `padrao` mesmo se forem de fato duas diárias (no envelope, e-007 "3 noites" recebe 400,00 de 1.200,00). Segunda consequência: só D e D+1 ficam em viagem (RN-010), então os dias seguintes da mesma estadia perdem a ampliação dos limites. Hospedagem "3 noites" com nota em 14/07 e alimentação de 80,00 em 16/07, no `padrao`: 16/07 fora de viagem, limite 60,00, `parcial` com 60,00 (em viagem seria `aprovado` com 80,00). No envelope, a e-007 deixa 24/07 fora de viagem, mas a única despesa desse dia (e-009, `coworking`) não amplia, e nenhum valor da seção 9 muda.
 - **Ids repetidos na entrada.** A política não trata. Decisão provisória: despesas com o mesmo `id` são avaliadas normalmente, cada uma pelo seu conteúdo; a saída repete o id.
 - **`competencia` inconsistente com `inicio`/`fim`.** Decisão provisória: o período vale por `inicio` e `fim`; `competencia` só é repetida na saída.
 - **Estorno vinculado a uma despesa.** Se o formato um dia trouxer referência à despesa original, AMB-013 deve ser revista.
@@ -819,7 +832,8 @@ Totais: `valor_solicitado` = 623,76 · `valor_reembolsado` = 373,76 · `valor_gl
 - **Centro de custo autodeclarado** (AMB-020): o `centro_custo` vem da mesma entrada que o colaborador produz; declarar `CC-COMERCIAL` dá alimentação 90,00, transporte 150,00 e hospedagem 400,00, e escrever `"cc-adm"` em vez de `CC-ADM` troca a tabela pelo `padrao` (mais generosa para o `CC-ADM`). Aceito pelo mesmo motivo do `tem_nota_fiscal`: o sistema não tem cadastro para conferir (seção 3); a saída expõe `colaborador.centro_custo` e `politica.tabela_aplicada` para a conferência humana.
 - **Viagem internacional sem hospedagem lançada** (AMB-023): quem está no exterior sem hospedagem na entrada (hotel pago pela empresa por outro meio, por exemplo) não tem os limites ampliados; no envelope, o almoço de Lisboa e-002 recebe 90,00 de 130,46. Aceito porque a moeda é declarada e, como prova de viagem, abriria brecha maior; mitigação definitiva é a indicação explícita de viagem (seção 3).
 - **Mesmo gasto lançado em moedas diferentes** (AMB-028): 10,00 EUR e 59,30 BRL do mesmo gasto não são duplicatas e as duas são pagas até o limite do dia. Aceito porque comparar em reais acoplaria a duplicata ao câmbio e só pegaria a conversão manual que batesse ao centavo.
+- **Mesmo gasto lançado em categorias diferentes** (AMB-010): a categoria normalizada faz parte da chave da duplicata (RN-007). O mesmo gasto relançado com outra categoria não é duplicata: no `CC-COMERCIAL`, fora de viagem e todas com nota, "Casa Trindade" 85,00 em `alimentacao` e de novo em `representacao` no mesmo dia são pagas as duas (170,00). Um gasto também pode ser dividido entre categorias: nas mesmas condições, um jantar de 390,00 lançado como 90,00 em `alimentacao` e 300,00 em `representacao` recebe 390,00, contra 300,00 ou 90,00 se lançado numa categoria só. Aceito porque a política só diz que duplicatas "devem ser tratadas": tirar a categoria da chave recusaria gastos legítimos que coincidem (corrida e entrega de comida do mesmo aplicativo, de mesmo valor, no mesmo dia) e ainda não pegaria a divisão, que exigiria uma regra de soma por fornecedor e dia, inventada. A saída expõe `categoria` por item para a conferência humana.
 - **Política aplicada fora da vigência** (AMB-029): a execução aplica o arquivo de política recebido a todas as despesas, mesmo às anteriores à `vigencia`. Aceito porque quem executa escolhe a política explicitamente (`--politica`) e a saída registra `politica.versao` e `politica.vigencia`.
-- **Cotação de até 3 dias antes** (AMB-024): uma despesa em dia útil cuja cotação falta no arquivo (lacuna do arquivo, não fim de semana) usa a de até 3 dias antes sem aviso, exceto pela `data_cotacao` na saída. Aceito porque o arquivo declara publicar só em dias úteis e a diferença de taxa em 3 dias é pequena; lacunas maiores viram `cambio_indisponivel`.
+- **Cotação de até 4 dias antes** (AMB-024): uma despesa em dia útil cuja cotação falta no arquivo (lacuna do arquivo, não fim de semana nem feriado) usa a de até 4 dias antes sem aviso, exceto pela `data_cotacao` na saída. Aceito porque o arquivo declara publicar só em dias úteis e a diferença de taxa em 4 dias é pequena; lacunas maiores viram `cambio_indisponivel`.
 - **Moeda autodeclarada como multiplicador** (AMB-025): a `moeda` vem da entrada; um gasto de 20,00 reais lançado como `"EUR"` vira 118,60 e recebe até o limite do dia (60,00 no `padrao`). Aceito pelo mesmo motivo do `tem_nota_fiscal` e do `centro_custo`: o sistema não verifica a nota nem lê a descrição (seção 3); a saída expõe `moeda`, `taxa_cambio` e `valor_informado` para a conferência humana comparar com a nota.
 - **Categorias reconhecidas pelo nome** (RN-009, RN-010, AMB-022): a ampliação em viagem vale para `alimentacao` e `transporte_urbano`, e só `hospedagem` comprova viagem, pelo nome normalizado. Se o financeiro renomear uma dessas categorias no arquivo de política (ex.: `refeicao`), a ampliação ou a comprovação de viagem some sem aviso. Aceito porque a v4 não marca no arquivo quais categorias ampliam ou comprovam viagem, e inferir isso seria regra inventada; a saída mostra `em_viagem` e `limite_diario` por item.

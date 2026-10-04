@@ -1,6 +1,6 @@
 # Tasks — Motor de Cálculo de Reembolso
 
-**Versão:** 2.0 · **Baseado em:** spec 2.0, plan 2.0
+**Versão:** 2.1 · **Baseado em:** spec 2.1, plan 2.0 (a T-035 leva o plan a 2.1)
 
 > Cada task é pequena o bastante para virar **um commit**. Se você não consegue
 > descrever o critério de aceite como "o teste X passa", a task está grande demais.
@@ -16,7 +16,7 @@
 - **Atende:** as `RN-`/`AMB-` da spec (e as `DT-` do plano) que a task implementa.
 - **Depende de:** tasks que precisam estar `[x]` antes.
 - **Aceite:** os testes que precisam passar. Arquivos em `tests/`; nomes conforme `plan.md` seção 6.
-- **Casos de borda:** linhas da tabela da seção 7 da spec que a task cobre, cada uma um caso de `tests/test_casos_de_borda.py` com `id` igual ao texto da coluna "Caso". As 100 linhas (63 da 1.x e 37 da 2.0) estão distribuídas entre as tasks; nenhuma fica sem dono.
+- **Casos de borda:** linhas da tabela da seção 7 da spec que a task cobre, cada uma um caso de `tests/test_casos_de_borda.py` com `id` igual ao texto da coluna "Caso". As 105 linhas (63 da 1.x, 37 da 2.0 e 5 novas da 2.1; duas da 2.0 renomeadas na 2.1) estão distribuídas entre as tasks; nenhuma fica sem dono.
 
 O esperado de todo teste é calculado à mão a partir da spec, nunca copiado da saída do programa.
 
@@ -394,6 +394,34 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
   - **Depende de:** T-033
   - **Aceite:** `tests/test_rastreabilidade.py` passa sem nenhuma pendência; remover qualquer teste de RN-014 a RN-016 ou de um caso novo o faz falhar (verificado à mão uma vez e registrado no resumo da task); tabela de Cobertura sem célula vazia, e nenhum `test_politica.py` citado.
   - **Commit:** e0d9bfa
+
+---
+
+## Fase 6 — Revisão adversarial da spec final (spec 2.1, D-008)
+
+Tasks das decisões da D-008 que mudam código ou exigem teste novo. Os demais pontos da D-008 só mudaram texto da spec. Os 7 casos novos ou renomeados da seção 7 ficam em `PENDENTES` de `tests/test_rastreabilidade.py` (DT-016, reaberto para esta fase, donos T-035 e T-036). Cada task tira as suas pendências no mesmo commit, e a última apaga o `PENDENTES` de novo.
+
+- [ ] **T-035** — Janela da cotação D-1 a D-4 e `descricao` de qualquer tipo: `DIAS_ANTERIORES_ACEITOS_NA_COTACAO` de 3 para 4 em `cambio.py`; `plan.md` (seção 4, DT-014, DT-016 reaberto) com "D-4"; testes da janela e da `descricao`.
+  - **Tipo:** regra
+  - **Atende:** RN-015, AMB-024, RN-002 (`descricao`), D-008 (pontos 2 e 3)
+  - **Depende de:** T-034
+  - **Aceite:**
+    - `tests/test_rn015_moeda_e_cambio.py`: com câmbio só com 13/07, USD em 17/07 → usa 13/07 (D-4) e USD em 18/07 → `cambio_indisponivel` (D-5); com câmbio só com 05/02/2027 (EUR 6,00), 10,00 EUR em 09/02/2027 → `data_cotacao` 2027-02-05, `valor_considerado` 60,00. Os testes de D-3/D-4 da 2.0 passam a D-4/D-5.
+    - `tests/test_rn002_validacao_da_entrada.py`: `descricao` ausente, `null`, `17`, `true`, `[]` e `{}` → a despesa segue normalmente; `"descricao": "Almoço \uD800"` → erro de arquivo.
+    - Nenhum valor da seção 9 muda (`test_exemplo.py` passa sem alteração).
+  - **Casos de borda:** Cotação exatamente 4 dias antes · Cotação 5 dias antes · Terça de Carnaval · Descrição nula ou de outro tipo (substituem "Cotação exatamente 3 dias antes" e "Cotação 4 dias antes", cujos `id` saem de `test_casos_de_borda.py`)
+
+- [ ] **T-036** — CLI: argumento repetido e prefixo abreviado são erro de uso; fim das pendências da Fase 6. `cli.py` com `allow_abbrev=False` e recusa da segunda ocorrência de `--input`, `--politica`, `--cambio` ou `--output`, inclusive na forma `--opção=valor`; `PENDENTES` e o código que o lê apagados de `test_rastreabilidade.py`; tabela de Cobertura com 105 casos.
+  - **Tipo:** estrutura
+  - **Atende:** seção 4 (Interface), AMB-031, D-008 (ponto 6, R2-2), DT-016
+  - **Depende de:** T-035
+  - **Aceite:** `tests/test_cli.py`:
+    - `--politica` repetido no meio e no fim da linha, com arquivos diferentes e com o mesmo arquivo, e `--input a --input=b` → código diferente de 0, saída não criada e saída que já existia sem alteração;
+    - `--inp`, `--verbose`, posicional sobrando, `--` antes dos argumentos e opção antes do subcomando → idem;
+    - `--input=e.json` (forma com `=`) → sucesso, mesmo resultado da forma separada;
+    - `-h` e `calcular --help` → código 0, saída não criada e saída que já existia sem alteração.
+    `tests/test_rastreabilidade.py` passa sem nenhuma pendência.
+  - **Casos de borda:** Argumento repetido · Argumento desconhecido · Argumento sobrando
 
 ---
 

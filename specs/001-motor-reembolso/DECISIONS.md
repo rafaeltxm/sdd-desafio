@@ -10,6 +10,47 @@ Ordem cronológica inversa: a mais recente primeiro.
 
 ---
 
+## D-008 — Revisão adversarial da spec final: spec 2.0 → 2.1 · `2026-10-04`
+
+**Gatilho:** rodada do `spec-adversary` sobre a spec 2.0 depois de concluída a implementação (até T-034, commit `240afe5`): 7 problemas, nenhum bloqueante (3 importantes, 4 menores). Decididos um a um pelo responsável.
+
+**O que mudou na spec** (numeração = numeração da revisão):
+
+| # | Ponto | De (2.0) | Para (2.1) | Onde |
+|---|---|---|---|---|
+| 1 | Mesmo gasto em categorias diferentes; gasto dividido entre categorias (importante) | não mencionado | **mantido**: a categoria segue na chave da duplicata; as duas brechas registradas como risco aceito | seção 10 |
+| 2 | Terça de Carnaval sem cotação (importante) | janela D-1 a D-3: despesa legítima na terça de Carnaval → `cambio_indisponivel` | janela **D-1 a D-4**; justificativa da AMB-024 corrigida | seção 4 (motivos), RN-015, AMB-024, seção 7, seção 10 |
+| 3 | `descricao` nula ou de outro tipo (importante) | tipo "texto" na seção 4 × RN-002 omissa | nunca valida: ausente, nula ou de qualquer tipo, a despesa segue | seção 4, RN-002, seção 7 |
+| 4 | RN-011 × RN-004 com `valor_considerado` 0,00 (menor) | fórmula única admitia `aprovado` e `recusado` ao mesmo tempo | duas partes: recusa nas etapas 1 a 7 → `recusado` com o motivo da etapa; fórmula só na etapa 9 | RN-011 |
+| 5 | O que é "data válida" (menor) | não definido na spec (só no plan, DT-003/DT-014) | dígitos ASCII, 0001-01-01 a 9999-12-31, data existente; D+1 e D-n fora do calendário não existem | RN-002, RN-010, RN-015 |
+| 6 | Argumento de CLI repetido, desconhecido ou sobrando (menor) | indefinido; o repetido valia a última ocorrência, em silêncio | erro de uso, nunca "a última ocorrência" | seção 4 (Interface), AMB-031, seção 7 |
+| 7 | Hospedagem de várias noites e a viagem a partir de D+2 (menor) | só a consequência no valor registrada | consequência na viagem registrada junto à decisão provisória da AMB-005 | seção 10 |
+
+**Segunda rodada do `spec-adversary` (sobre a redação da 2.1, só o diff da D-008):** 4 problemas, todos menores. A janela D-4 ficou coerente em toda a spec, o calendário de 2027 confere e a seção 9 não muda. Decididos um a um pelo responsável:
+
+| # | Ponto | Decisão | Onde |
+|---|---|---|---|
+| R2-1 | "Calendário gregoriano" antes de 1582 | gregoriano estendido para trás (proléptico); `1582-10-10` válida, `1500-02-29` inválida | RN-002 |
+| R2-2 | O que é argumento "conhecido" na CLI | as quatro opções por inteiro, separadas ou `--opção=valor` (mesma opção, inclusive para repetição); prefixo abreviado, `--` e opção antes do subcomando são desconhecidos; `-h`/`--help` mostra o uso com código 0, sem ler nem gravar arquivo; casos novos "Argumento desconhecido" e "Argumento sobrando" | seção 4 (Interface), seção 7 |
+| R2-3 | "`descricao` nunca validada" × erros de forma | nunca torna a despesa inválida, mas segue sujeita aos erros de forma do arquivo e ao aviso de chave repetida | seção 4, RN-002 |
+| R2-4 | Exemplos sem todos os dados | caso "Terça de Carnaval" com "câmbio só com" e status; risco da categoria com "fora de viagem, todas com nota" | RN-015, seção 7, seção 10 |
+
+**Por quê:**
+- **Pontos 2 e 6:** recusavam uma despesa legítima sem caminho de reembolso (2) ou executavam em silêncio uma linha de comando ambígua, contra a AMB-031 (6).
+- **Pontos 3, 4 e 5:** a spec admitia duas leituras. Em todos, a decisão é a leitura que o código já seguia.
+- **Pontos 1 e 7:** o resultado literal era o desejado, mas o risco não estava registrado. No ponto 1, tirar a categoria da chave recusaria gastos legítimos coincidentes e ainda não pegaria a divisão do gasto.
+
+**O que isso invalidou:**
+- **Código:** `DIAS_ANTERIORES_ACEITOS_NA_COTACAO` (3 → 4) em `cambio.py`, com o `plan.md` (seção 4, DT-014); `cli.py` passa a recusar argumento repetido (também na forma `--opção=valor`) e prefixo abreviado (R2-2). Os pontos 1, 3, 4, 5, 7, R2-1, R2-3 e R2-4 não mudam código.
+- **Testes:** em `test_rn015_moeda_e_cambio.py`, os testes de D-3/D-4 passam a D-4/D-5. Seção 7: "Cotação exatamente 3 dias antes" e "Cotação 4 dias antes" renomeados para 4 e 5 dias; novos "Terça de Carnaval", "Descrição nula ou de outro tipo", "Argumento repetido", "Argumento desconhecido" e "Argumento sobrando" (100 → 105 casos). Até as tasks, os 7 casos sem teste ficam em `PENDENTES` de `test_rastreabilidade.py` (DT-016, reaberto), com a task dona.
+- **Envelope:** nenhum valor da seção 9 muda. O câmbio não tem lacuna além de fim de semana, nenhum par de despesas difere só na categoria e a única despesa de 24/07 é de `coworking`.
+
+**Tasks afetadas:** T-035 (pontos 2 e 3, regra) e T-036 (ponto 6 e R2-2, estrutura; apaga de novo o `PENDENTES`).
+
+**Custo:** 4 arquivos nesta mudança (`spec.md`, `DECISIONS.md`, `tasks.md`, `tests/test_rastreabilidade.py`); 11 pontos decididos na mesma sessão, em duas rodadas.
+
+---
+
 ## D-007 — Política de Reembolso v4 (envelope do Dia 2): spec 1.9 → 2.0 · `2026-10-02`
 
 **Gatilho:** mudança de requisito do RH, "Política de Reembolso v4" (`exemplos/envelope/00-ENVELOPE-LACRADO.md`), com os arquivos `politica-v4.json`, `cambio.json`, `despesas-envelope.json` e `despesas-envelope-cc-desconhecido.json`. Três itens:
