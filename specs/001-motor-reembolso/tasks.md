@@ -363,7 +363,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
   - **Casos de borda:** Moeda nula · Moeda estrangeira com cotação · Moeda estrangeira em sábado · Cotação exatamente 3 dias antes · Cotação 4 dias antes · Moeda sem cotação no arquivo · Sem cotação e fora do período · Conversão arredondada uma vez · Nota fiscal comparada em reais · Valor estrangeiro minúsculo · Teto na moeda original · Moeda estrangeira não comprova viagem · Hospedagem em moeda estrangeira · Data intermediária sem a moeda
   - **Commit:** a56b1cd
 
-- [ ] **T-032** — Duplicata com moeda: etapa 7 agrupa por (data, categoria, fornecedor, moeda, `valor` arredondado na moeda da despesa).
+- [x] **T-032** — Duplicata com moeda: etapa 7 agrupa por (data, categoria, fornecedor, moeda, `valor` arredondado na moeda da despesa).
   - **Tipo:** regra
   - **Atende:** RN-007, AMB-028
   - **Substitui:** T-017 (duplicata com moeda)
@@ -375,7 +375,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
     - ausente e `"BRL"` com os demais campos iguais → a segunda `duplicata`, porque as duas valem `BRL`.
     Os testes da 1.x da RN-007 continuam passando.
   - **Casos de borda:** Duplicata em moedas diferentes · Duplicata em moeda estrangeira
-  - **Commit:** —
+  - **Commit:** cfe843d
 
 - [ ] **T-033** — Aceite com os arquivos do envelope: `exemplos/envelope/despesas-envelope.json` e `despesas-envelope-cc-desconhecido.json` pela CLI, com `politica-v4.json` e `cambio.json`, contra a segunda e a terceira tabelas da seção 9 da spec, **transcritas à mão** no teste.
   - **Tipo:** regra
