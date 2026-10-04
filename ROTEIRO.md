@@ -77,7 +77,7 @@ Avaliação em 2026-10-02 09:50 (antes do envelope): T-001…T-021 concluídas, 
 - [x] `README.md` do projeto (como rodar, como testar) substituindo o atual — `66362be docs(readme)`; comandos conferidos num clone limpo (exemplo exit 0, JSON inválido exit 1, uso exit 2, 649 testes)
 - [x] Sistema base funcionando e testado **antes do Dia 2**
 - [x] Push de todo o trabalho até aqui para o fork público (`origin/main`)
-- [ ] `/export` da sessão desta avaliação (sessão 33) + commit + push
+- [x] `/export` da sessão desta avaliação (sessão 33) + commit — `2a9ee34`
 
 ### Anotações para o relatório (coletadas até aqui)
 - Revisões BLOQUEADAS pelo `revisor-de-task`: T-003 e T-007 (1× cada, na primeira rodada) — candidatas a **Discernimento** (o que o Claude entregou, o que o revisor pegou, o que foi corrigido); ver `docs/reviews/T-003.md`, `docs/reviews/T-007.md` e sessões 13 e 17.
@@ -90,33 +90,53 @@ Avaliação em 2026-10-02 09:50 (antes do envelope): T-001…T-021 concluídas, 
 
 ## Fase 3 — Dia 2, ~10h: o envelope (20 pts)
 
-- [ ] Anotar hora de início e o hash de partida (`git rev-parse --short HEAD`) para o `git diff --stat` do relatório
-- [ ] Ler a mudança e mapear o impacto: quais RN-/AMB-, casos de borda (seção 7), tabela da seção 9, tasks e testes ela toca
-- [ ] Atualizar `spec.md` primeiro
-- [ ] Entrada no `DECISIONS.md` (D-007): o que mudou, por quê, o que quebrou, tasks afetadas
-- [ ] Rodar `spec-adversary` na spec nova; decisões BLOQUEANTES → spec + `DECISIONS.md` antes do código
-- [ ] Atualizar `plan.md` se a arquitetura/DT mudar (`docs(plan)`)
-- [ ] Novas tasks a partir de **T-022** na Fase 5 do `tasks.md` (+ tasks antigas reabertas, se houver); `docs(tasks)`
-- [ ] Executar cada uma com `/task T-NNN`; contar quantas foram reexecução de task vs. edição manual (bônus da rubrica)
-- [ ] Implementar com commits rastreáveis; todos os testes verdes
-- [ ] Anotar hora de fim e nº de arquivos tocados na mão
-- [ ] `/export` da sessão + commit
+Aberto em 02/10 às 19:51 (não às ~10h previstas); planejamento retomado só em 04/10, depois de interrupção por falta de acesso à assinatura (sessão 38).
+
+- [x] Anotar hora de início e o hash de partida — `edeeb2d`, 02/10 19:51 (registrado na D-007)
+- [x] Ler a mudança e mapear o impacto — sessão 37; arquivos do envelope em `exemplos/envelope/`
+- [x] Atualizar `spec.md` primeiro — spec 2.0 `9f993c5` (RN-014 a RN-016, AMB-020 a AMB-031, seção 7 com 100 casos, seção 9 com três arquivos)
+- [x] Entrada no `DECISIONS.md` (D-007) — o que mudou, o que invalidou, 9 tasks antigas afetadas
+- [x] `spec-adversary` na spec nova — 3 rodadas (17 + 10 + 3 pontos, 30 decisões) antes do código
+- [x] `plan.md` 2.0 (DT-011 a DT-016) e tasks da Fase 5 — `eb47e11`; correção da DT-012 em `7535999`
+- [x] Tasks novas T-022…T-034 (antigas substituídas por tasks novas, não reabertas)
+- [x] Executar cada uma com `/task T-NNN` — 13 tasks, 10 revisões (1 APROVADO, 9 COM RESSALVAS, 0 BLOQUEADO); aceite com os três arquivos na T-033 `b1f1708`; pendências zeradas na T-034 `e0d9bfa`
+- [x] Contagem reexecução vs. edição manual — 0 arquivos editados na mão; todo código dentro de task (RELATORIO, "O envelope")
+- [x] Hora de fim — envelope absorvido em 04/10 16:02 (~3h20 de trabalho efetivo)
+- [x] `/export` de cada sessão no commit de fim de bloco — sessões 37 a 52
+
+### Fase 6 — Revisão adversarial da spec final (não prevista no roteiro original)
+- [x] `spec-adversary` na spec 2.0 implementada → spec 2.1 + D-008 — `d725054` (7 + 4 pontos)
+- [x] T-035 — janela da cotação até D-4 e `descricao` de qualquer tipo — `436d6c7`
+- [x] T-036 — CLI recusa argumento repetido e prefixo abreviado; `PENDENTES` apagado (105 casos cobertos) — `2594725`
+- [x] README com `--politica`/`--cambio` e totais dos três exemplos — `5f429a6`
+- [x] Sessões 53 a 56 exportadas
+
+### Fase 7 — Correção vinda do levantamento do relatório
+- [x] Divergência DT-012 × código (saldo do limite e totais fora do `contexto_exato()`) achada no levantamento → decisão registrada no RELATORIO — `8674de6`
+- [x] T-037 — saldo do limite e totais no contexto exato — `80639e1`, revisão em `docs/reviews/T-037.md`, sessão 58 exportada em `80dc88b`
+
+**Estado em 2026-10-04 20:06 (`80dc88b`):** T-001…T-037 concluídas, 1043 testes passando, ruff limpo, spec 2.1, D-001…D-008, 58 sessões, 26 pareceres em `docs/reviews/`, 38 commits `T-NNN`. **`main` está 38 commits à frente de `origin/main`** (último push: `9f993c5`).
 
 ## Fase 4 — Dia 2, tarde: fechamento
 
 ### `docs/RELATORIO.md` (4 Ds + envelope, com evidências)
-- [x] Levantamento de evidências do Dia 1 no rascunho (fatos preenchidos; julgamento marcado com ✍️)
-- [ ] **Delegação** — o que você fez vs. o Claude, e por quê
-- [ ] **Descrição** — 1 requisito: primeira versão vs. final na spec (citar commits)
-- [ ] **Discernimento** — ≥1 erro concreto do Claude que você pegou, com link para a sessão exportada (sem isso = zero)
-- [ ] **Diligência** — o que verificou, o que aceitou sem verificar e o custo
-- [ ] **Envelope** — arquivos tocados, tempo, o que a spec facilitou/atrapalhou
-- [ ] Explicar os 2 commits iniciais sem task (setup e export)
+- [x] Levantamento de evidências do Dia 1 no rascunho — `112d565`
+- [x] **Delegação** — tabela do que fiz vs. o Claude — `76fb384`
+- [x] **Descrição** — requisito da viagem (RN-010), `c8bcad9` → `d35f68d` → `bdb1eec`, implementado na T-018
+- [x] **Discernimento** — 4 casos (seção 9 em viagem, normalização D-005, teste fraco da T-014, número errado no README) com links para as sessões
+- [x] **Diligência** — procedimento, números, o que aceitei sem verificar
+- [x] **Envelope** — hash de partida, 0 arquivos na mão, tempos, diff de absorção, o que absorveu/resistiu — `8674de6`
+- [x] Explicar os 2 commits iniciais sem task (setup e export) — seção Fechamento
+- [ ] Atualizar números que ficaram para trás com a T-037 (Diligência, l. ~165: "36 tasks (T-037 aberta), 37 commits, 1041 testes, 25 revisões, 57 sessões" → 37 tasks, 38 commits `T-NNN`, 1043 testes, 26 revisões, 58 sessões)
+- [ ] Fechar o "Ponto em aberto" do envelope: registrar que a T-037 foi feita (`80639e1`) e o resultado da revisão
+- [ ] Releitura final do relatório inteiro (coerência dos números entre seções)
 
 ### Checagem final
-- [ ] `git log` legível: todo commit com task ou `docs(...)`
-- [ ] Rastreabilidade fecha: RF → task → commit → teste
-- [ ] Testes passando a partir de um clone limpo, seguindo o README
-- [ ] `docs/sessions/` com um export por sessão
-- [ ] `/export` final + commit + push
-- [ ] Enviar link do fork no formulário **até 18h**
+- [ ] `git log` legível: todo commit com task ou `docs(...)` — conferido em 04/10: só `994a491` e `683f161` fora do padrão, já explicados
+- [ ] Rastreabilidade fecha: RN → task → commit → teste (`test_rastreabilidade.py` verde, tabela de Cobertura em `tasks.md`)
+- [ ] Testes passando a partir de um clone limpo, seguindo o README (os três exemplos com `--politica`/`--cambio`)
+- [ ] `docs/sessions/` com um export por sessão (hoje 01 a 58)
+- [ ] `/export` final (sessão 59) + commit de fim de bloco
+- [ ] **Push** — 38+ commits locais ainda não estão no fork público
+- [ ] Confirmar no GitHub que o fork público mostra o último commit
+- [ ] Enviar link do fork no formulário
