@@ -202,7 +202,7 @@ Tasks da mudança de requisito do Dia 2 (D-007, plan 2.0). As tasks da 1.x **nã
 
 Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendência de `PENDENTES` no mesmo commit (DT-016). O dono de cada pendência é a task que lista o caso em **Casos de borda**, ou a regra em **Remove pendência**.
 
-- [ ] **T-022** — Pendências da rastreabilidade: `PENDENTES` em `tests/test_rastreabilidade.py`, com RN-014, RN-015, RN-016 e os 37 casos novos da seção 7, cada um com a task dona (DT-016); arquivos de `exemplos/envelope/` versionados.
+- [x] **T-022** — Pendências da rastreabilidade: `PENDENTES` em `tests/test_rastreabilidade.py`, com RN-014, RN-015, RN-016 e os 37 casos novos da seção 7, cada um com a task dona (DT-016); arquivos de `exemplos/envelope/` versionados.
   - **Tipo:** estrutura
   - **Atende:** DT-016, seção 9 da spec (rastreabilidade)
   - **Depende de:** T-021
@@ -211,7 +211,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
     - `test_pendencia_fora_da_spec_falha`: uma pendência que não está na spec faz a verificação falhar;
     - `test_dono_da_pendencia_e_task_da_fase_5`: todo dono é uma task `T-022` a `T-034` existente em `tasks.md`.
     As três verificações são testadas sobre conjuntos montados no teste, sem editar a spec. Os 37 casos e os donos são os desta fase.
-  - **Commit:** —
+  - **Commit:** 91a0f33
 
 - [ ] **T-023** — `leitura.py`: mover de `entrada.py` a forma do arquivo (`ler_json`, `ObjetoJson`, `ErroDeArquivo`, verificação de escapes) e os testes de tipo da DT-003 (`e_numero`, `e_data`, `tem_texto`), sem mudar comportamento; acrescentar `e_codigo_de_moeda`, `tem_ate_2_casas` e `rejeitar_chaves_repetidas` (DT-010, DT-011).
   - **Tipo:** estrutura (leitura de JSON; commit `refactor(T-023)`)
