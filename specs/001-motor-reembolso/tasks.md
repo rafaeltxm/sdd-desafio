@@ -226,7 +226,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
     - `entrada.py` não define mais nenhuma dessas funções.
   - **Commit:** b9f728e
 
-- [ ] **T-024** — `dinheiro.py`: `contexto_exato()`, `arredondar` (movido de `motor.py`) e `truncar` (DT-012, DT-013).
+- [x] **T-024** — `dinheiro.py`: `contexto_exato()`, `arredondar` (movido de `motor.py`) e `truncar` (DT-012, DT-013).
   - **Tipo:** regra
   - **Atende:** RN-003 (produto exato arredondado uma vez), RN-009 (limite em viagem truncado), AMB-022, AMB-026, DT-012, DT-013
   - **Depende de:** T-023
@@ -238,7 +238,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
     - `test_rn009_truncar`: `49.995` → 49,99; `90.00` → 90,00;
     - `test_conta_inexata_levanta_erro`: uma divisão inexata dentro de `contexto_exato()` levanta exceção.
     `motor.py` importa `arredondar` de `dinheiro.py`, e a suíte da 1.x passa sem mudança.
-  - **Commit:** —
+  - **Commit:** beba6b8
 
 - [ ] **T-025** — Leitor do arquivo de política: `ler_politica(bytes) -> Politica`, com a parte da RN-016 sobre a política (DT-015); `Politica` em `modelo.py`; construtor `construir_politica(**sobrescritas)` em `tests/conftest.py`, com a v4 transcrita (plan seção 6).
   - **Tipo:** regra
