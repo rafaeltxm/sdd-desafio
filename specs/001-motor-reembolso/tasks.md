@@ -273,7 +273,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
     - Câmbio com `"BRL": 0` ou `"BRL": "x"` numa data e com `fonte` e `observacao` na raiz → válido.
   - **Commit:** b3fd107
 
-- [ ] **T-027** — Tabela aplicada e limite: `tabela_aplicada(politica, centro_custo)` (RN-014), `limite_diario(tabela, categoria, em_viagem, percentual)` com truncamento (RN-009, DT-013) e `categoria_de_saida(texto, tabela)` (seção 4 da spec), em `politica.py`, com as constantes de interpretação da seção 4 do plano.
+- [x] **T-027** — Tabela aplicada e limite: `tabela_aplicada(politica, centro_custo)` (RN-014), `limite_diario(tabela, categoria, em_viagem, percentual)` com truncamento (RN-009, DT-013) e `categoria_de_saida(texto, tabela)` (seção 4 da spec), em `politica.py`, com as constantes de interpretação da seção 4 do plano.
   - **Tipo:** regra
   - **Atende:** RN-014, RN-009 (limite normal e em viagem do arquivo), RN-006 (categorias da tabela aplicada), AMB-006, AMB-020, AMB-022, seção 4 da spec (`itens[].categoria`)
   - **Depende de:** T-024, T-025
@@ -291,7 +291,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
       - percentual 0 → limite normal;
       - percentual com mais de 28 casas → conferido à mão.
     - `categoria_de_saida`: `"ALIMENTACAO"` → `alimentacao`; `"hospedagem"` com `CC-ENG-PLATAFORMA` (limite 0) → `hospedagem`; `"representacao"` com `padrao` → `representacao` como veio; `"Coworking"` → `Coworking`; não texto → `None`.
-  - **Commit:** —
+  - **Commit:** 4bbfdaf
 
 - [ ] **T-028** — CLI com política e câmbio: `--politica` e `--cambio` obrigatórios; leitura dos três arquivos, validação na ordem política → câmbio → entrada; mensagem `erro: <arquivo>: ...` (DT-007); `calcular(entrada, politica, cambio)` recebe os dois, mas o motor só os usa a partir da T-029; `processar()` do `conftest.py` passa a v4 e o câmbio transcritos quando o teste não informa outros.
   - **Tipo:** estrutura (CLI)
