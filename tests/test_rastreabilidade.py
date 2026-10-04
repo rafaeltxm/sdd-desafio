@@ -20,7 +20,6 @@ TASKS = SPEC.with_name("tasks.md")
 PENDENTES = {  # some quando a Fase 5 terminar (DT-016)
     "RN-014": "T-027",
     "RN-015": "T-026",
-    "RN-016": "T-025",
     "Centro de custo reservado no arquivo": "T-028",
     "Política sem tabela padrão": "T-028",
     "Limite inválido na política": "T-028",

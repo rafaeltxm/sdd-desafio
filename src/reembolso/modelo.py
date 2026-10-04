@@ -1,5 +1,6 @@
 """Dataclasses e enums compartilhados (plan seção 3)."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -74,6 +75,21 @@ class Entrada:
     periodo: Periodo
     despesas: list[Despesa | DespesaInvalida]
     avisos: tuple[str, ...]  # chaves repetidas fora das despesas
+
+
+Tabela = Mapping[str, Decimal]  # categoria normalizada → limite diário normal
+
+
+@dataclass(frozen=True)
+class Politica:
+    """Arquivo de política validado (RN-016)."""
+
+    versao: str | None
+    vigencia: str | None  # texto como veio no arquivo
+    padrao: Tabela
+    centros_custo: Mapping[str, Tabela]  # chave como escrita no arquivo
+    nota_fiscal_acima_de: Decimal
+    acrescimo_em_viagem_percentual: Decimal
 
 
 @dataclass(frozen=True)

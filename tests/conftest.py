@@ -44,6 +44,51 @@ def construir_entrada(despesas=(), colaborador=None, periodo=None):
     }
 
 
+def _regra(limite, periodicidade="dia", **extras):
+    return {"limite": Decimal(limite), "periodicidade": periodicidade, **extras}
+
+
+def construir_politica(**sobrescritas):
+    """`exemplos/envelope/politica-v4.json` transcrita (plan seção 6).
+
+    Os campos passados sobrescrevem os da raiz; cada chamada devolve um
+    documento novo, que o teste pode alterar.
+    """
+    documento = {
+        "versao": "v4",
+        "vigencia": "2026-07-01",
+        "moeda_base": "BRL",
+        "padrao": {
+            "alimentacao": _regra("60.00"),
+            "transporte_urbano": _regra("80.00"),
+            "hospedagem": _regra("250.00", "diaria"),
+        },
+        "centros_custo": {
+            "CC-ENG-PLATAFORMA": {
+                "alimentacao": _regra("75.00"),
+                "transporte_urbano": _regra("80.00"),
+                "hospedagem": _regra(
+                    "0.00", "diaria", observacao="nao reembolsavel"
+                ),
+            },
+            "CC-COMERCIAL": {
+                "alimentacao": _regra("90.00"),
+                "transporte_urbano": _regra("150.00"),
+                "hospedagem": _regra("400.00", "diaria"),
+                "representacao": _regra("300.00"),
+            },
+            "CC-ADM": {
+                "alimentacao": _regra("45.00"),
+                "transporte_urbano": _regra("60.00"),
+            },
+        },
+        "nota_fiscal_obrigatoria_acima_de": Decimal("100.00"),
+        "acrescimo_em_viagem_percentual": Decimal("50"),
+    }
+    documento.update(sobrescritas)
+    return documento
+
+
 @pytest.fixture
 def despesa():
     return construir_despesa
