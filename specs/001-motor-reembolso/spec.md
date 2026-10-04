@@ -46,7 +46,7 @@ A partir da Política v4 (D-007), os limites não são mais fixos: vêm de um **
 - Erro de arquivo (RN-002 para a entrada, RN-016 para a política e o câmbio), inclusive quando o arquivo de saída não pode ser gravado: não cria nem altera o arquivo de saída (se já existia, permanece como estava), escreve uma mensagem de erro e termina com código diferente de 0.
 - Erro de uso (subcomando diferente de `calcular`; `--input`, `--politica`, `--cambio` ou `--output` ausentes; qualquer um deles repetido, mesmo com o mesmo arquivo; argumento desconhecido ou sobrando): mesmo comportamento do erro de arquivo. Nunca vale "a última ocorrência": uma linha de comando que mostra duas políticas não é executada.
 - Argumento conhecido é exatamente `--input`, `--politica`, `--cambio` ou `--output`, escrito por inteiro, seguido do valor como argumento separado ou na forma `--opção=valor` (as duas formas são a mesma opção, inclusive para a repetição). Prefixo abreviado (`--inp`), `--` e opção antes do subcomando são argumentos desconhecidos.
-- Ajuda (`-h` ou `--help`, antes ou depois do subcomando): mostra o uso e termina com código 0, sem ler nenhum arquivo e sem criar nem alterar o arquivo de saída. Os cinco argumentos são sempre obrigatórios, inclusive quando todas as despesas são em reais (AMB-031).
+- Ajuda (`-h` ou `--help`, antes ou depois do subcomando): mostra o uso e termina com código 0, sem ler nenhum arquivo e sem criar nem alterar o arquivo de saída. Os quatro argumentos (`--input`, `--politica`, `--cambio` e `--output`) são sempre obrigatórios, inclusive quando todas as despesas são em reais (AMB-031).
 
 ### Entrada
 
