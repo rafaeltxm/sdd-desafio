@@ -641,3 +641,143 @@
   avise. Aí eu faço o commit docs(relatorio) com o export e dou o push.
 
 ✻ Cogitated for 26s · done 8:30 PM
+
+❯ /export docs/sessions/61-prazo-e-ajustes-relatorio.md                         
+  ⎿  Conversation exported to: /Users/rafaeltxm/repo/sdd-desafio/docs/sessions/6
+     1-prazo-e-ajustes-relatorio.md
+
+❯ fiz o export                                                                  
+
+⏺ Bash(sed -i '' 's/26 revisões independentes, 60 sessões exportadas/26 revisões
+      independentes, 61 sessões exportadas/' docs/RELATORIO.md && sed -i ''
+      's/(01 a 60, sem…)
+  ⎿  1
+     M  ROTEIRO.md
+     M  docs/RELATORIO.md
+     … +9 lines (ctrl+o to expand)
+  ⎿  Updated ROTEIRO.md (+1 -1)
+      135  - [x] `git log` legível: todo commit com task ou `docs(...)` —
+            conferido em 04/10: só `994a491` e `683f161` fora do padrão, 
+           já explicados
+      136  - [x] Rastreabilidade fecha: RN → task → commit → teste (`test
+           _rastreabilidade.py` verde, tabela de Cobertura em `tasks.md`)
+      137  - [x] Testes passando a partir de um clone limpo, seguindo o R
+           EADME (os três exemplos com `--politica`/`--cambio`)
+      138 -- [x] `docs/sessions/` com um export por sessão (01 a 60, sem 
+          -lacuna)                                                       
+      138 +- [x] `docs/sessions/` com um export por sessão (01 a 61, sem 
+          +lacuna)                                                       
+      139  - [x] `/export` final (sessão 60) + commit de fim de bloco
+      140  - [ ] **Push** do commit final (até `cfd22df` já está no fork,
+            conferido com `git fetch`)
+      141  - [ ] Confirmar no GitHub que o fork público mostra o último c
+           ommit
+  ⎿  Updated docs/RELATORIO.md (+1 -1)
+      162  
+      163  **Procedimento (o que o fluxo impunha):** cada task pela skill
+            `/task`: testes primeiro, falhando pelo motivo certo; pytest 
+           + ruff completos; `revisor-de-task` nas tasks de regra; resumo
+            com "Decisões ou interpretações realizadas"; commit só depois
+            do meu "pode commitar". Hooks bloqueiam commit com teste verm
+           elho ou mensagem fora do padrão.
+      164  
+      165 -**Números:** no Dia 1: 21 tasks, 22 commits `T-NNN`, 649 teste
+          -s, 15 revisões independentes, 33 sessões exportadas, 6 mudança
+          -s de spec registradas (D-001 a D-006). Com o envelope e a revi
+          -são final: 37 tasks concluídas, 38 commits `T-NNN`, 1043 teste
+          -s, 26 revisões independentes, 60 sessões exportadas, 8 mudança
+          -s de spec registradas (D-001 a D-008).                        
+      165 +**Números:** no Dia 1: 21 tasks, 22 commits `T-NNN`, 649 teste
+          +s, 15 revisões independentes, 33 sessões exportadas, 6 mudança
+          +s de spec registradas (D-001 a D-006). Com o envelope e a revi
+          +são final: 37 tasks concluídas, 38 commits `T-NNN`, 1043 teste
+          +s, 26 revisões independentes, 61 sessões exportadas, 8 mudança
+          +s de spec registradas (D-001 a D-008).                        
+      166  
+      167  **Exemplo de pergunta antes de aceitar:** T-018, proteção cont
+           ra 9999-12-31 — perguntei "faz sentido registrar?" antes de co
+           mmitar (`29-t018-viagem.md` l. 608).
+      168  
+
+⏺ Os dois commits já estão no fork, e o último commit no GitHub é o 9ee57e7, que
+  confere com o local.
+
+  - 673a6bc docs(spec): a spec fala agora em quatro argumentos obrigatórios, não
+    cinco.
+  - 9ee57e7 docs(relatorio): este commit leva o export da sessão 61 e inclui:
+    - o parágrafo "Entrega após o prazo";
+    - a versão final da AMB-004 marcada como "1.9, inalterada na 2.1";
+    - as linhas citadas das sessões 13 e 38 corrigidas.
+
+  Com o export novo, troquei também a contagem no relatório e no ROTEIRO.md de
+  60 para 61 sessões, para os números continuarem batendo.
+
+  Pode enviar o link no formulário: https://github.com/rafaeltxm/sdd-desafio
+
+✻ Cogitated for 12s · done 8:30 PM
+
+❯ marca push e fork como concluídos no roteiro                                  
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+⏺ Bash(python3 - <<'EOF'
+      p='ROTEIRO.md'; s=open(p).read()…)
+  ⎿   ROTEIRO.md | 4 ++--
+      1 file changed, 2 insertions(+), 2 deletions(-)
+     pre-commit: commit sem código Python/testes/exemplos — ruff e pytest n
+     … +2 lines (ctrl+o to expand)
+  ⎿  Updated ROTEIRO.md (+2 -2)
+      137  - [x] Testes passando a partir de um clone limpo, seguindo o R
+           EADME (os três exemplos com `--politica`/`--cambio`)
+      138  - [x] `docs/sessions/` com um export por sessão (01 a 61, sem 
+           lacuna)
+      139  - [x] `/export` final (sessão 60) + commit de fim de bloco
+      140 -- [ ] **Push** do commit final (até `cfd22df` já está no fork,
+          - conferido com `git fetch`)                                   
+      141 -- [ ] Confirmar no GitHub que o fork público mostra o último c
+          -ommit                                                         
+      140 +- [x] **Push** do commit final (`9ee57e7`)                    
+      141 +- [x] Confirmar no GitHub que o fork público mostra o último c
+          +ommit (conferido pela API: público, `main` em `9ee57e7`)      
+      142  - [ ] Enviar link do fork no formulário
+
+⏺ Marquei os dois itens no ROTEIRO.md, fiz o commit 5fe736e chore(tooling) e dei
+  o push. Conferi no GitHub e o fork está nesse commit.
+
+  Fiz o commit com SEM_EXPORT=1, porque é só uma marcação de checklist. Isso
+  significa que este trecho final da conversa ficou fora do export 61. Se quiser
+  que ele entre, rode /export docs/sessions/61-prazo-e-ajustes-relatorio.md de
+  novo e eu faço um commit docs(sessions) com o arquivo atualizado. Não é
+  necessário para a entrega.
+
+  No roteiro, só falta enviar o link no formulário:
+  https://github.com/rafaeltxm/sdd-desafio
+
+✻ Cooked for 15s · done 8:31 PM
+
+❯ marcar que enviei o relatorio também                                          
+
+⏺ Bash(sed -i '' 's/^- \[ \] Enviar link do fork no formulário$/- [x] Enviar
+      link do fork no formulário (2026-10-04)/' ROTEIRO.md && git diff --stat &&
+      git add ROTEIRO…)
+  ⎿   ROTEIRO.md | 2 +-
+      1 file changed, 1 insertion(+), 1 deletion(-)
+     pre-commit: commit sem código Python/testes/exemplos — ruff e pytest n
+     … +2 lines (ctrl+o to expand)
+  ⎿  Updated ROTEIRO.md (+1 -1)
+      139  - [x] `/export` final (sessão 60) + commit de fim de bloco
+      140  - [x] **Push** do commit final (`9ee57e7`)
+      141  - [x] Confirmar no GitHub que o fork público mostra o último c
+           ommit (conferido pela API: público, `main` em `9ee57e7`)
+      142 -- [ ] Enviar link do fork no formulário                       
+      142 +- [x] Enviar link do fork no formulário (2026-10-04)          
+
+⏺ Marquei o envio do link no formulário no ROTEIRO.md, com a data de 2026-10-04.
+  Fiz o commit df1c74e e dei o push, e o fork no GitHub já mostra esse commit.
+  Com isso, não sobrou nenhum item aberto no roteiro.
+
+  Este último trecho da conversa não entrou no export 61. Se quiser incluí-lo,
+  rode /export docs/sessions/61-prazo-e-ajustes-relatorio.md de novo e eu faço o
+  commit dele. Não é necessário para a entrega.
+
+✻ Cogitated for 8s · done 8:32 PM
