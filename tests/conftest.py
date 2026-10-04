@@ -89,6 +89,39 @@ def construir_politica(**sobrescritas):
     return documento
 
 
+def construir_cambio(**sobrescritas):
+    """`exemplos/envelope/cambio.json` transcrito (plan seção 6).
+
+    Os campos passados sobrescrevem os da raiz (ex. `taxas=...`); cada chamada
+    devolve um documento novo, que o teste pode alterar.
+    """
+    cotacoes = {
+        "2026-07-13": ("5.42", "5.91"),
+        "2026-07-14": ("5.44", "5.93"),
+        "2026-07-15": ("5.39", "5.88"),
+        "2026-07-16": ("5.41", "5.90"),
+        "2026-07-17": ("5.47", "5.96"),
+        "2026-07-20": ("5.50", "6.01"),
+        "2026-07-21": ("5.48", "5.99"),
+        "2026-07-22": ("5.45", "5.95"),
+        "2026-07-23": ("5.44", "5.94"),
+        "2026-07-24": ("5.46", "5.97"),
+        "2026-07-27": ("5.52", "6.03"),
+        "2026-07-28": ("5.51", "6.02"),
+    }
+    documento = {
+        "moeda_base": "BRL",
+        "fonte": "Banco Central - PTAX de fechamento",
+        "observacao": "Cotacoes publicadas apenas em dias uteis bancarios.",
+        "taxas": {
+            data: {"USD": Decimal(usd), "EUR": Decimal(eur)}
+            for data, (usd, eur) in cotacoes.items()
+        },
+    }
+    documento.update(sobrescritas)
+    return documento
+
+
 @pytest.fixture
 def despesa():
     return construir_despesa

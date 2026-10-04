@@ -1,11 +1,13 @@
 """Arquivos de política e de câmbio: RN-016, AMB-029, AMB-031, DT-015."""
 
+from datetime import date
 from decimal import Decimal
 
 import pytest
 import simplejson
 
-from conftest import construir_politica
+from conftest import construir_cambio, construir_politica
+from reembolso.cambio import ler_cambio
 from reembolso.leitura import ErroDeArquivo
 from reembolso.politica import ler_politica
 
@@ -388,3 +390,182 @@ def test_rn016_centro_de_custo_indexado_pela_chave_como_escrita():
     """RN-016: a chave de `centros_custo` fica como veio (plan seção 4)."""
     documento = construir_politica(centros_custo={" cc-adm ": {}})
     assert list(ler_politica(_bytes(documento)).centros_custo) == [" cc-adm "]
+
+
+# --- câmbio -------------------------------------------------------------------
+
+
+def _cambio_com(caminho, valor):
+    """Câmbio do envelope com `valor` no `caminho` (tupla de chaves) da raiz."""
+    documento = construir_cambio()
+    alvo = documento
+    for chave in caminho[:-1]:
+        alvo = alvo[chave]
+    alvo[caminho[-1]] = valor
+    return documento
+
+
+def _erro_no_cambio(conteudo: bytes) -> str:
+    with pytest.raises(ErroDeArquivo) as erro:
+        ler_cambio(conteudo)
+    return str(erro.value)
+
+
+@pytest.mark.parametrize(
+    ("documento", "campo"),
+    [
+        pytest.param([], "raiz", id="raiz_lista"),
+        pytest.param(
+            construir_cambio(moeda_base="USD"), "moeda_base", id="moeda_base_usd"
+        ),
+        pytest.param(
+            construir_cambio(moeda_base="brl"), "moeda_base", id="moeda_base_minuscula"
+        ),
+        pytest.param(construir_cambio(taxas=None), "taxas", id="taxas_nulas"),
+        pytest.param(
+            {"moeda_base": "BRL", "fonte": "PTAX"}, "taxas", id="taxas_ausentes"
+        ),
+        pytest.param(construir_cambio(taxas=[]), "taxas", id="taxas_lista"),
+        pytest.param(
+            _cambio_com(("taxas", "2026-07-32"), {"USD": Decimal("5.40")}),
+            "taxas.2026-07-32",
+            id="data_inexistente",
+        ),
+        pytest.param(
+            _cambio_com(("taxas", "2026-7-13"), {"USD": Decimal("5.40")}),
+            "taxas.2026-7-13",
+            id="data_sem_zeros",
+        ),
+        pytest.param(
+            _cambio_com(("taxas", "2026-07-13"), Decimal("5.42")),
+            "taxas.2026-07-13",
+            id="data_que_nao_e_objeto",
+        ),
+        pytest.param(
+            _cambio_com(("taxas", "2026-07-13", "usd"), Decimal("5.42")),
+            "taxas.2026-07-13.usd",
+            id="codigo_minusculo",
+        ),
+        pytest.param(
+            _cambio_com(("taxas", "2026-07-13", "US"), Decimal("5.42")),
+            "taxas.2026-07-13.US",
+            id="codigo_de_2_letras",
+        ),
+        pytest.param(
+            _cambio_com(("taxas", "2026-07-13", "USD"), Decimal(0)),
+            "taxas.2026-07-13.USD",
+            id="taxa_zero",
+        ),
+        pytest.param(
+            _cambio_com(("taxas", "2026-07-13", "USD"), Decimal("-0")),
+            "taxas.2026-07-13.USD",
+            id="taxa_menos_zero",
+        ),
+        pytest.param(
+            _cambio_com(("taxas", "2026-07-13", "USD"), Decimal("-5.4")),
+            "taxas.2026-07-13.USD",
+            id="taxa_negativa",
+        ),
+        pytest.param(
+            _cambio_com(("taxas", "2026-07-13", "USD"), "5.4"),
+            "taxas.2026-07-13.USD",
+            id="taxa_texto",
+        ),
+        pytest.param(
+            _cambio_com(("taxas", "2026-07-13", "USD"), True),
+            "taxas.2026-07-13.USD",
+            id="taxa_booleana",
+        ),
+        # teto (AMB-018): a partir de 1.000.000.000
+        pytest.param(
+            _cambio_com(("taxas", "2026-07-28", "EUR"), Decimal("1000000000")),
+            "taxas.2026-07-28.EUR",
+            id="taxa_no_teto",
+        ),
+        pytest.param(
+            _cambio_com(("taxas", "2026-07-28", "EUR"), Decimal("1e999999")),
+            "taxas.2026-07-28.EUR",
+            id="taxa_gigante",
+        ),
+    ],
+)
+def test_rn016_cambio_invalido_e_erro_de_arquivo_com_o_campo(documento, campo):
+    """RN-016 / DT-015: cada defeito do câmbio é erro de arquivo com o campo."""
+    assert campo in _erro_no_cambio(_bytes(documento))
+
+
+@pytest.mark.parametrize(
+    ("texto", "campo"),
+    [
+        pytest.param(
+            '{"taxas": {"2026-07-13": {"USD": 5.42}, "2026-07-13": {"USD": 5.44}}}',
+            "taxas.2026-07-13",
+            id="mesma_data_duas_vezes",
+        ),
+        pytest.param(
+            '{"taxas": {"2026-07-13": {"USD": 5.42, "USD": 5.44}}}',
+            "taxas.2026-07-13.USD",
+            id="mesma_moeda_duas_vezes_na_data",
+        ),
+    ],
+)
+def test_rn016_cambio_com_chave_repetida_e_erro_de_arquivo(texto, campo):
+    """RN-016: chave repetida em qualquer objeto do câmbio é erro, sem RN-013."""
+    assert campo in _erro_no_cambio(texto.encode())
+
+
+def test_rn016_cambio_com_forma_invalida_e_erro_de_arquivo():
+    """RN-016: o câmbio segue a forma do arquivo de entrada (UTF-8)."""
+    texto = _bytes(construir_cambio()).replace(b"PTAX", b"PT\xe9X", 1)
+    assert "UTF-8" in _erro_no_cambio(texto)
+
+
+def test_rn016_cambio_do_envelope_valido():
+    """RN-016: o câmbio do envelope vira `Cambio`, com a taxa exata do arquivo."""
+    cambio = ler_cambio(_bytes(construir_cambio()))
+    assert len(cambio.taxas) == 12
+    assert cambio.taxas[date(2026, 7, 17)] == {
+        "USD": Decimal("5.47"),
+        "EUR": Decimal("5.96"),
+    }
+
+
+@pytest.mark.parametrize(
+    "brl",
+    [
+        pytest.param(Decimal(0), id="brl_zero"),
+        pytest.param("x", id="brl_texto"),
+    ],
+)
+def test_rn016_brl_e_campos_nao_listados_ignorados_sem_validacao(brl):
+    """RN-016 / RN-015: BRL numa data, `fonte` e `observacao` são ignorados."""
+    documento = construir_cambio(fonte=Decimal("1e999999"), observacao=[])
+    documento["taxas"]["2026-07-13"]["BRL"] = brl
+    cambio = ler_cambio(_bytes(documento))
+    # a entrada BRL não entra no `Cambio` (plan seção 3)
+    assert cambio.taxas[date(2026, 7, 13)] == {
+        "USD": Decimal("5.42"),
+        "EUR": Decimal("5.91"),
+    }
+
+
+def test_rn016_cambio_sem_moeda_base_e_valido():
+    """RN-016: `moeda_base` ausente ou nula vale BRL."""
+    documento = construir_cambio()
+    del documento["moeda_base"]
+    assert ler_cambio(_bytes(documento)).taxas
+    assert ler_cambio(_bytes(construir_cambio(moeda_base=None))).taxas
+
+
+@pytest.mark.parametrize(
+    "taxa",
+    [
+        pytest.param(Decimal("999999999.999"), id="logo_abaixo_do_teto"),
+        pytest.param(Decimal("5.4321987654321"), id="mais_de_2_casas"),
+    ],
+)
+def test_rn016_taxa_valida_pelo_valor_exato(taxa):
+    """RN-016: taxa abaixo do teto vale com qualquer número de casas, sem arredondar."""
+    # o limite de 2 casas é só do limite e do mínimo da nota; a taxa sai exata
+    documento = _cambio_com(("taxas", "2026-07-13", "USD"), taxa)
+    assert ler_cambio(_bytes(documento)).taxas[date(2026, 7, 13)]["USD"] == taxa

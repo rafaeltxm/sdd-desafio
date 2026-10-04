@@ -93,6 +93,21 @@ class Politica:
 
 
 @dataclass(frozen=True)
+class Cambio:
+    """Arquivo de câmbio validado (RN-016), sem a entrada `BRL` (ignorada)."""
+
+    taxas: Mapping[date, Mapping[str, Decimal]]
+
+
+@dataclass(frozen=True)
+class Cotacao:
+    """Taxa usada na conversão (RN-015); `data` é `None` para `BRL`."""
+
+    taxa: Decimal
+    data: date | None
+
+
+@dataclass(frozen=True)
 class ItemResultado:
     """Espelha `itens[]` da seção 4 da spec, campo a campo."""
 
