@@ -1,6 +1,6 @@
 # Tasks — Motor de Cálculo de Reembolso
 
-**Versão:** 2.1 · **Baseado em:** spec 2.1, plan 2.0 (a T-035 leva o plan a 2.1)
+**Versão:** 2.1 · **Baseado em:** spec 2.1, plan 2.1
 
 > Cada task é pequena o bastante para virar **um commit**. Se você não consegue
 > descrever o critério de aceite como "o teste X passa", a task está grande demais.
@@ -401,7 +401,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
 
 Tasks das decisões da D-008 que mudam código ou exigem teste novo. Os demais pontos da D-008 só mudaram texto da spec. Os 7 casos novos ou renomeados da seção 7 ficam em `PENDENTES` de `tests/test_rastreabilidade.py` (DT-016, reaberto para esta fase, donos T-035 e T-036). Cada task tira as suas pendências no mesmo commit, e a última apaga o `PENDENTES` de novo.
 
-- [ ] **T-035** — Janela da cotação D-1 a D-4 e `descricao` de qualquer tipo: `DIAS_ANTERIORES_ACEITOS_NA_COTACAO` de 3 para 4 em `cambio.py`; `plan.md` (seção 4, DT-014, DT-016 reaberto) com "D-4"; testes da janela e da `descricao`.
+- [x] **T-035** — Janela da cotação D-1 a D-4 e `descricao` de qualquer tipo: `DIAS_ANTERIORES_ACEITOS_NA_COTACAO` de 3 para 4 em `cambio.py`; `plan.md` (seção 4, DT-014, DT-016 reaberto) com "D-4"; testes da janela e da `descricao`.
   - **Tipo:** regra
   - **Atende:** RN-015, AMB-024, RN-002 (`descricao`), D-008 (pontos 2 e 3)
   - **Depende de:** T-034
@@ -410,6 +410,7 @@ Tasks das decisões da D-008 que mudam código ou exigem teste novo. Os demais p
     - `tests/test_rn002_validacao_da_entrada.py`: `descricao` ausente, `null`, `17`, `true`, `[]` e `{}` → a despesa segue normalmente; `"descricao": "Almoço \uD800"` → erro de arquivo.
     - Nenhum valor da seção 9 muda (`test_exemplo.py` passa sem alteração).
   - **Casos de borda:** Cotação exatamente 4 dias antes · Cotação 5 dias antes · Terça de Carnaval · Descrição nula ou de outro tipo (substituem "Cotação exatamente 3 dias antes" e "Cotação 4 dias antes", cujos `id` saem de `test_casos_de_borda.py`)
+  - **Commit:** 436d6c7
 
 - [ ] **T-036** — CLI: argumento repetido e prefixo abreviado são erro de uso; fim das pendências da Fase 6. `cli.py` com `allow_abbrev=False` e recusa da segunda ocorrência de `--input`, `--politica`, `--cambio` ou `--output`, inclusive na forma `--opção=valor`; `PENDENTES` e o código que o lê apagados de `test_rastreabilidade.py`; tabela de Cobertura com 105 casos.
   - **Tipo:** estrutura
