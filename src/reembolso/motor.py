@@ -6,12 +6,14 @@ from decimal import Decimal
 from reembolso.dinheiro import arredondar
 from reembolso.justificativa import justificar
 from reembolso.modelo import (
+    Cambio,
     Despesa,
     DespesaInvalida,
     Entrada,
     ItemResultado,
     Motivo,
     Periodo,
+    Politica,
     Resultado,
     Status,
     Totais,
@@ -220,8 +222,12 @@ def _totais(itens: list[ItemResultado]) -> Totais:
     )
 
 
-def calcular(entrada: Entrada) -> Resultado:
-    """Um item por despesa, na ordem da entrada (RN-001), e os totais."""
+def calcular(entrada: Entrada, politica: Politica, cambio: Cambio) -> Resultado:
+    """Um item por despesa, na ordem da entrada (RN-001), e os totais.
+
+    `politica` e `cambio` já validados (RN-016); o motor passa a usá-los na
+    T-029 e na T-031.
+    """
     validas = [d for d in entrada.despesas if isinstance(d, Despesa)]
     por_posicao: dict[int, ItemResultado] = {}
     seguem = []

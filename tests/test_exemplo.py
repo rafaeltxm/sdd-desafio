@@ -12,7 +12,11 @@ import simplejson
 
 from reembolso.cli import main
 
-EXEMPLO = Path(__file__).resolve().parent.parent / "exemplos" / "despesas-exemplo.json"
+EXEMPLOS = Path(__file__).resolve().parent.parent / "exemplos"
+EXEMPLO = EXEMPLOS / "despesas-exemplo.json"
+# o motor ainda não lê a política (T-029): a tabela continua a da 1.9
+POLITICA = EXEMPLOS / "envelope" / "politica-v4.json"
+CAMBIO = EXEMPLOS / "envelope" / "cambio.json"
 
 D = Decimal
 
@@ -60,7 +64,13 @@ CAMPOS_MONETARIOS_ITEM = ("valor_considerado", "valor_reembolsado", "limite_diar
 
 
 def _calcular(saida: Path) -> None:
-    assert main(["calcular", "--input", str(EXEMPLO), "--output", str(saida)]) == 0
+    assert main([
+        "calcular",
+        "--input", str(EXEMPLO),
+        "--politica", str(POLITICA),
+        "--cambio", str(CAMBIO),
+        "--output", str(saida),
+    ]) == 0
 
 
 @pytest.fixture(scope="module")

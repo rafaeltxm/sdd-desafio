@@ -5,8 +5,8 @@ from decimal import Decimal
 import pytest
 import simplejson
 
+from conftest import construir_cambio, construir_entrada, construir_politica
 from conftest import construir_despesa as despesa
-from conftest import construir_entrada
 from reembolso.cli import main
 
 
@@ -865,7 +865,12 @@ def test_caso_de_borda_da_cli(tmp_path, texto, saida_preexistente, pasta_existe,
     saida = pasta / "saida.json"
     if saida_preexistente:
         saida.write_bytes(_SAIDA_ANTERIOR)
-    argumentos = ["calcular", "--input", str(entrada)]
+    politica = tmp_path / "politica.json"
+    politica.write_text(_politica(), encoding="utf-8")
+    cambio = tmp_path / "cambio.json"
+    cambio.write_text(_cambio(), encoding="utf-8")
+    argumentos = ["calcular", "--input", str(entrada), "--politica", str(politica),
+                  "--cambio", str(cambio)]
     if com_output:
         argumentos += ["--output", str(saida)]
 
@@ -874,3 +879,96 @@ def test_caso_de_borda_da_cli(tmp_path, texto, saida_preexistente, pasta_existe,
         assert saida.read_bytes() == _SAIDA_ANTERIOR
     else:
         assert not saida.exists()
+
+
+def _politica(**sobrescritas):
+    return simplejson.dumps(construir_politica(**sobrescritas), use_decimal=True)
+
+
+def _cambio(**sobrescritas):
+    return simplejson.dumps(construir_cambio(**sobrescritas), use_decimal=True)
+
+
+def _politica_com(caminho, valor):
+    """Política v4 com `valor` no `caminho` (tupla de chaves) → texto JSON."""
+    documento = construir_politica()
+    alvo = documento
+    for chave in caminho[:-1]:
+        alvo = alvo[chave]
+    alvo[caminho[-1]] = valor
+    return simplejson.dumps(documento, use_decimal=True)
+
+
+def _politica_sem_padrao():
+    documento = construir_politica()
+    del documento["padrao"]
+    return simplejson.dumps(documento, use_decimal=True)
+
+
+_AUSENTE = None  # arquivo que não existe no disco
+_LIMITE = ("padrao", "alimentacao", "limite")
+
+CASOS_DE_POLITICA_E_CAMBIO = [
+    # (texto da política, texto do câmbio, argumento omitido)
+    pytest.param(
+        _politica_com(("centros_custo", "padrao"),
+                      construir_politica()["padrao"]),
+        _cambio(), None, id="Centro de custo reservado no arquivo",
+    ),
+    pytest.param(_politica_sem_padrao(), _cambio(), None,
+                 id="Política sem tabela padrão"),
+    pytest.param(_politica_com(_LIMITE, Decimal("-10")), _cambio(), None,
+                 id="Limite inválido na política"),
+    pytest.param(_politica_com(_LIMITE, "60"), _cambio(), None,
+                 id="Limite inválido na política (texto)"),
+    pytest.param(_politica_com(_LIMITE, Decimal("60.005")), _cambio(), None,
+                 id="Limite inválido na política (3 casas)"),
+    pytest.param(
+        _politica_com(("padrao", "alimentacao", "periodicidade"), "mes"),
+        _cambio(), None, id="Periodicidade desconhecida",
+    ),
+    pytest.param(
+        _politica(),
+        _cambio(taxas={"2026-07-13": {"USD": Decimal("0"), "EUR": Decimal("5.91")}}),
+        None, id="Taxa de câmbio não positiva",
+    ),
+    pytest.param(
+        _politica().replace(
+            '"padrao": {', '"padrao": {"alimentacao": {"limite": 60.00, '
+            '"periodicidade": "dia"}, ', 1,
+        ),
+        _cambio(), None, id="Chave repetida na política",
+    ),
+    pytest.param(_politica(), _AUSENTE, None,
+                 id="Câmbio ausente com despesas em reais"),
+    pytest.param(_politica(), _cambio(), "--politica", id="Sem argumento de política"),
+]
+
+
+@pytest.mark.parametrize(
+    ("texto_politica", "texto_cambio", "omitido"), CASOS_DE_POLITICA_E_CAMBIO
+)
+def test_caso_de_borda_de_politica_e_cambio(tmp_path, capsys, texto_politica,
+                                            texto_cambio, omitido):
+    """Seção 7 da spec: erro de arquivo na política ou no câmbio (RN-016) e
+    chamada sem `--politica` (seção 4, AMB-031) terminam com código diferente
+    de 0 e não criam o arquivo de saída."""
+    entrada = tmp_path / "entrada.json"
+    # todas as despesas em BRL: o câmbio é exigido mesmo assim (AMB-031)
+    entrada.write_text(_json(despesa()), encoding="utf-8")
+    arquivos = {}
+    for argumento, nome, texto in (("--politica", "politica.json", texto_politica),
+                                   ("--cambio", "cambio.json", texto_cambio)):
+        arquivos[argumento] = tmp_path / nome
+        if texto is not _AUSENTE:
+            arquivos[argumento].write_text(texto, encoding="utf-8")
+    saida = tmp_path / "saida.json"
+    argumentos = {"--input": entrada, **arquivos, "--output": saida}
+    if omitido is not None:
+        del argumentos[omitido]
+
+    assert _cli("calcular", *(str(x) for par in argumentos.items() for x in par)) != 0
+    assert not saida.exists()
+    if omitido is None:
+        # erro de arquivo, não de uso: a mensagem segue a DT-007
+        assert capsys.readouterr().err.startswith("erro: ")

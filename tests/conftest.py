@@ -10,8 +10,10 @@ from decimal import Decimal
 import pytest
 import simplejson
 
+from reembolso.cambio import ler_cambio
 from reembolso.entrada import ler_entrada
 from reembolso.motor import calcular
+from reembolso.politica import ler_politica
 from reembolso.saida import para_dicionario
 
 
@@ -132,9 +134,27 @@ def entrada():
     return construir_entrada
 
 
-def processar(texto_json: str) -> dict:
-    """Texto JSON da entrada → motor → dicionário da saída (seção 4 da spec)."""
-    return para_dicionario(calcular(ler_entrada(texto_json.encode())))
+def _documento_para_bytes(documento) -> bytes:
+    return simplejson.dumps(documento, use_decimal=True).encode()
+
+
+def processar(texto_json: str, politica=None, cambio=None) -> dict:
+    """Texto JSON da entrada → motor → dicionário da saída (seção 4 da spec).
+
+    `politica` e `cambio` são documentos (`construir_politica`,
+    `construir_cambio`); sem eles, a v4 e o câmbio do envelope transcritos.
+    """
+    return para_dicionario(
+        calcular(
+            ler_entrada(texto_json.encode()),
+            ler_politica(_documento_para_bytes(
+                construir_politica() if politica is None else politica
+            )),
+            ler_cambio(_documento_para_bytes(
+                construir_cambio() if cambio is None else cambio
+            )),
+        )
+    )
 
 
 def avaliar(*despesas, **cabecalho) -> dict:

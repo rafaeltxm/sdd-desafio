@@ -1,14 +1,18 @@
-"""argparse, leitura do arquivo, gravação atômica da saída e códigos de saída."""
+"""argparse, leitura dos três arquivos, gravação atômica da saída e códigos de
+saída."""
 
 import argparse
 import os
 import secrets
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
+from reembolso.cambio import ler_cambio
 from reembolso.entrada import ler_entrada
 from reembolso.leitura import ErroDeArquivo
 from reembolso.motor import calcular
+from reembolso.politica import ler_politica
 from reembolso.saida import para_texto
 
 SUCESSO = 0
@@ -20,17 +24,24 @@ def _argumentos() -> argparse.ArgumentParser:
     subcomandos = parser.add_subparsers(dest="subcomando", required=True)
     calcular_ = subcomandos.add_parser("calcular")
     calcular_.add_argument("--input", required=True, type=Path)
+    calcular_.add_argument("--politica", required=True, type=Path)
+    calcular_.add_argument("--cambio", required=True, type=Path)
     calcular_.add_argument("--output", required=True, type=Path)
     return parser
 
 
-def _ler(caminho: Path) -> bytes:
+def _ler[T](nome: str, caminho: Path, leitor: Callable[[bytes], T]) -> T:
+    """Bytes do arquivo → `leitor`; o erro ganha o nome do arquivo (DT-007)."""
     try:
-        return caminho.read_bytes()
+        conteudo = caminho.read_bytes()
     except OSError as erro:
         raise ErroDeArquivo(
-            f"não foi possível ler o arquivo de entrada {caminho}: {erro.strerror}"
+            f"{nome}: não foi possível ler {caminho}: {erro.strerror}"
         ) from erro
+    try:
+        return leitor(conteudo)
+    except ErroDeArquivo as erro:
+        raise ErroDeArquivo(f"{nome}: {erro}") from erro
 
 
 def _gravar_atomico(caminho: Path, conteudo: bytes) -> None:
@@ -44,15 +55,19 @@ def _gravar_atomico(caminho: Path, conteudo: bytes) -> None:
     except OSError as erro:
         temporario.unlink(missing_ok=True)
         raise ErroDeArquivo(
-            f"não foi possível gravar o arquivo de saída {caminho}: {erro.strerror}"
+            f"saída: não foi possível gravar {caminho}: {erro.strerror}"
         ) from erro
 
 
 def main(argv: list[str] | None = None) -> int:
     argumentos = _argumentos().parse_args(argv)
     try:
-        # todo o processamento em memória antes de tocar a saída (DT-006)
-        resultado = calcular(ler_entrada(_ler(argumentos.input)))
+        # política e câmbio antes de qualquer despesa (seção 8 da spec); todo o
+        # processamento em memória antes de tocar a saída (DT-006)
+        politica = _ler("política", argumentos.politica, ler_politica)
+        cambio = _ler("câmbio", argumentos.cambio, ler_cambio)
+        entrada = _ler("entrada", argumentos.input, ler_entrada)
+        resultado = calcular(entrada, politica, cambio)
         _gravar_atomico(argumentos.output, para_texto(resultado).encode("utf-8"))
     except ErroDeArquivo as erro:
         print(f"erro: {erro}", file=sys.stderr)
