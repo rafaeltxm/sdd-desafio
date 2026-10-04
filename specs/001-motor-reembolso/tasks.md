@@ -342,7 +342,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
   - **Casos de borda:** Moeda em minúsculas · Moeda de tipo errado
   - **Commit:** d63fa0e
 
-- [ ] **T-031** — Conversão: etapa 2 da seção 8, com `cotacao` (T-026), `valor_considerado = arredondar(valor × taxa)` no contexto exato (DT-012) e `cambio_indisponivel` (novo `Motivo`, na ordem da seção 8); `taxa_cambio` e `data_cotacao` na saída; nulos e fora de `valor_solicitado` em `entrada_invalida` e `cambio_indisponivel`; justificativa para `cambio_indisponivel` e para a conversão (DT-009).
+- [x] **T-031** — Conversão: etapa 2 da seção 8, com `cotacao` (T-026), `valor_considerado = arredondar(valor × taxa)` no contexto exato (DT-012) e `cambio_indisponivel` (novo `Motivo`, na ordem da seção 8); `taxa_cambio` e `data_cotacao` na saída; nulos e fora de `valor_solicitado` em `entrada_invalida` e `cambio_indisponivel`; justificativa para `cambio_indisponivel` e para a conversão (DT-009).
   - **Tipo:** regra
   - **Atende:** RN-003 (conversão arredondada uma vez), RN-004 (valor positivo em reais), RN-008 (mínimo comparado em reais), RN-010 (moeda não comprova viagem; hospedagem estrangeira comprova), RN-015, AMB-023, AMB-024, AMB-026, AMB-027, seção 4 da spec (`taxa_cambio`, `data_cotacao`, `valor_considerado`, `totais.valor_solicitado`), seção 8 (etapa 2)
   - **Depende de:** T-024, T-026, T-030
@@ -361,7 +361,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
     - Ordem das etapas: sem cotação e fora do período → `cambio_indisponivel`; sem cotação e valor negativo → `cambio_indisponivel`; despesa inválida em EUR → `entrada_invalida` com `taxa_cambio` nula.
     - O teste de propriedade da DT-001 cobre `taxa_cambio`.
   - **Casos de borda:** Moeda nula · Moeda estrangeira com cotação · Moeda estrangeira em sábado · Cotação exatamente 3 dias antes · Cotação 4 dias antes · Moeda sem cotação no arquivo · Sem cotação e fora do período · Conversão arredondada uma vez · Nota fiscal comparada em reais · Valor estrangeiro minúsculo · Teto na moeda original · Moeda estrangeira não comprova viagem · Hospedagem em moeda estrangeira · Data intermediária sem a moeda
-  - **Commit:** —
+  - **Commit:** a56b1cd
 
 - [ ] **T-032** — Duplicata com moeda: etapa 7 agrupa por (data, categoria, fornecedor, moeda, `valor` arredondado na moeda da despesa).
   - **Tipo:** regra
