@@ -1,8 +1,9 @@
 """Etapas 2 a 9 da seção 8 da spec: Entrada → Resultado."""
 
 from datetime import date, timedelta
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 
+from reembolso.dinheiro import arredondar
 from reembolso.justificativa import justificar
 from reembolso.modelo import (
     Despesa,
@@ -23,13 +24,7 @@ from reembolso.politica import (
     VALOR_ACIMA_DO_QUAL_EXIGE_NOTA,
 )
 
-CENTAVO = Decimal("0.01")
 ZERO = Decimal("0.00")
-
-
-def arredondar(valor: Decimal) -> Decimal:
-    """RN-003: 2 casas, metade afastando do zero (`ROUND_HALF_UP`, DT-001)."""
-    return valor.quantize(CENTAVO, rounding=ROUND_HALF_UP)
 
 
 def _status(
