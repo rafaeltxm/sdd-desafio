@@ -1,10 +1,21 @@
 """Arredondamento ao centavo: RN-003, AMB-014."""
 
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 import pytest
+import simplejson
 
-from conftest import construir_cambio
+from conftest import (
+    construir_cambio,
+    construir_despesa,
+    construir_entrada,
+    construir_politica,
+)
+from reembolso.cambio import ler_cambio
+from reembolso.entrada import ler_entrada
+from reembolso.motor import calcular
+from reembolso.politica import ler_politica
+from reembolso.saida import para_dicionario
 
 
 @pytest.mark.parametrize(
@@ -87,3 +98,59 @@ def test_rn003_produto_com_mais_de_28_digitos_e_exato(avaliar, despesa):
     # produto viraria 100,0050000… → 100,01, e exigiria nota)
     assert item["valor_considerado"] == Decimal("100.00")
     assert item["motivo"] != "nota_fiscal_ausente"
+
+
+def _calcular_com_precisao_6(*despesas, politica=None) -> dict:
+    """Lê entrada, v4 (ou `politica`) e câmbio no contexto padrão e chama só o
+    motor dentro de um contexto ambiente de 6 dígitos (DT-012)."""
+    def _bytes(documento):
+        return simplejson.dumps(documento, use_decimal=True).encode()
+
+    entrada = ler_entrada(_bytes(construir_entrada(despesas)))
+    politica = ler_politica(_bytes(politica or construir_politica()))
+    cambio = ler_cambio(_bytes(construir_cambio()))
+    with localcontext(prec=6):
+        resultado = calcular(entrada, politica, cambio)
+    return para_dicionario(resultado)
+
+
+def test_rn003_saldo_do_limite_nao_depende_do_contexto_de_quem_chama():
+    """RN-003 / RN-009 / DT-012: o saldo por data e categoria é exato mesmo com o
+    motor chamado num contexto ambiente de 6 dígitos.
+
+    Política com alimentação 1.234.567,89 no `padrao`; duas despesas no mesmo dia
+    e na mesma categoria, com nota."""
+    politica = construir_politica()
+    politica["padrao"]["alimentacao"]["limite"] = Decimal("1234567.89")
+    primeira, segunda = _calcular_com_precisao_6(
+        construir_despesa(id="d-1", fornecedor="A", valor=Decimal("0.01")),
+        construir_despesa(id="d-2", fornecedor="B", valor=Decimal("1234567.89")),
+        politica=politica,
+    )["itens"]
+
+    # saldo depois da primeira: 1.234.567,89 - 0,01 = 1.234.567,88 (9 dígitos;
+    # com prec=6 viraria 1.234.570, maior que a despesa, e a segunda sairia aprovada)
+    assert primeira["status"] == "aprovado"
+    assert primeira["valor_reembolsado"] == Decimal("0.01")
+    # segunda: min(1.234.567,89; 1.234.567,88) = 1.234.567,88 → parcial (RN-011)
+    assert segunda["status"] == "parcial"
+    assert segunda["motivo"] == "limite_diario_excedido"
+    assert segunda["valor_reembolsado"] == Decimal("1234567.88")
+
+
+def test_rn003_totais_nao_dependem_do_contexto_de_quem_chama():
+    """RN-003 / RN-001 / DT-012: os totais são exatos mesmo com o motor chamado
+    num contexto ambiente de 6 dígitos.
+
+    v4 (`padrao`, alimentação 60,00); duas despesas com nota em dias diferentes."""
+    totais = _calcular_com_precisao_6(
+        construir_despesa(id="d-1", data="2026-07-03", valor=Decimal("1234.56")),
+        construir_despesa(id="d-2", data="2026-07-04", valor=Decimal("99999.99")),
+    )["totais"]
+
+    # solicitado: 1.234,56 + 99.999,99 = 101.234,55 (com prec=6: 101.235)
+    assert totais["valor_solicitado"] == Decimal("101234.55")
+    # reembolsado: 60,00 + 60,00 = 120,00 (cada dia limitado a 60,00)
+    assert totais["valor_reembolsado"] == Decimal("120.00")
+    # glosado: 101.234,55 - 120,00 = 101.114,55 (com prec=6: 101.115)
+    assert totais["valor_glosado"] == Decimal("101114.55")

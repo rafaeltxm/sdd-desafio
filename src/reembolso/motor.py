@@ -209,7 +209,8 @@ def _aplicar_limite(
     politica: Politica,
 ) -> dict[int, ItemResultado]:
     """Etapa 9 (RN-009): saldo por (data, categoria), consumido na ordem da entrada;
-    limite da tabela aplicada, ampliado nas datas da etapa 8 (RN-010, DT-013)."""
+    limite da tabela aplicada, ampliado nas datas da etapa 8 (RN-010, DT-013).
+    Saldo no contexto exato (DT-012)."""
     saldos: dict[tuple[date, str], Decimal] = {}
     itens = {}
     for despesa in sorted(despesas, key=lambda d: d.posicao):
@@ -225,7 +226,8 @@ def _aplicar_limite(
         chave = (despesa.data, despesa.categoria)
         saldo = saldos.get(chave, limite)
         reembolsado = min(considerado, saldo)
-        saldos[chave] = saldo - reembolsado
+        with contexto_exato():
+            saldos[chave] = saldo - reembolsado
         status, motivo = _status(considerado, reembolsado)
         itens[despesa.posicao] = ItemResultado(
             id=despesa.id,
@@ -265,20 +267,23 @@ def _totais(itens: list[ItemResultado]) -> Totais:
     O solicitado só soma `valor_considerado` não nulo e maior que zero: ficam
     fora os recusados por `entrada_invalida` (RN-002) e `cambio_indisponivel`
     (RN-015), que não têm valor em reais, e os com valor ≤ 0 (RN-004).
+    Somas e diferença no contexto exato (DT-012).
     """
-    solicitado = sum(
-        (
-            item.valor_considerado
-            for item in itens
-            if item.valor_considerado is not None and item.valor_considerado > 0
-        ),
-        ZERO,
-    )
-    reembolsado = sum((item.valor_reembolsado for item in itens), ZERO)
+    with contexto_exato():
+        solicitado = sum(
+            (
+                item.valor_considerado
+                for item in itens
+                if item.valor_considerado is not None and item.valor_considerado > 0
+            ),
+            ZERO,
+        )
+        reembolsado = sum((item.valor_reembolsado for item in itens), ZERO)
+        glosado = solicitado - reembolsado
     return Totais(
         valor_solicitado=solicitado,
         valor_reembolsado=reembolsado,
-        valor_glosado=solicitado - reembolsado,
+        valor_glosado=glosado,
     )
 
 
