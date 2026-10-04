@@ -70,7 +70,8 @@ def test_rn001_colaborador_periodo_e_avisos_do_topo(avaliar, despesa):
                  "fim": "2026-07-31"},
     )
 
-    assert saida["colaborador"] == {"id": "c-1", "nome": "Ana"}
+    # `centro_custo` ausente na entrada → nulo (seção 4)
+    assert saida["colaborador"] == {"id": "c-1", "nome": "Ana", "centro_custo": None}
     assert saida["periodo"] == {
         "competencia": "2026-07", "inicio": "2026-07-01", "fim": "2026-07-31",
     }

@@ -29,12 +29,18 @@ def para_dicionario(resultado: Resultado) -> dict:
         "colaborador": {
             "id": resultado.colaborador.id,
             "nome": resultado.colaborador.nome,
+            "centro_custo": resultado.colaborador.centro_custo,
         },
         # ordem do exemplo da seção 4 da spec
         "periodo": {
             "competencia": resultado.periodo.competencia,
             "inicio": resultado.periodo.inicio_texto,
             "fim": resultado.periodo.fim_texto,
+        },
+        "politica": {
+            "versao": resultado.politica.versao,
+            "vigencia": resultado.politica.vigencia,
+            "tabela_aplicada": resultado.politica.tabela_aplicada,
         },
         "itens": [_item(item) for item in resultado.itens],
         "totais": {

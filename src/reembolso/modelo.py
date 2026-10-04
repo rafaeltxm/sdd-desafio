@@ -29,6 +29,7 @@ class Motivo(StrEnum):
 class Colaborador:
     id: str
     nome: str
+    centro_custo: str | None  # texto como veio, ou None se ausente/nulo
 
 
 @dataclass(frozen=True)
@@ -63,8 +64,7 @@ class DespesaInvalida:
     posicao: int
     id: str | None
     data_texto: str | None
-    # normalizada se reconhecida; senão texto como veio; senão None
-    categoria_saida: str | None
+    categoria_texto: str | None  # como veio, se texto; o motor decide a saída
     valor_informado: Decimal | None
     avisos: tuple[str, ...]
 
@@ -141,9 +141,19 @@ class Totais:
 
 
 @dataclass(frozen=True)
+class PoliticaAplicada:
+    """`politica` da saída (seção 4 da spec)."""
+
+    versao: str | None
+    vigencia: str | None
+    tabela_aplicada: str
+
+
+@dataclass(frozen=True)
 class Resultado:
     colaborador: Colaborador
     periodo: Periodo
+    politica: PoliticaAplicada
     itens: list[ItemResultado]
     totais: Totais
     avisos: tuple[str, ...]

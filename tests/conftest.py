@@ -31,13 +31,23 @@ def construir_despesa(**campos):
     return documento
 
 
-def construir_entrada(despesas=(), colaborador=None, periodo=None):
-    """Documento com `colaborador`, `periodo` e `despesas` (seção 4 da spec)."""
+_SEM_CENTRO_CUSTO = object()
+
+
+def construir_entrada(
+    despesas=(), colaborador=None, periodo=None, centro_custo=_SEM_CENTRO_CUSTO
+):
+    """Documento com `colaborador`, `periodo` e `despesas` (seção 4 da spec).
+
+    `centro_custo`, se passado, vai para `colaborador.centro_custo` (inclusive
+    `None`, que grava `null`); sem ele, o campo fica ausente.
+    """
+    if colaborador is None:
+        colaborador = {"id": "c-1", "nome": "Ana"}
+    if centro_custo is not _SEM_CENTRO_CUSTO:
+        colaborador = {**colaborador, "centro_custo": centro_custo}
     return {
-        "colaborador": colaborador if colaborador is not None else {
-            "id": "c-1",
-            "nome": "Ana",
-        },
+        "colaborador": colaborador,
         "periodo": periodo if periodo is not None else {
             "inicio": "2026-07-01",
             "fim": "2026-07-31",
@@ -157,10 +167,13 @@ def processar(texto_json: str, politica=None, cambio=None) -> dict:
     )
 
 
-def avaliar(*despesas, **cabecalho) -> dict:
-    """Despesas (dicionários) numa entrada mínima válida → saída de `processar`."""
+def avaliar(*despesas, politica=None, **cabecalho) -> dict:
+    """Despesas (dicionários) numa entrada mínima válida → saída de `processar`.
+
+    `politica` é um documento (`construir_politica`); sem ela, a v4 transcrita.
+    """
     documento = construir_entrada(despesas, **cabecalho)
-    return processar(simplejson.dumps(documento, use_decimal=True))
+    return processar(simplejson.dumps(documento, use_decimal=True), politica)
 
 
 @pytest.fixture(name="processar")

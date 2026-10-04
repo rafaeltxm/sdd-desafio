@@ -812,6 +812,180 @@ def test_caso_de_borda(processar, texto, verificar):
     verificar(processar(texto))
 
 
+# --- tabela aplicada por centro de custo e política (RN-014, RN-006, RN-016) ---
+
+
+def _resumo(item):
+    return (item["limite_diario"], item["valor_reembolsado"], item["status"])
+
+
+def _fora_da_politica(item):
+    # RN-006: recusado na etapa 5, antes do limite diário
+    assert (item["status"], item["motivo"]) == (
+        "recusado", "categoria_fora_da_politica",
+    )
+    assert (item["em_viagem"], item["limite_diario"]) == (None, None)
+
+
+def _caso_centro_de_custo_da_tabela(saida):
+    # CC-COMERCIAL: alimentação 90,00; 85,00 ≤ 90,00 → aprovado
+    assert saida["politica"]["tabela_aplicada"] == "CC-COMERCIAL"
+    (item,) = saida["itens"]
+    assert _resumo(item) == (Decimal("90.00"), Decimal("85.00"), "aprovado")
+
+
+def _caso_centro_de_custo_fora_da_tabela(saida):
+    # padrao: alimentação 60,00; min(65,00; 60,00) = 60,00 → parcial
+    assert saida["politica"]["tabela_aplicada"] == "padrao"
+    (item,) = saida["itens"]
+    assert _resumo(item) == (Decimal("60.00"), Decimal("60.00"), "parcial")
+
+
+def _caso_centro_de_custo_com_grafia_diferente(saida):
+    # "cc-adm" ≠ "CC-ADM" → padrao: 50,00 ≤ 60,00 → aprovado
+    assert saida["politica"]["tabela_aplicada"] == "padrao"
+    (item,) = saida["itens"]
+    assert _resumo(item) == (Decimal("60.00"), Decimal("50.00"), "aprovado")
+
+
+def _caso_centro_de_custo_so_com_espacos(saida):
+    # "  " = não informado → padrao; copiado como veio na saída
+    assert saida["politica"]["tabela_aplicada"] == "padrao"
+    assert saida["colaborador"]["centro_custo"] == "  "
+
+
+def _caso_categoria_ausente_da_tabela_do_cc(saida):
+    # CC-ADM sem hospedagem → etapa 5; não comprova viagem: 15/07 com limite
+    # normal 45,00; min(70,00; 45,00) = 45,00 → parcial
+    hospedagem, alimentacao = saida["itens"]
+    _fora_da_politica(hospedagem)
+    assert alimentacao["em_viagem"] is False
+    assert _resumo(alimentacao) == (Decimal("45.00"), Decimal("45.00"), "parcial")
+
+
+def _caso_categoria_com_limite_zero(saida):
+    # CC-ENG-PLATAFORMA hospedagem 0 → etapa 5 (AMB-021); 15/07 fora de viagem:
+    # limite 75,00; min(100,00; 75,00) = 75,00 → parcial
+    hospedagem, alimentacao = saida["itens"]
+    _fora_da_politica(hospedagem)
+    assert alimentacao["em_viagem"] is False
+    assert _resumo(alimentacao) == (Decimal("75.00"), Decimal("75.00"), "parcial")
+
+
+def _caso_representacao_fora_do_cc(saida):
+    # CC-SUPORTE-N2 → padrao, que não tem representação
+    (item,) = saida["itens"]
+    _fora_da_politica(item)
+
+
+def _caso_representacao_nao_amplia_em_viagem(saida):
+    # 23/07 = D+1 da hospedagem de 22/07: em viagem; representação não amplia
+    # (AMB-022): limite 300,00; min(400,00; 300,00) = 300,00 → parcial
+    _, representacao = saida["itens"]
+    assert representacao["em_viagem"] is True
+    assert _resumo(representacao) == (
+        Decimal("300.00"), Decimal("300.00"), "parcial",
+    )
+
+
+def _caso_limite_em_viagem_truncado(saida):
+    # 15/07 em viagem: 33,33 × 1,5 = 49,995 → truncado 49,99;
+    # min(60,00; 49,99) = 49,99 → parcial
+    _, alimentacao = saida["itens"]
+    assert alimentacao["em_viagem"] is True
+    assert _resumo(alimentacao) == (Decimal("49.99"), Decimal("49.99"), "parcial")
+
+
+def _caso_politica_sem_versao_nem_vigencia(saida):
+    assert saida["politica"] == {
+        "versao": None, "vigencia": None, "tabela_aplicada": "padrao",
+    }
+    # processamento normal: 10,00 ≤ 60,00 → aprovado
+    assert saida["itens"][0]["status"] == "aprovado"
+
+
+def _politica_truncada():
+    return construir_politica(padrao={
+        "alimentacao": {"limite": Decimal("33.33"), "periodicidade": "dia"},
+        "hospedagem": {"limite": Decimal("250.00"), "periodicidade": "diaria"},
+    })
+
+
+def _politica_sem_versao_nem_vigencia():
+    documento = construir_politica()
+    del documento["versao"], documento["vigencia"]
+    return documento
+
+
+CASOS_DE_TABELA_APLICADA = [
+    # (texto da entrada, documento da política ou None para a v4, verificação)
+    pytest.param(
+        _json(despesa(valor=Decimal("85.00")), centro_custo="CC-COMERCIAL"),
+        None, _caso_centro_de_custo_da_tabela, id="Centro de custo da tabela",
+    ),
+    pytest.param(
+        _json(despesa(valor=Decimal("65.00")), centro_custo="CC-SUPORTE-N2"),
+        None, _caso_centro_de_custo_fora_da_tabela,
+        id="Centro de custo fora da tabela",
+    ),
+    pytest.param(
+        _json(despesa(valor=Decimal("50.00")), centro_custo="cc-adm"),
+        None, _caso_centro_de_custo_com_grafia_diferente,
+        id="Centro de custo com grafia diferente",
+    ),
+    pytest.param(
+        _json(despesa(), centro_custo="  "),
+        None, _caso_centro_de_custo_so_com_espacos,
+        id="Centro de custo só com espaços",
+    ),
+    pytest.param(
+        _json(_hospedagem(data="2026-07-14", valor=Decimal("300.00")),
+              despesa(id="a", data="2026-07-15", valor=Decimal("70.00")),
+              centro_custo="CC-ADM"),
+        None, _caso_categoria_ausente_da_tabela_do_cc,
+        id="Categoria ausente da tabela do centro de custo",
+    ),
+    pytest.param(
+        _json(_hospedagem(data="2026-07-14", valor=Decimal("480.00")),
+              despesa(id="a", data="2026-07-15", valor=Decimal("100.00")),
+              centro_custo="CC-ENG-PLATAFORMA"),
+        None, _caso_categoria_com_limite_zero, id="Categoria com limite zero",
+    ),
+    pytest.param(
+        _json(despesa(categoria="representacao", valor=Decimal("190.00")),
+              centro_custo="CC-SUPORTE-N2"),
+        None, _caso_representacao_fora_do_cc,
+        id="Representação fora do centro de custo que a define",
+    ),
+    pytest.param(
+        _json(_hospedagem(data="2026-07-22"),
+              despesa(id="r", data="2026-07-23", categoria="representacao",
+                      valor=Decimal("400.00")),
+              centro_custo="CC-COMERCIAL"),
+        None, _caso_representacao_nao_amplia_em_viagem,
+        id="Representação não amplia em viagem",
+    ),
+    pytest.param(
+        _json(_hospedagem(data="2026-07-14"),
+              despesa(id="a", data="2026-07-15", valor=Decimal("60.00"))),
+        _politica_truncada(), _caso_limite_em_viagem_truncado,
+        id="Limite em viagem truncado",
+    ),
+    pytest.param(
+        _json(despesa()), _politica_sem_versao_nem_vigencia(),
+        _caso_politica_sem_versao_nem_vigencia,
+        id="Política sem versão nem vigência",
+    ),
+]
+
+
+@pytest.mark.parametrize(("texto", "politica", "verificar"), CASOS_DE_TABELA_APLICADA)
+def test_caso_de_borda_de_tabela_aplicada(processar, texto, politica, verificar):
+    """Seção 7 da spec: casos da tabela aplicada por centro de custo (RN-014,
+    RN-006, RN-009, RN-010) e da política sem versão nem vigência (RN-016)."""
+    verificar(processar(texto, politica))
+
+
 def _cli(*argumentos: str) -> int:
     """`main` da CLI; erro de uso do `argparse` vira o código do `SystemExit`."""
     try:
@@ -847,6 +1021,10 @@ CASOS_DA_CLI = [
         id="Escape sem caractere válido (chave)",
     ),
     pytest.param(_json(), True, True, False, id="Erro de uso"),
+    pytest.param(
+        _json(despesa(), centro_custo=17), False, True, True,
+        id="Centro de custo de tipo errado",
+    ),
 ]
 
 

@@ -10,6 +10,7 @@ from reembolso.modelo import (
     ItemResultado,
     Motivo,
     Periodo,
+    PoliticaAplicada,
     Resultado,
     Status,
     Totais,
@@ -17,7 +18,9 @@ from reembolso.modelo import (
 from reembolso.saida import para_dicionario, para_texto
 
 # Ordem das linhas da tabela "Saída" da seção 4 da spec.
-CAMPOS_DO_TOPO = ["colaborador", "periodo", "itens", "totais", "avisos"]
+CAMPOS_DO_TOPO = ["colaborador", "periodo", "politica", "itens", "totais", "avisos"]
+CAMPOS_DO_COLABORADOR = ["id", "nome", "centro_custo"]
+CAMPOS_DA_POLITICA = ["versao", "vigencia", "tabela_aplicada"]
 CAMPOS_DO_ITEM = [
     "id",
     "data",
@@ -70,15 +73,19 @@ def item_entrada_invalida():
     )
 
 
-def resultado(itens=(), avisos=(), competencia="2026-07", nome="Ana"):
+def resultado(itens=(), avisos=(), competencia="2026-07", nome="Ana",
+              centro_custo="CC-COMERCIAL", versao="v4", vigencia="2026-07-01"):
     return Resultado(
-        colaborador=Colaborador(id="c-1", nome=nome),
+        colaborador=Colaborador(id="c-1", nome=nome, centro_custo=centro_custo),
         periodo=Periodo(
             inicio=date(2026, 7, 1),
             fim=date(2026, 7, 31),
             inicio_texto="2026-07-01",
             fim_texto="2026-07-31",
             competencia=competencia,
+        ),
+        politica=PoliticaAplicada(
+            versao=versao, vigencia=vigencia, tabela_aplicada="CC-COMERCIAL"
         ),
         itens=list(itens),
         totais=Totais(
@@ -102,6 +109,14 @@ def test_ordem_dos_campos_do_topo_igual_a_tabela_da_spec():
     assert list(para_dicionario(resultado())) == CAMPOS_DO_TOPO
 
 
+def test_ordem_dos_campos_de_colaborador_e_politica_igual_a_tabela_da_spec():
+    """Seção 4 / DT-008: `colaborador` (`id`, `nome`, `centro_custo`) e
+    `politica` (`versao`, `vigencia`, `tabela_aplicada`) na ordem da spec."""
+    pares = dict(ler(para_texto(resultado())))
+    assert [chave for chave, _ in pares["colaborador"]] == CAMPOS_DO_COLABORADOR
+    assert [chave for chave, _ in pares["politica"]] == CAMPOS_DA_POLITICA
+
+
 def test_ordem_dos_campos_de_itens_igual_a_tabela_da_spec():
     """Seção 4 / DT-008: campos de `itens[]` na ordem da tabela de saída."""
     pares = dict(ler(para_texto(resultado(itens=[item(), item_entrada_invalida()]))))
@@ -110,10 +125,16 @@ def test_ordem_dos_campos_de_itens_igual_a_tabela_da_spec():
 
 
 def test_conteudo_de_colaborador_periodo_e_totais():
-    """Seção 4: `colaborador` com `id` e `nome`; `periodo` com `inicio` e `fim`
-    copiados e `competencia`; `totais` com os três valores."""
+    """Seção 4: `colaborador` com `id`, `nome` e `centro_custo`; `periodo` com
+    `inicio` e `fim` copiados e `competencia`; `politica`; `totais` com os três
+    valores."""
     dicionario = para_dicionario(resultado())
-    assert dicionario["colaborador"] == {"id": "c-1", "nome": "Ana"}
+    assert dicionario["colaborador"] == {
+        "id": "c-1", "nome": "Ana", "centro_custo": "CC-COMERCIAL",
+    }
+    assert dicionario["politica"] == {
+        "versao": "v4", "vigencia": "2026-07-01", "tabela_aplicada": "CC-COMERCIAL",
+    }
     assert dicionario["periodo"] == {
         "competencia": "2026-07",
         "inicio": "2026-07-01",
@@ -178,11 +199,14 @@ def test_nenhum_valor_monetario_e_float():
 
 
 def test_campos_nulos_saem_null():
-    """Seção 4: campos nulos de item `entrada_invalida` e `competencia` nula
-    saem `null`."""
-    texto = para_texto(resultado(itens=[item_entrada_invalida()], competencia=None))
+    """Seção 4: campos nulos de item `entrada_invalida`, `competencia`,
+    `centro_custo`, `versao` e `vigencia` nulos saem `null`."""
+    texto = para_texto(resultado(itens=[item_entrada_invalida()], competencia=None,
+                                 centro_custo=None, versao=None, vigencia=None))
     lido = simplejson.loads(texto)
     assert lido["periodo"]["competencia"] is None
+    assert lido["colaborador"]["centro_custo"] is None
+    assert (lido["politica"]["versao"], lido["politica"]["vigencia"]) == (None, None)
     item_lido = lido["itens"][0]
     for campo in (
         "id",

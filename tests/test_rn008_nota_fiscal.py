@@ -6,6 +6,8 @@ Período padrão do `conftest`: 2026-07-01 a 2026-07-31.
 
 from decimal import Decimal
 
+from conftest import construir_politica
+
 
 def _recusado_nota_fiscal_ausente(item):
     # RN-008: recusado, `nota_fiscal_ausente`, sem reembolso; recusado antes do
@@ -141,3 +143,30 @@ def test_rn008_periodo_vem_antes_da_nota(avaliar, despesa):
 
     assert (item["status"], item["motivo"]) == ("recusado", "fora_do_periodo")
 
+
+
+def _politica_com_minimo_50():
+    return construir_politica(nota_fiscal_obrigatoria_acima_de=Decimal("50.00"))
+
+
+def test_rn008_minimo_vem_do_arquivo_de_politica(avaliar, despesa):
+    """RN-008 / AMB-027 (aceite): política com mínimo 50,00 → 50,01 sem nota é
+    `nota_fiscal_ausente` (com o 100,00 da v4, seguiria)."""
+    (item,) = avaliar(
+        despesa(valor=Decimal("50.01"), tem_nota_fiscal=False),
+        politica=_politica_com_minimo_50(),
+    )["itens"]
+
+    # 50,01 > 50,00 sem nota
+    _recusado_nota_fiscal_ausente(item)
+
+
+def test_rn008_exatamente_o_minimo_do_arquivo_sem_nota_segue(avaliar, despesa):
+    """RN-008 / AMB-007 / AMB-027: com mínimo 50,00, 50,00 sem nota não é
+    "acima de" → segue; 50,00 ≤ 60,00 → `aprovado`."""
+    (item,) = avaliar(
+        despesa(valor=Decimal("50.00"), tem_nota_fiscal=False),
+        politica=_politica_com_minimo_50(),
+    )["itens"]
+
+    assert (item["status"], item["valor_reembolsado"]) == ("aprovado", Decimal("50.00"))

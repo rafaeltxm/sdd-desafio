@@ -191,3 +191,24 @@ def test_rn009_percentual_com_mais_de_28_casas_e_exato():
     assert limite_diario(_tabela(), "alimentacao", True, percentual) == Decimal(
         "89.99"
     )
+
+
+def test_rn009_motor_usa_o_percentual_do_arquivo_de_politica(avaliar, despesa):
+    """RN-009 / AMB-022: o acréscimo em viagem vem do arquivo de política, não é
+    50 fixo: com 20%, alimentação em viagem no `padrao` → 60,00 × 1,2 = 72,00."""
+    politica = construir_politica(acrescimo_em_viagem_percentual=Decimal("20"))
+
+    _, alimentacao = avaliar(
+        despesa(id="h", categoria="hospedagem", fornecedor="Hotel",
+                data="2026-07-14", valor=Decimal("200.00"), tem_nota_fiscal=True),
+        despesa(id="a", data="2026-07-15", valor=Decimal("80.00")),
+        politica=politica,
+    )["itens"]
+
+    # 15/07 = D+1 em viagem; 60,00 × (1 + 20/100) = 72,00; min(80,00; 72,00) = 72,00
+    assert (alimentacao["em_viagem"], alimentacao["limite_diario"]) == (
+        True, Decimal("72.00"),
+    )
+    assert (alimentacao["valor_reembolsado"], alimentacao["status"]) == (
+        Decimal("72.00"), "parcial",
+    )

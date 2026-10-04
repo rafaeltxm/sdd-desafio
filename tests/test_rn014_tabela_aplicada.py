@@ -94,3 +94,125 @@ def test_rn014_chave_com_espaco_no_arquivo_e_comparada_como_escrita():
     assert tabela_aplicada(politica, "CC-X ").nome == "CC-X "
     # "CC-X" não é igual a "CC-X " → padrao
     assert tabela_aplicada(politica, "CC-X").nome == "padrao"
+
+
+# --- ponta a ponta: o motor usa a tabela aplicada (Aceite da RN-014) ---
+
+
+def _resumo(item):
+    return (item["limite_diario"], item["valor_reembolsado"], item["status"])
+
+
+def test_rn014_cc_comercial_alimentacao_85_tem_limite_90(avaliar, despesa):
+    """RN-014 (aceite): `"CC-COMERCIAL"` → tabela dele; alimentação 85,00 →
+    limite 90,00, `aprovado`."""
+    saida = avaliar(despesa(valor=Decimal("85.00")), centro_custo="CC-COMERCIAL")
+
+    assert saida["politica"]["tabela_aplicada"] == "CC-COMERCIAL"
+    (item,) = saida["itens"]
+    # 85,00 ≤ 90,00 (alimentação do CC-COMERCIAL) → aprovado com 85,00
+    assert _resumo(item) == (Decimal("90.00"), Decimal("85.00"), "aprovado")
+
+
+def test_rn014_cc_fora_da_tabela_alimentacao_65_tem_limite_60(avaliar, despesa):
+    """RN-014 (aceite): `"CC-SUPORTE-N2"` não é chave → `padrao`; alimentação
+    65,00 → limite 60,00, `parcial` com 60,00."""
+    saida = avaliar(despesa(valor=Decimal("65.00")), centro_custo="CC-SUPORTE-N2")
+
+    assert saida["politica"]["tabela_aplicada"] == "padrao"
+    (item,) = saida["itens"]
+    # min(65,00; 60,00) = 60,00 → parcial
+    assert _resumo(item) == (Decimal("60.00"), Decimal("60.00"), "parcial")
+    assert item["motivo"] == "limite_diario_excedido"
+
+
+def test_rn014_sem_centro_custo_usa_o_padrao(avaliar, despesa):
+    """RN-014 (aceite): sem `centro_custo` → `padrao` (alimentação 60,00)."""
+    saida = avaliar(despesa(valor=Decimal("65.00")))
+
+    assert saida["politica"]["tabela_aplicada"] == "padrao"
+    # min(65,00; 60,00) = 60,00
+    assert _resumo(saida["itens"][0]) == (
+        Decimal("60.00"), Decimal("60.00"), "parcial",
+    )
+
+
+def test_rn014_cc_com_grafia_diferente_usa_o_padrao(avaliar, despesa):
+    """RN-014 (aceite): `"cc-adm"` não é `CC-ADM` → `padrao`; alimentação 50,00
+    → limite 60,00 (não 45,00 do CC-ADM), `aprovado`."""
+    saida = avaliar(despesa(valor=Decimal("50.00")), centro_custo="cc-adm")
+
+    assert saida["politica"]["tabela_aplicada"] == "padrao"
+    # 50,00 ≤ 60,00 → aprovado
+    assert _resumo(saida["itens"][0]) == (
+        Decimal("60.00"), Decimal("50.00"), "aprovado",
+    )
+
+
+def test_rn014_cc_adm_hospedagem_e_fora_da_politica(avaliar, despesa):
+    """RN-014 / AMB-020 (aceite): `"CC-ADM"` com hospedagem de 300,00 com nota →
+    `categoria_fora_da_politica` (não 250,00 do `padrao`: tabela fechada)."""
+    saida = avaliar(
+        despesa(categoria="hospedagem", valor=Decimal("300.00"), tem_nota_fiscal=True),
+        centro_custo="CC-ADM",
+    )
+
+    assert saida["politica"]["tabela_aplicada"] == "CC-ADM"
+    (item,) = saida["itens"]
+    assert (item["status"], item["motivo"], item["valor_reembolsado"]) == (
+        "recusado", "categoria_fora_da_politica", Decimal("0"),
+    )
+    assert (item["em_viagem"], item["limite_diario"]) == (None, None)
+
+
+def test_rn014_politica_na_saida_copia_versao_e_vigencia(avaliar, despesa):
+    """RN-014 / AMB-029 / seção 4: `politica` = `versao` e `vigencia` do arquivo
+    e `tabela_aplicada` como escrita no arquivo de política."""
+    saida = avaliar(despesa(), centro_custo="CC-COMERCIAL")
+
+    assert saida["politica"] == {
+        "versao": "v4", "vigencia": "2026-07-01", "tabela_aplicada": "CC-COMERCIAL",
+    }
+
+
+def test_rn014_politica_sem_versao_nem_vigencia_sai_nula(avaliar, despesa):
+    """RN-016 / AMB-029: política sem `versao` nem `vigencia` → nulas na saída;
+    o cálculo não muda (10,00 ≤ 60,00 → aprovado)."""
+    politica = construir_politica()
+    del politica["versao"], politica["vigencia"]
+
+    saida = avaliar(despesa(), politica=politica)
+
+    assert saida["politica"] == {
+        "versao": None, "vigencia": None, "tabela_aplicada": "padrao",
+    }
+    assert saida["itens"][0]["status"] == "aprovado"
+
+
+@pytest.mark.parametrize(
+    ("centro_custo", "esperado"),
+    [
+        pytest.param("CC-COMERCIAL", "CC-COMERCIAL", id="texto"),
+        pytest.param("cc-adm", "cc-adm", id="texto-fora-da-tabela"),
+        pytest.param("  ", "  ", id="so-espacos"),
+        pytest.param("", "", id="vazio"),
+        pytest.param(None, None, id="nulo"),
+    ],
+)
+def test_rn014_colaborador_centro_custo_copiado_na_saida(
+    avaliar, despesa, centro_custo, esperado
+):
+    """Seção 4: `colaborador.centro_custo` copiado se texto (inclusive só com
+    espaços); nulo se nulo."""
+    saida = avaliar(despesa(), centro_custo=centro_custo)
+
+    assert saida["colaborador"] == {
+        "id": "c-1", "nome": "Ana", "centro_custo": esperado,
+    }
+
+
+def test_rn014_colaborador_sem_centro_custo_sai_nulo(avaliar, despesa):
+    """Seção 4: `colaborador.centro_custo` ausente → nulo na saída."""
+    saida = avaliar(despesa())
+
+    assert saida["colaborador"]["centro_custo"] is None

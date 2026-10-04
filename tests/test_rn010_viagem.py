@@ -308,3 +308,44 @@ def test_rn010_hospedagem_no_ultimo_dia_representavel(avaliar, despesa):
     # 50,00 ≤ 250,00 → aprovado; D em viagem
     assert hospedagem["em_viagem"] is True
     assert _resumo(hospedagem) == (Decimal("50.00"), "aprovado", None)
+
+
+def test_rn010_hospedagem_com_limite_zero_nao_comprova_viagem(avaliar, despesa):
+    """RN-010 / AMB-021 (aceite): `CC-ENG-PLATAFORMA`, hospedagem com nota em
+    14/07 → `categoria_fora_da_politica`; alimentação de 100,00 com nota em 15/07
+    → fora de viagem, limite 75,00, `parcial` com 75,00."""
+    hospedagem, alimentacao = avaliar(
+        despesa(**_hospedagem(data="2026-07-14", valor=Decimal("480.00"))),
+        despesa(id="a", data="2026-07-15", valor=Decimal("100.00"),
+                tem_nota_fiscal=True),
+        centro_custo="CC-ENG-PLATAFORMA",
+    )["itens"]
+
+    assert (hospedagem["status"], hospedagem["motivo"]) == (
+        "recusado", "categoria_fora_da_politica",
+    )
+    # 15/07 fora de viagem: limite normal 75,00; min(100,00; 75,00) = 75,00
+    assert (alimentacao["em_viagem"], alimentacao["limite_diario"]) == (
+        False, Decimal("75.00"),
+    )
+    assert _resumo(alimentacao) == (
+        Decimal("75.00"), "parcial", "limite_diario_excedido",
+    )
+
+
+def test_rn010_cc_comercial_alimentacao_em_viagem_tem_limite_135(avaliar, despesa):
+    """RN-010 / RN-009 (aceite): `CC-COMERCIAL`, hospedagem com nota em 14/07;
+    alimentação de 140,00 em 15/07 → limite 135,00 (90,00 × 1,5)."""
+    _, alimentacao = avaliar(
+        despesa(**_hospedagem(data="2026-07-14")),
+        despesa(id="a", data="2026-07-15", valor=Decimal("140.00")),
+        centro_custo="CC-COMERCIAL",
+    )["itens"]
+
+    # 90,00 × (1 + 50/100) = 135,00; min(140,00; 135,00) = 135,00
+    assert (alimentacao["em_viagem"], alimentacao["limite_diario"]) == (
+        True, Decimal("135.00"),
+    )
+    assert _resumo(alimentacao) == (
+        Decimal("135.00"), "parcial", "limite_diario_excedido",
+    )

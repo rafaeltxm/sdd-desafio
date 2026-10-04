@@ -13,7 +13,7 @@ from reembolso.leitura import (
 )
 from reembolso.modelo import Colaborador, Despesa, DespesaInvalida, Entrada, Periodo
 from reembolso.normalizacao import normalizar_texto
-from reembolso.politica import CATEGORIAS_RECONHECIDAS, VALOR_ABSOLUTO_MAXIMO
+from reembolso.politica import VALOR_ABSOLUTO_MAXIMO
 
 
 def _aviso(caminho: str, n: int) -> str:
@@ -82,6 +82,9 @@ def validar_cabecalho(documento) -> tuple[Colaborador, Periodo, list]:
     for campo in ("id", "nome"):
         if not tem_texto(colaborador.get(campo)):
             raise ErroDeArquivo(f"colaborador.{campo} ausente ou vazio")
+    centro_custo = colaborador.get("centro_custo")
+    if centro_custo is not None and not isinstance(centro_custo, str):
+        raise ErroDeArquivo("colaborador.centro_custo não é texto nem nulo")
 
     periodo = raiz.get("periodo")
     if not isinstance(periodo, dict):
@@ -100,7 +103,9 @@ def validar_cabecalho(documento) -> tuple[Colaborador, Periodo, list]:
 
     competencia = periodo.get("competencia")
     return (
-        Colaborador(id=colaborador["id"], nome=colaborador["nome"]),
+        Colaborador(
+            id=colaborador["id"], nome=colaborador["nome"], centro_custo=centro_custo
+        ),
         Periodo(
             inicio=datas["inicio"],
             fim=datas["fim"],
@@ -110,14 +115,6 @@ def validar_cabecalho(documento) -> tuple[Colaborador, Periodo, list]:
         ),
         despesas,
     )
-
-
-def _categoria_saida(valor) -> str | None:
-    """Normalizada se reconhecida; senão como veio, se texto; senão `None` (seção 4)."""
-    if not isinstance(valor, str):
-        return None
-    normalizada = normalizar_texto(valor)
-    return normalizada if normalizada in CATEGORIAS_RECONHECIDAS else valor
 
 
 def validar_despesa(
@@ -155,7 +152,7 @@ def validar_despesa(
             posicao=posicao,
             id=id_ if isinstance(id_, str) else None,
             data_texto=data_texto if isinstance(data_texto, str) else None,
-            categoria_saida=_categoria_saida(categoria),
+            categoria_texto=categoria if isinstance(categoria, str) else None,
             valor_informado=Decimal(valor) if e_numero(valor) else None,
             avisos=avisos,
         )

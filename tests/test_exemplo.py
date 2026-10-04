@@ -1,7 +1,10 @@
-"""Aceite com o arquivo de exemplo: seção 9 da spec (RN-001 a RN-012), DT-001.
+"""Aceite com o arquivo de exemplo: primeira tabela da seção 9 da spec 2.0
+(RN-001 a RN-014), DT-001.
 
 A tabela abaixo é a da seção 9 da spec, transcrita à mão ("—" = `None`).
-Datas em viagem: 14/07 e 15/07, pela hospedagem d-010 com nota (RN-010).
+`centro_custo` `CC-ENG-PLATAFORMA` → tabela dele (alimentação 75,00;
+transporte 80,00; hospedagem com limite 0, vedada pela AMB-021). Nenhuma data
+em viagem: a única hospedagem com nota (d-010) é recusada na etapa 5.
 """
 
 from decimal import Decimal
@@ -14,7 +17,6 @@ from reembolso.cli import main
 
 EXEMPLOS = Path(__file__).resolve().parent.parent / "exemplos"
 EXEMPLO = EXEMPLOS / "despesas-exemplo.json"
-# o motor ainda não lê a política (T-029): a tabela continua a da 1.9
 POLITICA = EXEMPLOS / "envelope" / "politica-v4.json"
 CAMBIO = EXEMPLOS / "envelope" / "cambio.json"
 
@@ -22,42 +24,40 @@ D = Decimal
 
 # id, considerado, em viagem, limite, reembolsado, status, motivo
 TABELA_SECAO_9 = [
-    # 72,50 > 60,00 (alimentação fora de viagem) → 60,00
-    ("d-001", D("72.50"), False, D("60.00"), D("60.00"), "parcial",
+    # 03/07: 72,50 ≤ 75,00 → aprovado; saldo 75,00 − 72,50 = 2,50
+    ("d-001", D("72.50"), False, D("75.00"), D("72.50"), "aprovado", None),
+    # mesmo dia de d-001: min(38,00; 2,50) = 2,50 → parcial
+    ("d-002", D("38.00"), False, D("75.00"), D("2.50"), "parcial",
      "limite_diario_excedido"),
-    # mesmo dia de d-001: restam 60,00 − 60,00 = 0,00
-    ("d-002", D("38.00"), False, D("60.00"), D("0.00"), "recusado",
-     "limite_diario_excedido"),
-    # 100,00 sem nota não passa de 100,00 (RN-008); 100,00 > 80,00 → 80,00
+    # 100,00 sem nota não passa de 100,00 (RN-008); min(100,00; 80,00) = 80,00
     ("d-003", D("100.00"), False, D("80.00"), D("80.00"), "parcial",
      "limite_diario_excedido"),
     # 100,01 > 100,00 sem nota (RN-008)
     ("d-004", D("100.01"), None, None, D("0.00"), "recusado",
      "nota_fiscal_ausente"),
-    # coworking não está na política (RN-006)
+    # coworking não está na tabela CC-ENG-PLATAFORMA (RN-006)
     ("d-005", D("89.00"), None, None, D("0.00"), "recusado",
      "categoria_fora_da_politica"),
-    # 54,90 ≤ 60,00
-    ("d-006", D("54.90"), False, D("60.00"), D("54.90"), "aprovado", None),
+    # 54,90 ≤ 75,00
+    ("d-006", D("54.90"), False, D("75.00"), D("54.90"), "aprovado", None),
     # mesma data, categoria, fornecedor e valor de d-006 (RN-007)
     ("d-007", D("54.90"), None, None, D("0.00"), "recusado", "duplicata"),
     # 15/04 fora de [01/07, 31/07] (RN-005)
     ("d-008", D("41.00"), None, None, D("0.00"), "recusado", "fora_do_periodo"),
     # −45,00 ≤ 0 (RN-004)
     ("d-009", D("-45.00"), None, None, D("0.00"), "recusado", "valor_invalido"),
-    # hospedagem em viagem: 480,00 > 250,00 → 250,00 (RN-012: uma diária)
-    ("d-010", D("480.00"), True, D("250.00"), D("250.00"), "parcial",
-     "limite_diario_excedido"),
-    # 33,333 → 33,33 (RN-003); alimentação em viagem 90,00
-    ("d-011", D("33.33"), True, D("90.00"), D("33.33"), "aprovado", None),
-    # sábado conta como dia comum; 47,20 ≤ 60,00
-    ("d-012", D("47.20"), False, D("60.00"), D("47.20"), "aprovado", None),
-    # 690,00 > 100,00 sem nota (RN-008)
+    # hospedagem com limite 0 no CC-ENG-PLATAFORMA (AMB-021): etapa 5
+    ("d-010", D("480.00"), None, None, D("0.00"), "recusado",
+     "categoria_fora_da_politica"),
+    # 33,333 → 33,33 (RN-003); 15/07 fora de viagem (d-010 não comprova): 75,00
+    ("d-011", D("33.33"), False, D("75.00"), D("33.33"), "aprovado", None),
+    # sábado conta como dia comum; 47,20 ≤ 75,00
+    ("d-012", D("47.20"), False, D("75.00"), D("47.20"), "aprovado", None),
+    # hospedagem vedada: etapa 5 antes da nota (etapa 6)
     ("d-013", D("690.00"), None, None, D("0.00"), "recusado",
-     "nota_fiscal_ausente"),
-    # ALIMENTACAO → alimentacao (RN-006); 61,00 > 60,00 → 60,00
-    ("d-014", D("61.00"), False, D("60.00"), D("60.00"), "parcial",
-     "limite_diario_excedido"),
+     "categoria_fora_da_politica"),
+    # ALIMENTACAO → alimentacao (RN-006); 61,00 ≤ 75,00
+    ("d-014", D("61.00"), False, D("75.00"), D("61.00"), "aprovado", None),
 ]
 
 CAMPOS_MONETARIOS_ITEM = ("valor_considerado", "valor_reembolsado", "limite_diario")
@@ -92,7 +92,7 @@ def test_exemplo_um_item_por_despesa_na_ordem(saida_exemplo):
     "linha", TABELA_SECAO_9, ids=[linha[0] for linha in TABELA_SECAO_9]
 )
 def test_exemplo_linha_da_tabela_da_secao_9(saida_exemplo, linha):
-    """Seção 9 (RN-001 a RN-012): cada item do exemplo bate com a sua linha da
+    """Seção 9 (RN-001 a RN-014): cada item do exemplo bate com a sua linha da
     tabela (considerado, em viagem, limite, reembolsado, status, motivo)."""
     id_, considerado, em_viagem, limite, reembolsado, status, motivo = linha
     item = next(i for i in saida_exemplo["itens"] if i["id"] == id_)
@@ -110,17 +110,28 @@ def test_exemplo_linha_da_tabela_da_secao_9(saida_exemplo, linha):
 
 
 def test_exemplo_totais(saida_exemplo):
-    """Seção 9: totais 1.861,84 / 585,43 / 1.276,41."""
+    """Seção 9: totais 1.861,84 / 351,43 / 1.510,41."""
     # solicitado: considerados > 0 (todos menos d-009) =
     #   72,50 + 38,00 + 100,00 + 100,01 + 89,00 + 54,90 + 54,90 + 41,00
     #   + 480,00 + 33,33 + 47,20 + 690,00 + 61,00 = 1.861,84
-    # reembolsado: 60,00 + 80,00 + 54,90 + 250,00 + 33,33 + 47,20 + 60,00 = 585,43
-    # glosado: 1.861,84 − 585,43 = 1.276,41
+    # reembolsado: 72,50 + 2,50 + 80,00 + 54,90 + 33,33 + 47,20 + 61,00 = 351,43
+    # glosado: 1.861,84 − 351,43 = 1.510,41
     assert saida_exemplo["totais"] == {
         "valor_solicitado": D("1861.84"),
-        "valor_reembolsado": D("585.43"),
-        "valor_glosado": D("1276.41"),
+        "valor_reembolsado": D("351.43"),
+        "valor_glosado": D("1510.41"),
     }
+
+
+def test_exemplo_politica_e_colaborador(saida_exemplo):
+    """Seção 9 / RN-014: `politica` = `v4` / `2026-07-01` / `CC-ENG-PLATAFORMA`;
+    `colaborador.centro_custo` copiado da entrada."""
+    assert saida_exemplo["politica"] == {
+        "versao": "v4",
+        "vigencia": "2026-07-01",
+        "tabela_aplicada": "CC-ENG-PLATAFORMA",
+    }
+    assert saida_exemplo["colaborador"]["centro_custo"] == "CC-ENG-PLATAFORMA"
 
 
 def test_exemplo_sem_avisos(saida_exemplo):

@@ -61,3 +61,18 @@ def test_rn012_hospedagem_de_480_poe_em_viagem_so_d_e_d_mais_1(avaliar, despesa)
     assert hospedagem["em_viagem"] is True
     assert a15["em_viagem"] is True
     assert a16["em_viagem"] is False
+
+
+def test_rn012_cc_comercial_hospedagem_de_1200_e_uma_diaria_de_400(avaliar, despesa):
+    """RN-012 / RN-014 (aceite): `CC-COMERCIAL`, hospedagem de 1.200,00 com nota
+    ("3 noites") → uma diária: `parcial` com 400,00."""
+    (item,) = avaliar(
+        despesa(categoria="hospedagem", data="2026-07-22", valor=Decimal("1200.00"),
+                descricao="3 noites", tem_nota_fiscal=True),
+        centro_custo="CC-COMERCIAL",
+    )["itens"]
+
+    # min(1.200,00; 400,00) = 400,00 → parcial (hospedagem não amplia, AMB-006)
+    assert (item["limite_diario"], item["valor_reembolsado"], item["status"]) == (
+        Decimal("400.00"), Decimal("400.00"), "parcial",
+    )

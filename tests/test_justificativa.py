@@ -88,7 +88,9 @@ def test_rn011_justificativa_nao_vazia_para_todo_status_e_motivo(
 ):
     """RN-011 / DT-009: todo item tem uma justificativa em texto; o conteúdo exato
     não é contratual (seção 4), só se confere que é texto não vazio."""
-    texto = justificar(status, motivo, **campos)
+    # o mínimo da nota vem da política (DT-009); 100,00 na v4
+    texto = justificar(status, motivo, nota_fiscal_acima_de=Decimal("100.00"),
+                       **campos)
     assert isinstance(texto, str)
     assert texto.strip()
 

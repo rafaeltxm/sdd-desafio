@@ -184,3 +184,97 @@ def test_rn006_categoria_de_saida(texto, centro_custo, esperado):
     """RN-006 / AMB-021 / seção 4: normalizada se presente na tabela aplicada
     (inclusive com limite 0); senão como veio, se texto; senão nula."""
     assert categoria_de_saida(texto, _tabela(centro_custo)) == esperado
+
+
+# --- categorias da tabela aplicada (RN-006 / RN-014 / AMB-020 / AMB-021) ---
+
+
+def test_rn006_representacao_no_padrao_e_fora_da_politica(avaliar, despesa):
+    """RN-006 / AMB-020 (aceite): com o `padrao`, `representacao` →
+    `categoria_fora_da_politica` (existe só no CC-COMERCIAL); sai como veio."""
+    (item,) = avaliar(despesa(categoria="representacao"))["itens"]
+
+    _recusado_fora_da_politica(item)
+    assert item["categoria"] == "representacao"
+
+
+def test_rn006_representacao_no_cc_comercial_e_reconhecida(avaliar, despesa):
+    """RN-006 / AMB-017 (aceite): com `CC-COMERCIAL`, `Representação` →
+    `representacao`, limite 300,00; 190,00 com nota → `aprovado`."""
+    (item,) = avaliar(
+        despesa(categoria="Representação", valor=Decimal("190.00")),
+        centro_custo="CC-COMERCIAL",
+    )["itens"]
+
+    assert item["categoria"] == "representacao"
+    # 190,00 ≤ 300,00 → aprovado
+    assert (item["limite_diario"], item["valor_reembolsado"], item["status"]) == (
+        Decimal("300.00"), Decimal("190.00"), "aprovado",
+    )
+
+
+def test_rn006_hospedagem_no_cc_adm_e_fora_da_politica(avaliar, despesa):
+    """RN-006 / AMB-020 (aceite): com `CC-ADM`, `hospedagem` (ausente da tabela)
+    → `categoria_fora_da_politica`; sai como veio."""
+    (item,) = avaliar(
+        despesa(categoria="Hospedagem", valor=Decimal("90.00")),
+        centro_custo="CC-ADM",
+    )["itens"]
+
+    _recusado_fora_da_politica(item)
+    # ausente da tabela aplicada → como veio
+    assert item["categoria"] == "Hospedagem"
+
+
+def test_rn006_hospedagem_com_limite_zero_e_fora_da_politica(avaliar, despesa):
+    """RN-006 / AMB-021 (aceite): com `CC-ENG-PLATAFORMA`, `hospedagem` tem
+    limite 0 → `categoria_fora_da_politica` (etapa 5, não limite diário); está na
+    tabela, então sai normalizada."""
+    (item,) = avaliar(
+        despesa(categoria="HOSPEDAGEM", valor=Decimal("90.00")),
+        centro_custo="CC-ENG-PLATAFORMA",
+    )["itens"]
+
+    _recusado_fora_da_politica(item)
+    assert item["categoria"] == "hospedagem"
+
+
+def test_rn006_limite_zero_vem_antes_da_nota(avaliar, despesa):
+    """RN-006 / AMB-021 / seção 8: hospedagem com limite 0, acima de 100,00 sem
+    nota → `categoria_fora_da_politica` (etapa 5 antes da 6)."""
+    (item,) = avaliar(
+        despesa(categoria="hospedagem", valor=Decimal("690.00"),
+                tem_nota_fiscal=False),
+        centro_custo="CC-ENG-PLATAFORMA",
+    )["itens"]
+
+    _recusado_fora_da_politica(item)
+
+
+@pytest.mark.parametrize(
+    ("categoria", "centro_custo", "esperado"),
+    [
+        # `representacao` está no CC-COMERCIAL → normalizada
+        pytest.param("Representacao", "CC-COMERCIAL", "representacao",
+                     id="reconhecida-no-cc"),
+        # não está no padrao → como veio
+        pytest.param("Representacao", None, "Representacao", id="fora-do-padrao"),
+        # limite 0 ainda é presença na tabela → normalizada
+        pytest.param("HOSPEDAGEM", "CC-ENG-PLATAFORMA", "hospedagem",
+                     id="limite-zero"),
+        # não é texto → nula
+        pytest.param(17, "CC-COMERCIAL", None, id="nao-texto"),
+    ],
+)
+def test_rn006_categoria_de_despesa_invalida_depende_da_tabela_aplicada(
+    avaliar, despesa, categoria, centro_custo, esperado
+):
+    """RN-006 / RN-002 / seção 4: despesa inválida (sem `tem_nota_fiscal`) sai com
+    a categoria normalizada se presente na tabela aplicada; senão como veio."""
+    documento = despesa(categoria=categoria)
+    del documento["tem_nota_fiscal"]
+
+    (item,) = avaliar(documento, centro_custo=centro_custo)["itens"]
+
+    assert (item["status"], item["motivo"]) == ("recusado", "entrada_invalida")
+    assert item["categoria"] == esperado

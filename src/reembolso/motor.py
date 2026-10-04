@@ -14,16 +14,18 @@ from reembolso.modelo import (
     Motivo,
     Periodo,
     Politica,
+    PoliticaAplicada,
     Resultado,
     Status,
+    TabelaAplicada,
     Totais,
 )
 from reembolso.politica import (
     CATEGORIA_QUE_COMPROVA_VIAGEM,
-    CATEGORIAS_RECONHECIDAS,
     DIAS_EM_VIAGEM_APOS_HOSPEDAGEM,
-    LIMITES_DIARIOS,
-    VALOR_ACIMA_DO_QUAL_EXIGE_NOTA,
+    categoria_de_saida,
+    limite_diario,
+    tabela_aplicada,
 )
 
 ZERO = Decimal("0.00")
@@ -40,13 +42,16 @@ def _status(
     return Status.RECUSADO, Motivo.LIMITE_DIARIO_EXCEDIDO
 
 
-def _item_invalido(despesa: DespesaInvalida) -> ItemResultado:
+def _item_invalido(
+    despesa: DespesaInvalida, tabela: TabelaAplicada, politica: Politica
+) -> ItemResultado:
     """Etapa 1 (RN-002): recusado, `entrada_invalida`, sem valor considerado."""
     status, motivo = Status.RECUSADO, Motivo.ENTRADA_INVALIDA
+    categoria = categoria_de_saida(despesa.categoria_texto, tabela)  # seção 4
     return ItemResultado(
         id=despesa.id,
         data=despesa.data_texto,
-        categoria=despesa.categoria_saida,
+        categoria=categoria,
         valor_informado=despesa.valor_informado,
         valor_considerado=None,
         valor_reembolsado=ZERO,
@@ -58,26 +63,26 @@ def _item_invalido(despesa: DespesaInvalida) -> ItemResultado:
             status,
             motivo,
             data=None,
-            categoria=despesa.categoria_saida,
+            categoria=categoria,
             valor_considerado=None,
             valor_reembolsado=ZERO,
             limite_diario=None,
+            nota_fiscal_acima_de=politica.nota_fiscal_acima_de,
         ),
         avisos=despesa.avisos,
     )
 
 
 def _item_recusado(
-    despesa: Despesa, considerado: Decimal, motivo: Motivo
+    despesa: Despesa,
+    considerado: Decimal,
+    motivo: Motivo,
+    tabela: TabelaAplicada,
+    politica: Politica,
 ) -> ItemResultado:
     """Etapas 3 a 7: recusado antes do limite diário; não consome limite."""
     status = Status.RECUSADO
-    # seção 4: normalizada se reconhecida; senão como veio
-    categoria = (
-        despesa.categoria
-        if despesa.categoria in CATEGORIAS_RECONHECIDAS
-        else despesa.categoria_texto
-    )
+    categoria = categoria_de_saida(despesa.categoria_texto, tabela)  # seção 4
     return ItemResultado(
         id=despesa.id,
         data=despesa.data_texto,
@@ -97,23 +102,30 @@ def _item_recusado(
             valor_considerado=considerado,
             valor_reembolsado=ZERO,
             limite_diario=None,
+            nota_fiscal_acima_de=politica.nota_fiscal_acima_de,
         ),
         avisos=despesa.avisos,
     )
 
 
 def _motivo_de_recusa(
-    despesa: Despesa, considerado: Decimal, periodo: Periodo
+    despesa: Despesa,
+    considerado: Decimal,
+    periodo: Periodo,
+    tabela: TabelaAplicada,
+    politica: Politica,
 ) -> Motivo | None:
     """Etapas 3 a 6 da seção 8, nesta ordem; a primeira que recusa encerra."""
     if considerado <= 0:  # RN-004
         return Motivo.VALOR_INVALIDO
     if not periodo.inicio <= despesa.data <= periodo.fim:  # RN-005, AMB-009
         return Motivo.FORA_DO_PERIODO
-    if despesa.categoria not in CATEGORIAS_RECONHECIDAS:  # RN-006, AMB-012
+    # RN-006, RN-014, AMB-012, AMB-021: ausente da tabela aplicada ou com limite 0
+    limite = tabela.limites.get(despesa.categoria)
+    if limite is None or limite == 0:
         return Motivo.CATEGORIA_FORA_DA_POLITICA
-    # RN-008, AMB-007, AMB-008: valor individual, antes do limite
-    if considerado > VALOR_ACIMA_DO_QUAL_EXIGE_NOTA and not despesa.tem_nota_fiscal:
+    # RN-008, AMB-007, AMB-008, AMB-027: valor individual, antes do limite
+    if considerado > politica.nota_fiscal_acima_de and not despesa.tem_nota_fiscal:
         return Motivo.NOTA_FISCAL_AUSENTE
     return None
 
@@ -158,17 +170,24 @@ def _dias_em_viagem(despesas: list[Despesa]) -> set[date]:
 
 
 def _aplicar_limite(
-    despesas: list[Despesa], dias_em_viagem: set[date]
+    despesas: list[Despesa],
+    dias_em_viagem: set[date],
+    tabela: TabelaAplicada,
+    politica: Politica,
 ) -> dict[int, ItemResultado]:
     """Etapa 9 (RN-009): saldo por (data, categoria), consumido na ordem da entrada;
-    limite em viagem nas datas da etapa 8 (RN-010, AMB-006)."""
+    limite da tabela aplicada, ampliado nas datas da etapa 8 (RN-010, DT-013)."""
     saldos: dict[tuple[date, str], Decimal] = {}
     itens = {}
     for despesa in sorted(despesas, key=lambda d: d.posicao):
         considerado = arredondar(despesa.valor_informado)
         em_viagem = despesa.data in dias_em_viagem
-        limites = LIMITES_DIARIOS[despesa.categoria]
-        limite = limites.viagem if em_viagem else limites.normal
+        limite = limite_diario(
+            tabela,
+            despesa.categoria,
+            em_viagem,
+            politica.acrescimo_em_viagem_percentual,
+        )
         chave = (despesa.data, despesa.categoria)
         saldo = saldos.get(chave, limite)
         reembolsado = min(considerado, saldo)
@@ -193,6 +212,7 @@ def _aplicar_limite(
                 valor_considerado=considerado,
                 valor_reembolsado=reembolsado,
                 limite_diario=limite,
+                nota_fiscal_acima_de=politica.nota_fiscal_acima_de,
             ),
             avisos=despesa.avisos,
         )
@@ -225,32 +245,50 @@ def _totais(itens: list[ItemResultado]) -> Totais:
 def calcular(entrada: Entrada, politica: Politica, cambio: Cambio) -> Resultado:
     """Um item por despesa, na ordem da entrada (RN-001), e os totais.
 
-    `politica` e `cambio` já validados (RN-016); o motor passa a usá-los na
-    T-029 e na T-031.
+    `politica` e `cambio` já validados (RN-016); a tabela aplicada é escolhida
+    uma vez (RN-014). O motor passa a usar o `cambio` na T-031.
     """
+    tabela = tabela_aplicada(politica, entrada.colaborador.centro_custo)
     validas = [d for d in entrada.despesas if isinstance(d, Despesa)]
     por_posicao: dict[int, ItemResultado] = {}
     seguem = []
     for despesa in validas:
         considerado = arredondar(despesa.valor_informado)
-        motivo = _motivo_de_recusa(despesa, considerado, entrada.periodo)
+        motivo = _motivo_de_recusa(
+            despesa, considerado, entrada.periodo, tabela, politica
+        )
         if motivo is None:
             seguem.append(despesa)
         else:
-            por_posicao[despesa.posicao] = _item_recusado(despesa, considerado, motivo)
+            por_posicao[despesa.posicao] = _item_recusado(
+                despesa, considerado, motivo, tabela, politica
+            )
     originais, duplicatas = _separar_duplicatas(seguem)
     for despesa in duplicatas:
         por_posicao[despesa.posicao] = _item_recusado(
-            despesa, arredondar(despesa.valor_informado), Motivo.DUPLICATA
+            despesa,
+            arredondar(despesa.valor_informado),
+            Motivo.DUPLICATA,
+            tabela,
+            politica,
         )
-    por_posicao.update(_aplicar_limite(originais, _dias_em_viagem(originais)))
+    por_posicao.update(
+        _aplicar_limite(originais, _dias_em_viagem(originais), tabela, politica)
+    )
     itens = [
-        por_posicao[d.posicao] if isinstance(d, Despesa) else _item_invalido(d)
+        por_posicao[d.posicao]
+        if isinstance(d, Despesa)
+        else _item_invalido(d, tabela, politica)
         for d in entrada.despesas
     ]
     return Resultado(
         colaborador=entrada.colaborador,
         periodo=entrada.periodo,
+        politica=PoliticaAplicada(
+            versao=politica.versao,
+            vigencia=politica.vigencia,
+            tabela_aplicada=tabela.nome,
+        ),
         itens=itens,
         totais=_totais(itens),
         avisos=entrada.avisos,

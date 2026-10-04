@@ -1,6 +1,5 @@
 """Leitura do arquivo de política e constantes de interpretação (plan seção 4)."""
 
-from dataclasses import dataclass
 from decimal import Decimal
 from types import MappingProxyType
 
@@ -17,24 +16,6 @@ from reembolso.leitura import (
 from reembolso.modelo import Politica, Tabela, TabelaAplicada
 from reembolso.normalizacao import normalizar_texto
 
-
-@dataclass(frozen=True)
-class LimiteDiario:
-    normal: Decimal
-    viagem: Decimal
-
-
-# RN-009: (normal, em viagem). Valores em viagem escritos por extenso, como na
-# tabela da spec; a hospedagem não amplia (AMB-006).
-LIMITES_DIARIOS = {
-    "alimentacao": LimiteDiario(normal=Decimal("60.00"), viagem=Decimal("90.00")),
-    "transporte_urbano": LimiteDiario(
-        normal=Decimal("80.00"), viagem=Decimal("120.00")
-    ),
-    "hospedagem": LimiteDiario(normal=Decimal("250.00"), viagem=Decimal("250.00")),
-}
-CATEGORIAS_RECONHECIDAS = frozenset(LIMITES_DIARIOS)  # RN-006
-VALOR_ACIMA_DO_QUAL_EXIGE_NOTA = Decimal("100.00")  # RN-008 (estritamente maior)
 # RN-009, AMB-006, AMB-022: as únicas que ampliam em viagem
 CATEGORIAS_AMPLIADAS_EM_VIAGEM = frozenset({"alimentacao", "transporte_urbano"})
 CATEGORIA_QUE_COMPROVA_VIAGEM = "hospedagem"  # RN-010

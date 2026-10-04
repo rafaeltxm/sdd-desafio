@@ -18,17 +18,6 @@ SPEC = TESTES.parent / "specs" / "001-motor-reembolso" / "spec.md"
 TASKS = SPEC.with_name("tasks.md")
 
 PENDENTES = {  # some quando a Fase 5 terminar (DT-016)
-    "Centro de custo da tabela": "T-029",
-    "Centro de custo fora da tabela": "T-029",
-    "Centro de custo com grafia diferente": "T-029",
-    "Centro de custo só com espaços": "T-029",
-    "Centro de custo de tipo errado": "T-029",
-    "Categoria ausente da tabela do centro de custo": "T-029",
-    "Categoria com limite zero": "T-029",
-    "Representação fora do centro de custo que a define": "T-029",
-    "Representação não amplia em viagem": "T-029",
-    "Limite em viagem truncado": "T-029",
-    "Política sem versão nem vigência": "T-029",
     "Moeda em minúsculas": "T-030",
     "Moeda de tipo errado": "T-030",
     "Moeda nula": "T-031",

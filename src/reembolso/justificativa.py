@@ -4,7 +4,6 @@ from datetime import date
 from decimal import Decimal
 
 from reembolso.modelo import Motivo, Status
-from reembolso.politica import VALOR_ACIMA_DO_QUAL_EXIGE_NOTA
 
 
 def formatar_reais(valor: Decimal) -> str:
@@ -26,10 +25,12 @@ def justificar(
     valor_considerado: Decimal | None,
     valor_reembolsado: Decimal,
     limite_diario: Decimal | None,
+    nota_fiscal_acima_de: Decimal,
 ) -> str:
     """Frase de um item já decidido, a partir dos seus campos contratuais.
 
-    Nenhuma decisão depende deste texto (plan seção 3).
+    `nota_fiscal_acima_de` é o mínimo da nota da política (DT-009). Nenhuma
+    decisão depende deste texto (plan seção 3).
     """
     if status is Status.APROVADO:
         return (
@@ -56,7 +57,7 @@ def justificar(
     if motivo is Motivo.NOTA_FISCAL_AUSENTE:
         return (
             f"Recusado: {formatar_reais(valor_considerado)} está acima de"
-            f" {formatar_reais(VALOR_ACIMA_DO_QUAL_EXIGE_NOTA)} e não tem nota fiscal."
+            f" {formatar_reais(nota_fiscal_acima_de)} e não tem nota fiscal."
         )
     if motivo is Motivo.DUPLICATA:
         return (

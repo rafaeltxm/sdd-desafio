@@ -28,7 +28,7 @@ def _validar_texto(texto):
 def test_rn002_cabecalho_valido_copia_colaborador_e_periodo(entrada):
     """RN-002 / seção 4: cabeçalho válido → colaborador e período copiados."""
     colaborador, periodo, despesas = _validar(entrada())
-    assert colaborador == Colaborador(id="c-1", nome="Ana")
+    assert colaborador == Colaborador(id="c-1", nome="Ana", centro_custo=None)
     assert periodo.inicio == date(2026, 7, 1)
     assert periodo.fim == date(2026, 7, 31)
     assert periodo.inicio_texto == "2026-07-01"
@@ -132,17 +132,41 @@ def test_rn002_colaborador_id_hifen_e_valido(entrada):
 
 
 def test_rn002_centro_custo_ausente_e_valido(entrada):
-    """Seção 4: `colaborador.centro_custo` não é obrigatório."""
+    """Seção 4: `colaborador.centro_custo` não é obrigatório; ausente → nulo."""
     colaborador, _, _ = _validar(entrada(colaborador={"id": "c-1", "nome": "Ana"}))
-    assert colaborador == Colaborador(id="c-1", nome="Ana")
+    assert colaborador == Colaborador(id="c-1", nome="Ana", centro_custo=None)
 
 
-def test_rn002_centro_custo_de_qualquer_tipo_e_ignorado(entrada):
-    """Seção 4: `centro_custo` não é obrigatório nem usado; tipo não é verificado."""
-    colaborador, _, _ = _validar(
-        entrada(colaborador={"id": "c-1", "nome": "Ana", "centro_custo": 17})
-    )
-    assert colaborador == Colaborador(id="c-1", nome="Ana")
+@pytest.mark.parametrize(
+    ("centro_custo", "esperado"),
+    [
+        pytest.param(None, None, id="nulo"),
+        pytest.param("", "", id="vazio"),
+        pytest.param("  ", "  ", id="so-espacos"),
+        pytest.param("cc-adm", "cc-adm", id="texto"),
+    ],
+)
+def test_rn002_centro_custo_nulo_ou_texto_e_valido(entrada, centro_custo, esperado):
+    """RN-002 / AMB-020 / seção 4: `centro_custo` nulo, vazio ou só com espaços
+    é válido (não informado); texto é copiado como veio, nulo continua nulo."""
+    colaborador, _, _ = _validar(entrada(centro_custo=centro_custo))
+    assert colaborador == Colaborador(id="c-1", nome="Ana", centro_custo=esperado)
+
+
+@pytest.mark.parametrize(
+    "centro_custo",
+    [
+        pytest.param(17, id="numero"),
+        pytest.param(True, id="booleano"),
+        pytest.param(["CC-ADM"], id="lista"),
+        pytest.param({"codigo": "CC-ADM"}, id="objeto"),
+    ],
+)
+def test_rn002_centro_custo_de_outro_tipo_e_erro_de_arquivo(entrada, centro_custo):
+    """RN-002 / AMB-020: `centro_custo` presente que não é texto nem nulo
+    (número, booleano, lista, objeto) → erro de arquivo."""
+    with pytest.raises(ErroDeArquivo):
+        _validar(entrada(centro_custo=centro_custo))
 
 
 @pytest.mark.parametrize("campo", ["inicio", "fim"])
@@ -312,7 +336,7 @@ def test_rn002_campos_extras_no_cabecalho_sao_ignorados(entrada):
     documento["colaborador"]["email"] = None
     documento["periodo"]["fuso"] = []
     colaborador, periodo, _ = _validar(documento)
-    assert colaborador == Colaborador(id="c-1", nome="Ana")
+    assert colaborador == Colaborador(id="c-1", nome="Ana", centro_custo=None)
     assert periodo.inicio == date(2026, 7, 1)
 
 
@@ -325,7 +349,7 @@ def test_rn002_colaborador_corrigido_por_chave_repetida_valida_so_o_que_valeu():
         '"despesas": []}'
     )
     colaborador, _, _ = _validar_texto(texto)
-    assert colaborador == Colaborador(id="c-1", nome="Ana")
+    assert colaborador == Colaborador(id="c-1", nome="Ana", centro_custo=None)
 
 
 def test_rn002_periodo_corrigido_por_chave_repetida_valida_so_o_que_valeu():
@@ -433,7 +457,7 @@ def test_rn002_elemento_que_nao_e_objeto_e_invalido_com_campos_nulos(
         posicao=0,
         id=None,
         data_texto=None,
-        categoria_saida=None,
+        categoria_texto=None,
         valor_informado=None,
         avisos=(),
     )
@@ -595,34 +619,25 @@ def test_rn002_id_numero_e_invalido_com_id_nulo(entrada, despesa):
         posicao=0,
         id=None,
         data_texto="2026-07-03",
-        categoria_saida="alimentacao",
+        categoria_texto="alimentacao",
         valor_informado=Decimal("10.00"),
         avisos=(),
     )
 
 
-@pytest.mark.parametrize("categoria", ["ALIMENTACAO", "Alimentação", " alimentação "])
-def test_rn002_categoria_reconhecida_em_despesa_invalida_sai_normalizada(
+@pytest.mark.parametrize(
+    "categoria", ["ALIMENTACAO", " alimentação ", "Lavanderia", "-", "  ", ""]
+)
+def test_rn002_despesa_invalida_guarda_a_categoria_como_veio(
     entrada, despesa, categoria
 ):
-    """RN-002 / RN-006: `"ALIMENTACAO"` sem `tem_nota_fiscal` → `alimentacao`."""
+    """RN-002 / plan seção 3: a entrada não conhece a política; a categoria de
+    despesa inválida, se texto, é guardada como veio (o motor decide a saída)."""
     documento = despesa(categoria=categoria)
     del documento["tem_nota_fiscal"]
     resultado = _uma(entrada, documento)
     assert isinstance(resultado, DespesaInvalida)
-    assert resultado.categoria_saida == "alimentacao"
-
-
-@pytest.mark.parametrize("categoria", ["Lavanderia", "-", "  ", ""])
-def test_rn002_categoria_nao_reconhecida_em_despesa_invalida_sai_como_veio(
-    entrada, despesa, categoria
-):
-    """RN-002 / seção 4: categoria não reconhecida, se texto → como veio."""
-    documento = despesa(categoria=categoria)
-    del documento["tem_nota_fiscal"]
-    resultado = _uma(entrada, documento)
-    assert isinstance(resultado, DespesaInvalida)
-    assert resultado.categoria_saida == categoria
+    assert resultado.categoria_texto == categoria
 
 
 @pytest.mark.parametrize("categoria", [17, None, ["alimentacao"]])
@@ -632,7 +647,7 @@ def test_rn002_categoria_nao_texto_em_despesa_invalida_sai_nula(
     """RN-002 / seção 4: `categoria` que não é texto → nula."""
     resultado = _uma(entrada, despesa(categoria=categoria))
     assert isinstance(resultado, DespesaInvalida)
-    assert resultado.categoria_saida is None
+    assert resultado.categoria_texto is None
 
 
 def test_rn002_despesa_invalida_guarda_textos_e_valor(entrada, despesa):
@@ -643,7 +658,7 @@ def test_rn002_despesa_invalida_guarda_textos_e_valor(entrada, despesa):
         posicao=0,
         id="d-9",
         data_texto="2026-07-05",
-        categoria_saida="alimentacao",
+        categoria_texto="alimentacao",
         valor_informado=Decimal("33.333"),
         avisos=(),
     )
@@ -656,7 +671,7 @@ def test_rn002_campo_ausente_sai_nulo_na_despesa_invalida(entrada, despesa):
             posicao=0,
             id=None,
             data_texto=None,
-            categoria_saida=None,
+            categoria_texto=None,
             valor_informado=None,
             avisos=(),
         )
@@ -718,7 +733,7 @@ def test_rn002_ler_entrada_devolve_colaborador_e_periodo(entrada):
     lida = ler_entrada(
         simplejson.dumps(entrada(), use_decimal=True).encode()
     )
-    assert lida.colaborador == Colaborador(id="c-1", nome="Ana")
+    assert lida.colaborador == Colaborador(id="c-1", nome="Ana", centro_custo=None)
     assert lida.periodo.inicio == date(2026, 7, 1)
     assert lida.despesas == []
     assert lida.avisos == ()
