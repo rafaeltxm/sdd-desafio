@@ -2,8 +2,7 @@
 
 **Aluno:** Rafael Teixeira Martins · **Repositório:** https://github.com/rafaeltxm/sdd-desafio · **Data:** 2026-10-02
 
-> Sessões citadas como `docs/sessions/<arquivo>`, linha N. Seções marcadas com
-> ✍️ dependem do envelope do Dia 2 e ainda serão preenchidas.
+> Sessões citadas como `docs/sessions/<arquivo>`, linha N.
 
 ---
 
@@ -19,7 +18,7 @@
 | Desenhar a arquitetura | Claude propôs (`plan.md`); eu aprovei | `bf1df44`; `07-plan-e-spec-v1.6.md` l. 9–640 |
 | Implementar | Claude, pela skill `/task`, uma task por sessão | T-001…T-021, sessões 11–32 |
 | Escrever testes | Claude, com o esperado calculado à mão a partir da spec (regra da skill `/task`); conferidos pelo `revisor-de-task` | `docs/reviews/`; `tests/test_exemplo.py` (seção 9 transcrita à mão) |
-| Absorver o envelope | ✍️ (Dia 2) | |
+| Absorver o envelope | Claude mapeou o impacto e redigiu spec, plan, tasks e código; o `spec-adversary` levantou 41 pontos em D-007 e D-008; eu decidi cada um e autorizei cada commit | `37-…`, `53-…`; D-007, D-008; T-022…T-036 |
 
 **Usei subagentes / skills / MCP / hooks?** Sim:
 - **Subagente `spec-adversary`** (`.claude/agents/spec-adversary.md`, `42f9336`): só leitura, devolve problemas numerados com perguntas; as decisões ficam comigo. Rodou sobre cada versão da spec (sessões 05, 06, 07, 13, 18). Achou o erro da seção 9 (Discernimento, caso 1) e 2 bloqueantes da 1.9 (D-006).
@@ -163,7 +162,7 @@ produziu a primeira versão.
 
 **Procedimento (o que o fluxo impunha):** cada task pela skill `/task`: testes primeiro, falhando pelo motivo certo; pytest + ruff completos; `revisor-de-task` nas tasks de regra; resumo com "Decisões ou interpretações realizadas"; commit só depois do meu "pode commitar". Hooks bloqueiam commit com teste vermelho ou mensagem fora do padrão.
 
-**Números:** 21 tasks, 22 commits `T-NNN`, 649 testes, 15 revisões independentes, 33 sessões exportadas, 6 mudanças de spec registradas (D-001 a D-006).
+**Números:** no Dia 1: 21 tasks, 22 commits `T-NNN`, 649 testes, 15 revisões independentes, 33 sessões exportadas, 6 mudanças de spec registradas (D-001 a D-006). Com o envelope e a revisão final: 36 tasks concluídas (T-037 aberta), 37 commits `T-NNN`, 1041 testes, 25 revisões independentes, 57 sessões exportadas, 8 mudanças de spec registradas (D-001 a D-008).
 
 **Exemplo de pergunta antes de aceitar:** T-018, proteção contra 9999-12-31 — perguntei "faz sentido registrar?" antes de commitar (`29-t018-viagem.md` l. 608).
 
@@ -213,17 +212,158 @@ ser revisada separadamente da implementação.
 
 ## O envelope
 
-✍️ Dia 2. Hash de partida: `2a9ee34`.
+**Hash de partida:** `edeeb2d` (2026-10-02 19:51, registrado na D-007 ao abrir o
+envelope, `37-politica-v4-spec-2-0.md` l. 223). O rascunho dizia `2a9ee34`
+(10:02), mas entre os dois só há commits de relatório, tooling e export: o diff de
+`src/`, `tests/` e `specs/` é o mesmo nos dois.
 
-**Quantos arquivos toquei na mão:**
-**Quanto tempo levou:**
-**Diff de absorção:** (`git diff 2a9ee34 HEAD --stat`)
+**Quantos arquivos toquei na mão:** zero. Nas sessões 37 a 55 (91 mensagens
+minhas), não editei nenhum arquivo. Minhas mensagens foram decisões ("B, amplia
+pra 4 dias", `53-…` l. 432; "o melhor não seria truncar?", `37-…` l. 1678),
+pedidos de revisão e autorização de commit. Todo arquivo de código, teste e
+documento foi alterado pelo Claude, dentro de uma task ou de um commit
+`docs(spec|plan|tasks)`. Não fiz nenhuma edição fora do Claude, nem no editor
+nem no terminal.
+
+**Quanto tempo levou** (horários dos commits e das sessões):
+
+| Etapa | Quando | Duração |
+|---|---|---|
+| Ler o envelope, mapear o impacto, `spec-adversary` (3 rodadas, 30 pontos decididos) → spec 2.0 + D-007 (`9f993c5`) | 02/10, 19:51 → 21:22 | 1h31 |
+| `plan.md` 2.0 e tasks da Fase 5 (`eb47e11`) | 02/10, 21:22 → 21:29, retomado em 04/10, 14:26 → 14:35 (a sessão parou por falta de acesso à assinatura, `38-…` l. 1458) | ~0h20 |
+| T-022 a T-034 (13 tasks) | 04/10, 14:35 → 16:02 | 1h27 |
+| **Subtotal: envelope absorvido, seção 9 conferida** | | **~3h20** |
+| Revisão adversarial da spec final → spec 2.1 + D-008 (`d725054`) | 04/10, 16:03 → 17:24 | 1h21 |
+| T-035 e T-036 | 04/10, 17:25 → 19:46 (a sessão 54 tem uma pausa longa à espera do "pode commitar") | 2h21 de relógio |
+
+O envelope foi aberto mais tarde do que o previsto (~10h no roteiro) porque o
+início da etapa de implementação não ocorreu no horário planejado. O histórico
+registra a abertura efetiva às 19:51 do Dia 2, e a sessão seguinte, de
+planejamento, só foi retomada em 04/10, depois de uma interrupção por falta de
+acesso à assinatura (`38-…` l. 1458). Registro o horário efetivamente observado
+no histórico, sem atribuir ao atraso uma causa que as sessões não documentam.
+
+**Diff de absorção** (`git diff edeeb2d d7d1301 --stat`, sem exports, pareceres e
+relatório):
+
+| Pasta | Arquivos | Linhas |
+|---|---|---|
+| `src/reembolso/` | 10 (3 novos: `leitura.py`, `dinheiro.py`, `cambio.py`) | +727 / −190 |
+| `tests/` | 26 (9 novos, 1 apagado: `test_politica.py`) | +3.505 / −218 |
+| `specs/` | 4 (`spec.md`, `plan.md`, `tasks.md`, `DECISIONS.md`) | +1.023 / −188 |
+| `exemplos/envelope/` | 5 (os arquivos do envelope, versionados) | |
+
+Testes: 649 → 1041. São 34 commits: 11 `feat`, 2 `test`, 1 `refactor`, 1 `chore` e 19
+`docs`.
+
 **Reexecução de tasks vs. edição manual:**
+- **15 tasks novas, nenhuma edição manual:** 13 na Fase 5 (T-022 a T-034) e 2 na
+  Fase 6 (T-035 e T-036). São 10 de regra e 5 de estrutura. Todo o código
+  mudou dentro de uma task, pela skill `/task`.
+- **Tasks antigas reabertas:** a D-007 marcou 9 tasks antigas como afetadas
+  (T-002, T-009, T-010, T-015 a T-020). Nenhuma foi reexecutada no lugar. Todas
+  foram **substituídas** por tasks novas, que dizem o que mudam, de modo que o
+  histórico das antigas ficou intacto.
+- **Única mudança em teste fora de uma task de código:** `d725054 docs(spec)`
+  alterou `tests/test_rastreabilidade.py`, para pôr em `PENDENTES` os 7 casos
+  novos da seção 7. A DT-016 prevê isso: a spec nova entra com a suíte verde e
+  com a pendência explícita.
+- **Revisões:** o `revisor-de-task` rodou nas 10 tasks de regra. Deu 1 APROVADO
+  (T-032), 9 APROVADO COM RESSALVAS e nenhum BLOQUEADO. As ressalvas MÉDIAS
+  foram corrigidas antes do commit: T-026, duas faltas de teste de fronteira;
+  T-031, o teste de `float` que não pegava a `taxa_cambio` (`49-…` l. 986–996).
+
 **Absorveu de graça:**
+- **Ordem das etapas (seção 8, DT-005):** a conversão entrou como etapa 2 da
+  lista ordenada. As etapas 3 a 9 não mudaram de ordem.
+- **Normalização, chave repetida, forma do arquivo e gravação atômica:**
+  reaproveitadas para os dois arquivos novos. A T-023 só moveu a forma do arquivo
+  para `leitura.py`, sem mudar comportamento (`refactor`).
+- **Dinheiro em `Decimal` lido do texto (DT-001):** a taxa de câmbio entrou pelo
+  mesmo caminho, sem conversão para `float`.
+- **Testes de regra sem centro de custo:** continuaram válidos com a tabela
+  `padrao` da v4, cujos valores são iguais aos da 1.9 (D-007, "O que isso
+  invalidou").
+- **Rastreabilidade (T-021):** a spec 2.0 deixou a suíte com 3 RN e 37 casos
+  pendentes, cada um com a task dona (`PENDENTES`, DT-016). A última task apagou a
+  lista. O fechamento não dependeu de memória.
+
 **Resistiu:**
-**Ordem em que fiz:**
-**Se eu tivesse escrito a spec original sabendo desta mudança:**
-**O que a spec me poupou, em concreto:**
+- **A spec, não o código.** A D-007 teve 17 pontos na primeira rodada do
+  `spec-adversary`, 11 deles bloqueantes, mais 10 na segunda e 3 na
+  confirmação. Foram 30 decisões antes de qualquer linha de código. Depois de
+  implementado, a revisão da spec final achou mais 7 pontos e 4 na rodada
+  seguinte (D-008). Dois deles mudaram código: a janela D-4 da cotação (terça de
+  Carnaval) e o argumento repetido na CLI.
+- **O resultado do exemplo original mudou.** O `despesas-exemplo.json` é do
+  `CC-ENG-PLATAFORMA`. Com a v4, o reembolsado foi de 585,43 para 351,43, e a
+  seção 9 e o `test_exemplo.py` foram refeitos (ponto 1 da D-007, bloqueante).
+- **Limites fixos no código.** `politica.py` tinha os limites, o mínimo da nota e
+  as categorias como constantes. A T-029 tirou tudo isso e apagou
+  `test_politica.py`. Foi a maior sessão de task do envelope (`47-…`, ~1.000
+  linhas).
+- **Erro do Claude pego no caminho:** na T-031, um teste da T-030 usava uma data
+  sem cotação e passou a falhar pelo motivo errado. O Claude mudou a data do
+  teste e manteve a intenção (`49-…` l. 619–623). Na D-007, a recomendação
+  inicial para o limite 0 ("vedada, mas comprova viagem") contradizia a seção 8,
+  e a revisão expôs o erro (D-007, "Como foi decidido").
+- **Item C (aprovação manual):** não foi implementado. Com a v4, ele nunca
+  dispara por item, porque o maior limite é 400,00 (AMB-030, seção 3).
+
+**Ordem em que fiz:** envelope em `exemplos/envelope/` → mapeamento de impacto
+(só leitura) → `spec-adversary` sobre o envelope × spec 1.9 → decisões uma a uma
+→ spec 2.0 + D-007 → 2 rodadas do `spec-adversary` → `plan.md` 2.0 → tasks
+T-022 a T-034 → `/task` uma por sessão → aceite com os três arquivos (T-033) →
+fim das pendências (T-034) → `spec-adversary` na spec final → spec 2.1 + D-008
+→ T-035 e T-036. É a ordem spec → `DECISIONS.md` → tasks → código que a rubrica
+pede, e os commits confirmam: `9f993c5` → `eb47e11` → `91a0f33`…
+
+**Se eu tivesse escrito a spec original sabendo desta mudança:** teria
+estruturado, desde a primeira versão, os pontos que o envelope mostrou serem
+mais sensíveis:
+- **Limites da política como dados**, o que evitaria a T-029.
+- **`moeda` como campo reconhecido pela entrada**, em vez de tratado
+  genericamente como campo extra.
+- **Centro de custo validado explicitamente desde a RN-002.**
+
+Também teria deixado explícita, desde o início, a possibilidade de a política
+evoluir sem alterar a estrutura das regras existentes. Isso não evitaria todas
+as decisões novas que o envelope trouxe, mas reduziria o retrabalho estrutural
+necessário para absorvê-las.
+
+**O que a spec me poupou, em concreto:** principalmente decisões que, sem ela,
+provavelmente teriam sido rediscutidas durante a implementação.
+- **Ambiguidades já decididas:** as 19 AMB da 1.x continuaram valendo, e só os
+  pontos de fato afetados pelo envelope precisaram ser revisitados (texto
+  ajustado em AMB-006, -007, -010, -014, -015, -017 e -018).
+- **Seção 9 transcrita à mão:** funcionou como referência concreta para ver na
+  hora que o resultado do exemplo original tinha mudado (585,43 → 351,43).
+- **Ordem das etapas (seção 8):** já estava definida, então a conversão de
+  moeda entrou sem uma nova discussão de arquitetura sobre onde ela acontece.
+- **`PENDENTES`:** deixou a spec nova entrar com a suíte verde e explícito o
+  que ainda faltava implementar.
+
+Na prática, a spec não me poupou de revisar as decisões novas, mas evitou que eu
+precisasse redescobrir as decisões antigas. Esse foi o principal ganho.
+
+**Ponto em aberto encontrado no levantamento:** a DT-012 do `plan.md` manda rodar
+"toda conta com dinheiro (…) o saldo do limite e os totais" em
+`contexto_exato()`. Hoje só a conversão roda nele: o saldo do limite
+(`motor.py`, `_aplicar_limite`) e os totais (`_totais`) usam o contexto padrão.
+O revisor da T-031 apontou isso como ressalva BAIXA anterior à task, e ficou
+"para você decidir se vira task" (`49-…` l. 994). Nenhum resultado realista
+muda, porque para passar de 28 dígitos seriam precisos ~10^8 itens de ~10^18,
+mas o código diverge do plan.
+
+**Decisão: corrigir com uma task (T-037).** Embora o desvio não produza
+diferença prática nos cenários realistas conhecidos, o comportamento atual não
+corresponde ao que foi definido no `plan.md`. Prefiro corrigir o código a
+registrar apenas como desvio: existe uma especificação explícita para esse
+comportamento e a correção é localizada. O fato de a divergência não afetar os
+resultados atuais não é motivo suficiente para manter implementação e plan
+divergentes. A task inclui testes que comprovam que o saldo do limite e os
+totais também são calculados no contexto exato, e os resultados já existentes
+nos casos normais ficam preservados.
 
 ---
 
