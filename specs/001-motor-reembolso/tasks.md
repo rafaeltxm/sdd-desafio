@@ -256,7 +256,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
     - **Válidos:** `politica-v4` transcrita → `Politica` com as quatro tabelas indexadas pela categoria normalizada e os centros de custo pela chave como escrita; sem `versao`, `vigencia`, `moeda_base` e `centros_custo` (ou com `null`) → válida, `versao` e `vigencia` `None`; `60.000` → 60,00; `periodicidade` `"diaria"` em qualquer categoria; tabela vazia; `observacao` numa regra e campo desconhecido na raiz ignorados; limite `-0` → 0.
   - **Commit:** 4c93a08
 
-- [ ] **T-026** — Leitor do câmbio e busca da cotação: `ler_cambio(bytes) -> Cambio` (RN-016, parte do câmbio) e `cotacao(cambio, moeda, data) -> Cotacao | None` (RN-015, DT-014); `Cambio` e `Cotacao` em `modelo.py`; construtor `construir_cambio(taxas=...)` em `tests/conftest.py`, com o `cambio.json` do envelope transcrito.
+- [x] **T-026** — Leitor do câmbio e busca da cotação: `ler_cambio(bytes) -> Cambio` (RN-016, parte do câmbio) e `cotacao(cambio, moeda, data) -> Cotacao | None` (RN-015, DT-014); `Cambio` e `Cotacao` em `modelo.py`; construtor `construir_cambio(taxas=...)` em `tests/conftest.py`, com o `cambio.json` do envelope transcrito.
   - **Tipo:** regra
   - **Atende:** RN-015 (taxa da data, D-1 a D-3, só a mesma moeda, nunca posterior, `BRL` taxa 1), RN-016 (câmbio), AMB-024, AMB-025 (`BRL` fora do arquivo; código sem cotação), DT-014, DT-015
   - **Depende de:** T-023
@@ -271,7 +271,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
       - data em 0001-01-02 → busca sem erro.
     - `tests/test_rn016_arquivos_de_politica_e_cambio.py` passa os testes do câmbio, cada um com `ErroDeArquivo`: raiz que não é objeto; `moeda_base` diferente de `"BRL"`; `taxas` ausente ou lista; data `"2026-07-32"` ou `"2026-7-13"`; valor de data que não é objeto; código `"usd"` ou `"US"`; taxa `0`, `-5.4`, `"5.4"` ou `1e999999`; chave repetida (mesma data duas vezes; mesma moeda duas vezes na data).
     - Câmbio com `"BRL": 0` ou `"BRL": "x"` numa data e com `fonte` e `observacao` na raiz → válido.
-  - **Commit:** —
+  - **Commit:** b3fd107
 
 - [ ] **T-027** — Tabela aplicada e limite: `tabela_aplicada(politica, centro_custo)` (RN-014), `limite_diario(tabela, categoria, em_viagem, percentual)` com truncamento (RN-009, DT-013) e `categoria_de_saida(texto, tabela)` (seção 4 da spec), em `politica.py`, com as constantes de interpretação da seção 4 do plano.
   - **Tipo:** regra
