@@ -240,7 +240,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
     `motor.py` importa `arredondar` de `dinheiro.py`, e a suíte da 1.x passa sem mudança.
   - **Commit:** beba6b8
 
-- [ ] **T-025** — Leitor do arquivo de política: `ler_politica(bytes) -> Politica`, com a parte da RN-016 sobre a política (DT-015); `Politica` em `modelo.py`; construtor `construir_politica(**sobrescritas)` em `tests/conftest.py`, com a v4 transcrita (plan seção 6).
+- [x] **T-025** — Leitor do arquivo de política: `ler_politica(bytes) -> Politica`, com a parte da RN-016 sobre a política (DT-015); `Politica` em `modelo.py`; construtor `construir_politica(**sobrescritas)` em `tests/conftest.py`, com a v4 transcrita (plan seção 6).
   - **Tipo:** regra
   - **Atende:** RN-016 (política), AMB-029 (`versao` e `vigencia` opcionais), AMB-031, DT-015
   - **Substitui:** T-002 (política como dados, não constantes; as constantes da 1.x continuam até a T-029)
@@ -254,7 +254,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
     - **Regras de categoria:** nome que normaliza vazio (`"-"`); `"Alimentação"` e `"alimentacao"` na mesma tabela; regra que não é objeto; `limite` ausente, `"60"`, `-10`, `60.005`; `periodicidade` ausente ou `"mes"`.
     - **Teto:** `limite`, mínimo ou percentual `1000000000` ou `1e999999`.
     - **Válidos:** `politica-v4` transcrita → `Politica` com as quatro tabelas indexadas pela categoria normalizada e os centros de custo pela chave como escrita; sem `versao`, `vigencia`, `moeda_base` e `centros_custo` (ou com `null`) → válida, `versao` e `vigencia` `None`; `60.000` → 60,00; `periodicidade` `"diaria"` em qualquer categoria; tabela vazia; `observacao` numa regra e campo desconhecido na raiz ignorados; limite `-0` → 0.
-  - **Commit:** —
+  - **Commit:** 4c93a08
 
 - [ ] **T-026** — Leitor do câmbio e busca da cotação: `ler_cambio(bytes) -> Cambio` (RN-016, parte do câmbio) e `cotacao(cambio, moeda, data) -> Cotacao | None` (RN-015, DT-014); `Cambio` e `Cotacao` em `modelo.py`; construtor `construir_cambio(taxas=...)` em `tests/conftest.py`, com o `cambio.json` do envelope transcrito.
   - **Tipo:** regra
