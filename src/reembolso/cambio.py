@@ -15,7 +15,7 @@ from reembolso.leitura import (
 from reembolso.modelo import Cambio, Cotacao
 from reembolso.politica import MOEDA_BASE, VALOR_ABSOLUTO_MAXIMO
 
-DIAS_ANTERIORES_ACEITOS_NA_COTACAO = 3  # RN-015, AMB-024: D-1 a D-3
+DIAS_ANTERIORES_ACEITOS_NA_COTACAO = 4  # RN-015, AMB-024: D-1 a D-4
 
 
 def _taxa(valor, caminho: str) -> Decimal:
@@ -67,7 +67,7 @@ def ler_cambio(conteudo: bytes) -> Cambio:
 
 
 def cotacao(cambio: Cambio, moeda: str, data: date) -> Cotacao | None:
-    """Cotação da `moeda` na `data`, ou na anterior mais próxima até D-3 (DT-014)."""
+    """Cotação da `moeda` na `data`, ou na anterior mais próxima até D-4 (DT-014)."""
     if moeda == MOEDA_BASE:
         return Cotacao(Decimal(1), None)
     for dias in range(DIAS_ANTERIORES_ACEITOS_NA_COTACAO + 1):

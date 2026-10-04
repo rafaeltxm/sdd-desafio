@@ -836,6 +836,29 @@ def test_caso_de_borda(processar, texto, verificar):
     verificar(processar(texto))
 
 
+def _descricao(descricao):
+    return _json(despesa(valor=Decimal("45.00"), tem_nota_fiscal=False,
+                         descricao=descricao))
+
+
+@pytest.mark.parametrize(
+    "textos",
+    [
+        pytest.param(
+            (_descricao(None), _descricao(17), _descricao({})),
+            id="Descrição nula ou de outro tipo",
+        ),
+    ],
+)
+def test_caso_de_borda_com_varios_arquivos(processar, textos):
+    """Seção 7 da spec: casos com uma entrada por arquivo (RN-002)."""
+    for texto in textos:
+        (item,) = processar(texto)["itens"]
+        # 45,00 ≤ 100,00 (sem nota) e ≤ 60,00 (alimentação) → aprovado
+        assert (item["status"], item["valor_reembolsado"]) == ("aprovado",
+                                                              Decimal("45.00"))
+
+
 # --- tabela aplicada por centro de custo e política (RN-014, RN-006, RN-016) ---
 
 
@@ -1052,11 +1075,21 @@ def _caso_moeda_estrangeira_em_sabado(saida):
                                 Decimal("178.80"))
 
 
-def _caso_cotacao_3_dias_antes(saida):
-    # 16/07 - 3 = 13/07: 10,00 × 5,42 = 54,20
+def _caso_cotacao_4_dias_antes(saida):
+    # 17/07 - 4 = 13/07: 10,00 × 5,42 = 54,20
     (item,) = saida["itens"]
     assert _conversao(item) == ("USD", Decimal("5.42"), "2026-07-13",
                                 Decimal("54.20"))
+
+
+def _caso_terca_de_carnaval(saida):
+    # 09/02/2027 - 4 = 05/02 (06/02 a 08/02 sem cotação): 10,00 × 6,00 = 60,00;
+    # 60,00 ≤ 60,00 (alimentação, padrao) → aprovado
+    (item,) = saida["itens"]
+    assert _conversao(item) == ("EUR", Decimal("6.00"), "2027-02-05",
+                                Decimal("60.00"))
+    assert (item["status"], item["valor_reembolsado"]) == ("aprovado",
+                                                          Decimal("60.00"))
 
 
 def _caso_cambio_indisponivel_fora_dos_totais(saida):
@@ -1176,14 +1209,20 @@ CASOS_DE_CAMBIO = [
         id="Moeda estrangeira em sábado",
     ),
     pytest.param(
-        _json(despesa(data="2026-07-16", valor=Decimal("10.00"), moeda="USD")),
-        construir_cambio(taxas=_SO_13_07), _caso_cotacao_3_dias_antes,
-        id="Cotação exatamente 3 dias antes",
+        _json(despesa(data="2026-07-17", valor=Decimal("10.00"), moeda="USD")),
+        construir_cambio(taxas=_SO_13_07), _caso_cotacao_4_dias_antes,
+        id="Cotação exatamente 4 dias antes",
     ),
     pytest.param(
-        _json(despesa(data="2026-07-17", valor=Decimal("10.00"), moeda="USD")),
+        _json(despesa(data="2026-07-18", valor=Decimal("10.00"), moeda="USD")),
         construir_cambio(taxas=_SO_13_07), _caso_cambio_indisponivel_fora_dos_totais,
-        id="Cotação 4 dias antes",
+        id="Cotação 5 dias antes",
+    ),
+    pytest.param(
+        _json(despesa(data="2027-02-09", valor=Decimal("10.00"), moeda="EUR"),
+              periodo={"inicio": "2027-02-01", "fim": "2027-02-28"}),
+        construir_cambio(taxas={"2027-02-05": {"EUR": Decimal("6.00")}}),
+        _caso_terca_de_carnaval, id="Terça de Carnaval",
     ),
     pytest.param(
         _json(despesa(data="2026-07-21", valor=Decimal("55.00"), moeda="GBP")),

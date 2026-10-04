@@ -18,10 +18,6 @@ SPEC = TESTES.parent / "specs" / "001-motor-reembolso" / "spec.md"
 TASKS = SPEC.with_name("tasks.md")
 
 PENDENTES: dict[str, str] = {  # some quando a Fase 6 terminar (DT-016, D-008)
-    "Cotação exatamente 4 dias antes": "T-035",
-    "Cotação 5 dias antes": "T-035",
-    "Terça de Carnaval": "T-035",
-    "Descrição nula ou de outro tipo": "T-035",
     "Argumento repetido": "T-036",
     "Argumento desconhecido": "T-036",
     "Argumento sobrando": "T-036",

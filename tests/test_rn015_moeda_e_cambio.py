@@ -35,20 +35,30 @@ def test_rn015_sabado_usa_a_sexta():
     )
 
 
-def test_rn015_cotacao_ate_3_dias_antes():
-    """RN-015 / AMB-024: câmbio só com 13/07; USD em 16/07 usa 13/07 (D-3)."""
+def test_rn015_cotacao_ate_4_dias_antes():
+    """RN-015 / AMB-024: câmbio só com 13/07; USD em 17/07 usa 13/07 (D-4)."""
     cambio = _cambio(taxas={"2026-07-13": {"USD": Decimal("5.42")}})
-    # 16/07 - 3 dias = 13/07: ainda dentro da janela
-    assert cotacao(cambio, "USD", date(2026, 7, 16)) == Cotacao(
+    # 17/07 - 4 dias = 13/07: ainda dentro da janela D a D-4
+    assert cotacao(cambio, "USD", date(2026, 7, 17)) == Cotacao(
         Decimal("5.42"), date(2026, 7, 13)
     )
 
 
-def test_rn015_cotacao_4_dias_antes_nao_serve():
-    """RN-015 / AMB-024: câmbio só com 13/07; USD em 17/07 → sem cotação (D-4)."""
+def test_rn015_cotacao_5_dias_antes_nao_serve():
+    """RN-015 / AMB-024: câmbio só com 13/07; USD em 18/07 → sem cotação (D-5)."""
     cambio = _cambio(taxas={"2026-07-13": {"USD": Decimal("5.42")}})
-    # 17/07 - 4 dias = 13/07: fora da janela D a D-3
-    assert cotacao(cambio, "USD", date(2026, 7, 17)) is None
+    # 18/07 - 5 dias = 13/07: fora da janela D a D-4
+    assert cotacao(cambio, "USD", date(2026, 7, 18)) is None
+
+
+def test_rn015_terca_de_carnaval_usa_a_sexta():
+    """RN-015 / AMB-024: câmbio só com 05/02/2027 (sexta); EUR em 09/02/2027
+    (terça de Carnaval) usa 05/02 (D-4)."""
+    cambio = _cambio(taxas={"2027-02-05": {"EUR": Decimal("6.00")}})
+    # 09/02 - 4 dias = 05/02; 06/02 a 08/02 sem cotação
+    assert cotacao(cambio, "EUR", date(2027, 2, 9)) == Cotacao(
+        Decimal("6.00"), date(2027, 2, 5)
+    )
 
 
 def test_rn015_nunca_usa_cotacao_posterior():
@@ -93,7 +103,7 @@ def test_rn015_brl_tem_taxa_1_sem_consultar_o_arquivo(taxas):
 
 
 def test_rn015_busca_no_inicio_do_calendario_nao_falha():
-    """RN-015 / DT-014: em 0001-01-02 não há D-2 nem D-3; a busca para sem erro."""
+    """RN-015 / DT-014: em 0001-01-02 não há D-2 a D-4; a busca para sem erro."""
     cambio = _cambio(taxas={"0001-01-01": {"USD": Decimal("5.42")}})
     assert cotacao(cambio, "USD", date(1, 1, 2)) == Cotacao(
         Decimal("5.42"), date(1, 1, 1)
@@ -187,8 +197,8 @@ def test_rn015_gbp_sem_cotacao_e_cambio_indisponivel(avaliar, despesa):
     }
 
 
-def test_rn015_usd_sem_cotacao_nos_3_dias_anteriores(avaliar, despesa):
-    """RN-015 / AMB-024 (aceite): USD em 12/07 (nenhuma cotação de 09/07 a
+def test_rn015_usd_sem_cotacao_nos_4_dias_anteriores(avaliar, despesa):
+    """RN-015 / AMB-024 (aceite): USD em 12/07 (nenhuma cotação de 08/07 a
     12/07; a de 13/07 é posterior) → `cambio_indisponivel`."""
     (item,) = avaliar(despesa(data="2026-07-12", moeda="USD"))["itens"]
 
@@ -203,20 +213,37 @@ def test_rn015_codigo_fora_da_iso_e_cambio_indisponivel(avaliar, despesa):
     _recusado_cambio_indisponivel(item)
 
 
-def test_rn015_cotacao_d3_e_d4_no_motor(avaliar, despesa):
-    """RN-015 / AMB-024 (aceite): câmbio só com 13/07; 10,00 USD em 16/07 usa
-    13/07 (D-3); em 17/07 → `cambio_indisponivel` (D-4)."""
+def test_rn015_cotacao_d4_e_d5_no_motor(avaliar, despesa):
+    """RN-015 / AMB-024 (aceite): câmbio só com 13/07; 10,00 USD em 17/07 usa
+    13/07 (D-4); em 18/07 → `cambio_indisponivel` (D-5)."""
     cambio = construir_cambio(taxas={"2026-07-13": {"USD": Decimal("5.42")}})
-    d3, d4 = avaliar(
-        despesa(id="a", data="2026-07-16", valor=Decimal("10.00"), moeda="USD"),
-        despesa(id="b", data="2026-07-17", valor=Decimal("10.00"), moeda="USD"),
+    d4, d5 = avaliar(
+        despesa(id="a", data="2026-07-17", valor=Decimal("10.00"), moeda="USD"),
+        despesa(id="b", data="2026-07-18", valor=Decimal("10.00"), moeda="USD"),
         cambio=cambio,
     )["itens"]
 
     # 10,00 × 5,42 = 54,20
-    assert _conversao(d3) == ("USD", Decimal("5.42"), "2026-07-13",
+    assert _conversao(d4) == ("USD", Decimal("5.42"), "2026-07-13",
                               Decimal("54.20"))
-    _recusado_cambio_indisponivel(d4)
+    _recusado_cambio_indisponivel(d5)
+
+
+def test_rn015_terca_de_carnaval_no_motor(avaliar, despesa):
+    """RN-015 / AMB-024 (aceite): câmbio só com 05/02/2027 (EUR 6,00); 10,00 EUR
+    em 09/02/2027 (terça de Carnaval) → `data_cotacao` 2027-02-05, 60,00."""
+    cambio = construir_cambio(taxas={"2027-02-05": {"EUR": Decimal("6.00")}})
+    (item,) = avaliar(
+        despesa(data="2027-02-09", valor=Decimal("10.00"), moeda="EUR"),
+        cambio=cambio,
+        periodo={"inicio": "2027-02-01", "fim": "2027-02-28"},
+    )["itens"]
+
+    # 10,00 × 6,00 = 60,00 ≤ 60,00 (alimentação, padrao) → aprovado
+    assert _conversao(item) == ("EUR", Decimal("6.00"), "2027-02-05",
+                                Decimal("60.00"))
+    assert (item["status"], item["valor_reembolsado"]) == ("aprovado",
+                                                          Decimal("60.00"))
 
 
 def test_rn015_cambio_indisponivel_nao_consome_limite_nem_soma(avaliar, despesa):

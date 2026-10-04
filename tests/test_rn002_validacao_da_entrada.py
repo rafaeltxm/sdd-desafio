@@ -695,6 +695,56 @@ def test_rn002_campo_extra_na_despesa_e_ignorado(entrada, despesa):
     assert com_extra == sem_extra
 
 
+@pytest.mark.parametrize(
+    "descricao", [None, 17, True, [], {}, "Almoço"],
+    ids=["nula", "numero", "booleano", "lista", "objeto", "texto"],
+)
+def test_rn002_descricao_de_qualquer_tipo_nao_invalida(entrada, despesa, descricao):
+    """RN-002 / D-008: `descricao` nula ou de qualquer tipo → a despesa segue,
+    igual à mesma despesa sem `descricao`."""
+    com_descricao = _uma(entrada, despesa(descricao=descricao))
+    sem_descricao = _uma(entrada, despesa())
+    assert isinstance(com_descricao, Despesa)
+    assert com_descricao == sem_descricao
+
+
+def test_rn002_descricao_com_surrogate_isolado_e_erro_de_arquivo(entrada, despesa):
+    """RN-002 / D-008: a `descricao` segue sujeita aos erros de forma:
+    `"Almoço \\uD800"` (surrogate isolado) → erro de arquivo."""
+    texto = simplejson.dumps(
+        entrada(despesas=[despesa(descricao="DESCRICAO")]),
+        use_decimal=True, ensure_ascii=False,
+    ).replace('"DESCRICAO"', r'"Almoço \uD800"')
+    with pytest.raises(ErroDeArquivo):
+        ler_entrada(texto.encode())
+
+
+def test_rn002_descricao_com_chave_repetida_gera_aviso_e_segue(entrada, despesa):
+    """RN-002 / RN-013 / D-008: `"descricao": {"x": 1, "x": 2}` → aviso de
+    `descricao.x`, e a despesa segue válida."""
+    texto = simplejson.dumps(
+        entrada(despesas=[despesa(descricao="DESCRICAO")]), use_decimal=True,
+    ).replace('"DESCRICAO"', '{"x": 1, "x": 2}')
+    (resultado,) = ler_entrada(texto.encode()).despesas
+    assert isinstance(resultado, Despesa)
+    assert resultado.avisos == (
+        "chave repetida: descricao.x (2 ocorrências; valeu a última)",
+    )
+
+
+@pytest.mark.parametrize("descricao", [None, 17, True, [], {}])
+def test_rn002_descricao_de_outro_tipo_segue_no_motor(avaliar, despesa, descricao):
+    """RN-002 / D-008: alimentação 45,00 sem nota com `descricao` não textual →
+    `aprovado` com 45,00."""
+    (item,) = avaliar(
+        despesa(valor=Decimal("45.00"), tem_nota_fiscal=False, descricao=descricao)
+    )["itens"]
+
+    # 45,00 ≤ 100,00 (mínimo da nota) e ≤ 60,00 (alimentação, padrao) → aprovado
+    assert (item["status"], item["valor_reembolsado"]) == ("aprovado",
+                                                          Decimal("45.00"))
+
+
 def test_rn002_despesas_mantem_posicao_e_ordem(entrada, despesa):
     """RN-001 / RN-002: uma despesa inválida não afeta as demais; ordem mantida."""
     resultado = _despesas(

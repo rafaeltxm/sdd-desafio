@@ -1,6 +1,6 @@
 # Plano Técnico — Motor de Cálculo de Reembolso
 
-**Versão:** 2.0 · **Baseado na spec:** 2.0 (Política v4, D-007)
+**Versão:** 2.1 · **Baseado na spec:** 2.1 (Política v4, D-007; revisão adversarial, D-008)
 
 > Aqui mora o COMO. Este arquivo pode e deve falar de linguagem, biblioteca e
 > arquitetura. O que ele **não** pode é introduzir regra de negócio nova — se
@@ -14,6 +14,8 @@
 - a CLI recebe `--politica` e `--cambio`.
 
 Ficam iguais a stack, a gravação atômica e a serialização determinística. As decisões novas são DT-011 a DT-016. DT-001, DT-002, DT-005, DT-007 e DT-009 foram atualizadas.
+
+**O que mudou da 2.0 para a 2.1** (spec 2.1, D-008): a busca da cotação vai até D-4 (`DIAS_ANTERIORES_ACEITOS_NA_COTACAO`, seção 4 e DT-014), e a DT-016 foi reaberta para a Fase 6.
 
 ---
 
@@ -47,7 +49,7 @@ câmbio   ─┘  (I/O)   (forma: leitura; conteúdo:     (regras,  (monta     (
 | `leitura.py` | **novo.** Forma comum aos três arquivos (seção 4 da spec, RN-016): bytes → JSON estrito com `Decimal` e `ObjetoJson` (DT-002, DT-010), `ErroDeArquivo`, verificação de escapes e os testes de tipo da DT-003 (`e_numero`, `e_data`, `tem_texto`). Sai de `entrada.py`, sem mudar o comportamento (DT-011) | não |
 | `entrada.py` | documento → `Entrada`. Resolve chaves repetidas e gera os avisos (RN-013); erros de cabeçalho da RN-002 (inclusive `centro_custo` de tipo errado) viram `ErroDeArquivo`; despesa inválida (inclusive `moeda` mal formada) vira `DespesaInvalida` (etapa 1 da seção 8). **Não conhece a política:** guarda a categoria como veio, e quem decide se ela é reconhecida é o motor (seção 3) | não |
 | `politica.py` | documento → `Politica` (RN-016, parte da política); escolha da tabela aplicada (RN-014); limite diário normal e em viagem (RN-009, DT-013); as constantes de interpretação que a spec fixa e o arquivo não traz (seção 4 deste plano) | não |
-| `cambio.py` | **novo.** Documento → `Cambio` (RN-016, parte do câmbio); busca da cotação de D a D-3 (RN-015, DT-014) | não |
+| `cambio.py` | **novo.** Documento → `Cambio` (RN-016, parte do câmbio); busca da cotação de D a D-4 (RN-015, DT-014) | não |
 | `normalizacao.py` | `normalizar_texto()` — os passos da seção 5 da spec | não |
 | `dinheiro.py` | **novo.** `contexto_exato()` (DT-012), `arredondar` (RN-003) e `truncar` (RN-009, DT-013): a aritmética de `Decimal` usada pelo motor e pela política, sem regra de negócio além do modo de arredondamento | não |
 | `motor.py` | etapas 2 a 9 da seção 8; recebe `Entrada`, `Politica` e `Cambio` e devolve `Resultado` | não |
@@ -148,7 +150,7 @@ MOEDA_BASE = "BRL"                                            # RN-015, RN-016
 E em `cambio.py`:
 
 ```python
-DIAS_ANTERIORES_ACEITOS_NA_COTACAO = 3                        # RN-015, AMB-024: D-1 a D-3
+DIAS_ANTERIORES_ACEITOS_NA_COTACAO = 4                        # RN-015, AMB-024: D-1 a D-4
 ```
 
 **Funções** (todas puras):
@@ -290,16 +292,16 @@ Todo item, inclusive o inválido, recebe a categoria de saída de `categoria_de_
 **Alternativa descartada:** `ROUND_FLOOR`: igual para não negativos, mas esconde a intenção. Escrever 90,00 e 120,00 por extenso, como na 1.2: os valores agora vêm do arquivo.
 **Consequência:** 33,33 com 50% dá 49,99, e 60,00 com 50% dá 90,00, iguais à tabela da RN-009. Os testes de limite da 1.x continuam valendo com a tabela `padrao` da v4.
 
-### DT-014 — Busca da cotação de D a D-3
+### DT-014 — Busca da cotação de D a D-4
 
-**Contexto:** RN-015 e AMB-024: a cotação é a da moeda na data da despesa. Se essa data não tem cotação **dessa moeda**, usa-se a data anterior mais próxima que a tenha, até D-3, nunca uma data posterior. `BRL` tem taxa 1 sem consultar o arquivo.
+**Contexto:** RN-015 e AMB-024: a cotação é a da moeda na data da despesa. Se essa data não tem cotação **dessa moeda**, usa-se a data anterior mais próxima que a tenha, até D-4, nunca uma data posterior. `BRL` tem taxa 1 sem consultar o arquivo.
 **Decisão:** `cotacao(cambio, moeda, data)` em `cambio.py`:
 - se `moeda == MOEDA_BASE`, devolve `Cotacao(Decimal(1), None)`;
 - senão, para `dias` de 0 a `DIAS_ANTERIORES_ACEITOS_NA_COTACAO`, calcula `d = data - timedelta(days=dias)` e devolve `Cotacao(taxas[d][moeda], d)` na primeira data em que existe `taxas[d][moeda]`;
-- devolve `None` se nenhuma das quatro datas tem a moeda;
+- devolve `None` se nenhuma das cinco datas tem a moeda;
 - se `data - timedelta` sair do calendário (antes de 0001-01-01), para a busca ali: nenhuma data anterior existe.
 
-**Alternativa descartada:** ordenar as datas do arquivo e procurar a anterior mais próxima com busca binária: mais código para o mesmo resultado com, no máximo, 4 consultas a dicionário. E a janela fixa deixa explícito o "até 3 dias".
+**Alternativa descartada:** ordenar as datas do arquivo e procurar a anterior mais próxima com busca binária: mais código para o mesmo resultado com, no máximo, 5 consultas a dicionário. E a janela fixa deixa explícito o "até 4 dias".
 **Consequência:** uma data intermediária que só cota outras moedas é pulada naturalmente (caso de borda "Data intermediária sem a moeda"). `data_cotacao` sai de `Cotacao.data.isoformat()`, que é igual ao texto do arquivo, porque a chave foi validada como `AAAA-MM-DD` com dígitos ASCII (DT-003).
 
 ### DT-015 — Validação dos arquivos de política e câmbio
@@ -343,6 +345,8 @@ PENDENTES = {            # some quando a Fase 5 terminar (DT-016)
 - **Uma única task com toda a v4:** um commit gigante, sem revisão por regra.
 
 **Consequência:** a suíte fica verde em todo commit da Fase 5. O dono de cada pendência fica visível no código, e uma pendência esquecida ou já resolvida quebra a suíte. A tabela de Cobertura do `tasks.md` é preenchida pela mesma lista.
+
+**Reaberta na Fase 6 (D-008):** a spec 2.1 trouxe 7 casos novos ou renomeados na seção 7. Eles voltam a `PENDENTES`, com donos T-035 e T-036, pelo mesmo mecanismo. A T-036, última da fase, apaga `PENDENTES` de novo.
 
 ## 6. Estratégia de testes
 
