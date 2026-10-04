@@ -137,6 +137,6 @@ Aberto em 02/10 às 19:51 (não às ~10h previstas); planejamento retomado só e
 - [x] Testes passando a partir de um clone limpo, seguindo o README (os três exemplos com `--politica`/`--cambio`)
 - [x] `docs/sessions/` com um export por sessão (01 a 61, sem lacuna)
 - [x] `/export` final (sessão 60) + commit de fim de bloco
-- [ ] **Push** do commit final (até `cfd22df` já está no fork, conferido com `git fetch`)
-- [ ] Confirmar no GitHub que o fork público mostra o último commit
+- [x] **Push** do commit final (`9ee57e7`)
+- [x] Confirmar no GitHub que o fork público mostra o último commit (conferido pela API: público, `main` em `9ee57e7`)
 - [ ] Enviar link do fork no formulário
