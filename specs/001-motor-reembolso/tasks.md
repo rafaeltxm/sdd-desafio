@@ -326,7 +326,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
   - **Casos de borda:** Centro de custo da tabela · Centro de custo fora da tabela · Centro de custo com grafia diferente · Centro de custo só com espaços · Centro de custo de tipo errado · Categoria ausente da tabela do centro de custo · Categoria com limite zero · Representação fora do centro de custo que a define · Representação não amplia em viagem · Limite em viagem truncado · Política sem versão nem vigência
   - **Commit:** 7e38a46
 
-- [ ] **T-030** — Moeda na entrada: `moeda` validada na etapa 1 (`Despesa.moeda`, `BRL` se ausente ou nula; `entrada_invalida` fora do formato) e `itens[].moeda` na saída (`BRL`, como veio se texto, ou nula).
+- [x] **T-030** — Moeda na entrada: `moeda` validada na etapa 1 (`Despesa.moeda`, `BRL` se ausente ou nula; `entrada_invalida` fora do formato) e `itens[].moeda` na saída (`BRL`, como veio se texto, ou nula).
   - **Tipo:** regra
   - **Atende:** RN-002 (`moeda`), AMB-025, seção 4 da spec (`itens[].moeda`)
   - **Substitui:** T-009 (validação de `moeda`)
@@ -340,7 +340,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
     - despesa inválida por outro campo com `"moeda": "EUR"` → `moeda` `EUR`.
     `tests/test_saida.py` passa com `moeda` na posição da seção 4.
   - **Casos de borda:** Moeda em minúsculas · Moeda de tipo errado
-  - **Commit:** —
+  - **Commit:** d63fa0e
 
 - [ ] **T-031** — Conversão: etapa 2 da seção 8, com `cotacao` (T-026), `valor_considerado = arredondar(valor × taxa)` no contexto exato (DT-012) e `cambio_indisponivel` (novo `Motivo`, na ordem da seção 8); `taxa_cambio` e `data_cotacao` na saída; nulos e fora de `valor_solicitado` em `entrada_invalida` e `cambio_indisponivel`; justificativa para `cambio_indisponivel` e para a conversão (DT-009).
   - **Tipo:** regra
