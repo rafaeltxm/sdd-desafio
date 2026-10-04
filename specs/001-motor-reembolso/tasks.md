@@ -308,7 +308,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
   - **Casos de borda:** Centro de custo reservado no arquivo · Política sem tabela padrão · Limite inválido na política · Periodicidade desconhecida · Taxa de câmbio não positiva · Chave repetida na política · Câmbio ausente com despesas em reais · Sem argumento de política
   - **Commit:** 0c4311b
 
-- [ ] **T-029** — Motor com a tabela aplicada: `centro_custo` validado na entrada (RN-002) e copiado na saída; tabela escolhida uma vez (RN-014); categorias, mínimo da nota, percentual e limites vindos da `Politica` (etapas 5, 6 e 9); categoria com limite 0 recusada na etapa 5 (AMB-021); categoria de saída decidida no motor para todo item, e `DespesaInvalida` passa a guardar `categoria_texto`; `politica` (`versao`, `vigencia`, `tabela_aplicada`) e `colaborador.centro_custo` na saída; mínimo da nota passado à justificativa (DT-009). Remove de `politica.py` os limites, o mínimo e as categorias fixas da 1.x; `tests/test_politica.py` sai, e os testes de `Motivo` e `Status` vão para `tests/test_modelo.py`.
+- [x] **T-029** — Motor com a tabela aplicada: `centro_custo` validado na entrada (RN-002) e copiado na saída; tabela escolhida uma vez (RN-014); categorias, mínimo da nota, percentual e limites vindos da `Politica` (etapas 5, 6 e 9); categoria com limite 0 recusada na etapa 5 (AMB-021); categoria de saída decidida no motor para todo item, e `DespesaInvalida` passa a guardar `categoria_texto`; `politica` (`versao`, `vigencia`, `tabela_aplicada`) e `colaborador.centro_custo` na saída; mínimo da nota passado à justificativa (DT-009). Remove de `politica.py` os limites, o mínimo e as categorias fixas da 1.x; `tests/test_politica.py` sai, e os testes de `Motivo` e `Status` vão para `tests/test_modelo.py`.
   - **Tipo:** regra
   - **Atende:** RN-002 (`centro_custo`), RN-006, RN-008 (mínimo do arquivo), RN-009, RN-010 (limite 0 não comprova viagem), RN-014, AMB-017, AMB-020, AMB-021, AMB-022, AMB-027 (origem do mínimo), AMB-029, seção 4 da spec (`colaborador`, `politica`, `itens[].categoria`)
   - **Substitui:** T-009 (categoria dependente da tabela), T-010, T-015, T-016 (mínimo do arquivo), T-018 (percentual, truncamento e limite 0), T-020 (primeira tabela da seção 9)
@@ -324,7 +324,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
     - `tests/test_exemplo.py` passa com a **primeira tabela da seção 9 da spec 2.0**, transcrita à mão: `CC-ENG-PLATAFORMA`, 14 linhas, totais 1.861,84 / 351,43 / 1.510,41, `politica` = `v4` / `2026-07-01` / `CC-ENG-PLATAFORMA`.
     - A suíte da 1.x continua passando com a tabela `padrao` da v4.
   - **Casos de borda:** Centro de custo da tabela · Centro de custo fora da tabela · Centro de custo com grafia diferente · Centro de custo só com espaços · Centro de custo de tipo errado · Categoria ausente da tabela do centro de custo · Categoria com limite zero · Representação fora do centro de custo que a define · Representação não amplia em viagem · Limite em viagem truncado · Política sem versão nem vigência
-  - **Commit:** —
+  - **Commit:** 7e38a46
 
 - [ ] **T-030** — Moeda na entrada: `moeda` validada na etapa 1 (`Despesa.moeda`, `BRL` se ausente ou nula; `entrada_invalida` fora do formato) e `itens[].moeda` na saída (`BRL`, como veio se texto, ou nula).
   - **Tipo:** regra
