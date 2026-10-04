@@ -301,3 +301,135 @@ def test_rn002_saida_nao_gravavel_mensagem_da_saida(tmp_path, capsys):
 
     assert _calcular(entrada, tmp_path / "nao_existe" / "saida.json") == 1
     assert capsys.readouterr().err.startswith("erro: saída:")
+
+
+def _linha(tmp_path, *argumentos: str) -> tuple[list[str], Path]:
+    """Linha de comando com `{entrada}`, `{politica}`, `{outra}`, `{cambio}` e
+    `{saida}` preenchidos; devolve a linha e o caminho da saída."""
+    entrada = tmp_path / "entrada.json"
+    entrada.write_text(ENTRADA_VALIDA, encoding="utf-8")
+    outra = tmp_path / "outra.json"
+    outra.write_text(simplejson.dumps(construir_politica(), use_decimal=True),
+                     encoding="utf-8")
+    saida = tmp_path / "saida.json"
+    caminhos = {"entrada": entrada, "politica": POLITICA, "outra": outra,
+                "cambio": CAMBIO, "saida": saida}
+    return [a.format(**caminhos) for a in argumentos], saida
+
+
+ARGUMENTOS_INVALIDOS = [
+    pytest.param(
+        ("calcular", "--input", "{entrada}", "--politica", "{politica}",
+         "--politica", "{outra}", "--cambio", "{cambio}", "--output", "{saida}"),
+        id="--politica repetido no meio",
+    ),
+    pytest.param(
+        ("calcular", "--input", "{entrada}", "--politica", "{politica}",
+         "--cambio", "{cambio}", "--output", "{saida}", "--politica", "{outra}"),
+        id="--politica repetido no fim",
+    ),
+    pytest.param(
+        ("calcular", "--input", "{entrada}", "--politica", "{politica}",
+         "--politica", "{politica}", "--cambio", "{cambio}", "--output", "{saida}"),
+        id="--politica repetido com o mesmo arquivo",
+    ),
+    pytest.param(
+        ("calcular", "--input", "{entrada}", "--input={entrada}",
+         "--politica", "{politica}", "--cambio", "{cambio}", "--output", "{saida}"),
+        id="--input e --input=",
+    ),
+    pytest.param(
+        ("calcular", "--inp", "{entrada}", "--politica", "{politica}",
+         "--cambio", "{cambio}", "--output", "{saida}"),
+        id="prefixo abreviado --inp",
+    ),
+    pytest.param(
+        ("calcular", "--input", "{entrada}", "--politica", "{politica}",
+         "--cambio", "{cambio}", "--output", "{saida}", "--verbose"),
+        id="--verbose",
+    ),
+    pytest.param(
+        ("calcular", "--input", "{entrada}", "--politica", "{politica}",
+         "--cambio", "{cambio}", "--output", "{saida}", "extra"),
+        id="posicional sobrando",
+    ),
+    pytest.param(
+        ("calcular", "--", "--input", "{entrada}", "--politica", "{politica}",
+         "--cambio", "{cambio}", "--output", "{saida}"),
+        id="-- antes dos argumentos",
+    ),
+    pytest.param(
+        ("--input", "{entrada}", "calcular", "--politica", "{politica}",
+         "--cambio", "{cambio}", "--output", "{saida}"),
+        id="opção antes do subcomando",
+    ),
+]
+
+
+@pytest.mark.parametrize("argumentos", ARGUMENTOS_INVALIDOS)
+def test_argumento_repetido_desconhecido_ou_sobrando_e_erro_de_uso(
+    tmp_path, capsys, argumentos
+):
+    """Seção 4 (Interface) / AMB-031: argumento repetido (mesmo com o mesmo
+    arquivo, e `--opção=valor` conta como a mesma opção), desconhecido (inclusive
+    prefixo abreviado, `--` e opção antes do subcomando) ou sobrando é erro de
+    uso: código diferente de 0 e saída não criada."""
+    linha, saida = _linha(tmp_path, *argumentos)
+
+    assert executar(*linha) != 0
+    assert not saida.exists()
+    erro = capsys.readouterr().err
+    assert erro.strip() != ""
+    assert "Traceback" not in erro
+
+
+@pytest.mark.parametrize("argumentos", ARGUMENTOS_INVALIDOS)
+def test_argumento_repetido_desconhecido_ou_sobrando_preserva_saida(
+    tmp_path, argumentos
+):
+    """Seção 4 (Interface): no erro de uso, a saída que já existia fica intacta."""
+    linha, saida = _linha(tmp_path, *argumentos)
+    saida.write_bytes(CONTEUDO_ANTERIOR)
+
+    assert executar(*linha) != 0
+    assert saida.read_bytes() == CONTEUDO_ANTERIOR
+
+
+def test_forma_com_igual_e_a_mesma_opcao(tmp_path):
+    """Seção 4 (Interface): `--opção=valor` é a mesma opção que a forma separada,
+    com o mesmo resultado."""
+    separada, saida_separada = _linha(
+        tmp_path, "calcular", "--input", "{entrada}", "--politica", "{politica}",
+        "--cambio", "{cambio}", "--output", "{saida}",
+    )
+    com_igual = [
+        "calcular", f"--input={separada[2]}", f"--politica={POLITICA}",
+        f"--cambio={CAMBIO}", f"--output={tmp_path / 'saida_igual.json'}",
+    ]
+
+    assert executar(*separada) == 0
+    assert executar(*com_igual) == 0
+    assert (tmp_path / "saida_igual.json").read_bytes() == saida_separada.read_bytes()
+
+
+@pytest.mark.parametrize(
+    "argumentos",
+    [("-h",), ("calcular", "--help"),
+     ("calcular", "--input", "{entrada}", "--politica", "{politica}",
+      "--cambio", "{cambio}", "--output", "{saida}", "--help")],
+    ids=["-h", "calcular --help", "linha completa com --help"],
+)
+@pytest.mark.parametrize("preexistente", [False, True], ids=["sem saída", "com saída"])
+def test_ajuda_codigo_0_sem_tocar_a_saida(tmp_path, capsys, argumentos, preexistente):
+    """Seção 4 (Interface): `-h`/`--help` mostra o uso e termina com código 0, sem
+    criar nem alterar o arquivo de saída."""
+    linha, saida = _linha(tmp_path, *argumentos)
+    if preexistente:
+        saida.write_bytes(CONTEUDO_ANTERIOR)
+
+    assert executar(*linha) == 0
+    assert "usage" in capsys.readouterr().out
+    if preexistente:
+        assert saida.read_bytes() == CONTEUDO_ANTERIOR
+    else:
+        assert not saida.exists()

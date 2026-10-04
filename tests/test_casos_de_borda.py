@@ -1382,6 +1382,57 @@ def _cambio(**sobrescritas):
     return simplejson.dumps(construir_cambio(**sobrescritas), use_decimal=True)
 
 
+_INPUT, _CAMBIO, _OUTPUT = ("--input", "{e}"), ("--cambio", "{c}"), ("--output", "{s}")
+_POLITICA, _OUTRA = ("--politica", "{p}"), ("--politica", "{o}")
+
+CASOS_DE_ARGUMENTOS = [
+    # cada caso: as linhas de comando da coluna "Entrada", todas erro de uso
+    pytest.param(
+        [
+            (*_INPUT, *_POLITICA, *_OUTRA, *_CAMBIO, *_OUTPUT),
+            (*_INPUT, *_POLITICA, *_CAMBIO, *_OUTPUT, *_OUTRA),
+            (*_INPUT, *_POLITICA, *_POLITICA, *_CAMBIO, *_OUTPUT),
+        ],
+        id="Argumento repetido",
+    ),
+    pytest.param(
+        [
+            (*_INPUT, *_POLITICA, *_CAMBIO, *_OUTPUT, "--verbose"),
+            ("--inp", "{e}", *_POLITICA, *_CAMBIO, *_OUTPUT),
+        ],
+        id="Argumento desconhecido",
+    ),
+    pytest.param(
+        [(*_INPUT, *_POLITICA, *_CAMBIO, *_OUTPUT, "extra")],
+        id="Argumento sobrando",
+    ),
+]
+
+
+@pytest.mark.parametrize("linhas", CASOS_DE_ARGUMENTOS)
+@pytest.mark.parametrize("preexistente", [False, True], ids=["sem saída", "com saída"])
+def test_caso_de_borda_de_argumentos(tmp_path, linhas, preexistente):
+    """Seção 7 da spec / AMB-031: argumento repetido, desconhecido ou sobrando é
+    erro de uso (seção 4): código diferente de 0, saída não criada nem alterada."""
+    caminhos = {}
+    for chave, nome, texto in [("e", "e.json", _json(despesa())),
+                               ("p", "politica-v4.json", _politica()),
+                               ("o", "outra.json", _politica()),
+                               ("c", "c.json", _cambio())]:
+        caminhos[chave] = tmp_path / nome
+        caminhos[chave].write_text(texto, encoding="utf-8")
+    saida = caminhos["s"] = tmp_path / "s.json"
+
+    for linha in linhas:
+        if preexistente:
+            saida.write_bytes(_SAIDA_ANTERIOR)
+        assert _cli("calcular", *(a.format(**caminhos) for a in linha)) != 0
+        if preexistente:
+            assert saida.read_bytes() == _SAIDA_ANTERIOR
+        else:
+            assert not saida.exists()
+
+
 def _politica_com(caminho, valor):
     """Política v4 com `valor` no `caminho` (tupla de chaves) → texto JSON."""
     documento = construir_politica()

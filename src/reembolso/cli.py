@@ -19,14 +19,23 @@ SUCESSO = 0
 ERRO_DE_ARQUIVO = 1  # DT-007; o erro de uso sai com 2, padrão do `argparse`
 
 
+class _UmaVez(argparse.Action):
+    """Opção aceita uma vez só, separada ou `--opção=valor`; nunca vale "a última
+    ocorrência" (seção 4 da spec, Interface)."""
+
+    def __call__(self, parser, namespace, valor, opcao=None):
+        if getattr(namespace, self.dest) is not None:
+            parser.error(f"argumento {opcao} repetido")
+        setattr(namespace, self.dest, valor)
+
+
 def _argumentos() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="reembolso")
+    # prefixo abreviado (`--inp`) é argumento desconhecido (seção 4, Interface)
+    parser = argparse.ArgumentParser(prog="reembolso", allow_abbrev=False)
     subcomandos = parser.add_subparsers(dest="subcomando", required=True)
-    calcular_ = subcomandos.add_parser("calcular")
-    calcular_.add_argument("--input", required=True, type=Path)
-    calcular_.add_argument("--politica", required=True, type=Path)
-    calcular_.add_argument("--cambio", required=True, type=Path)
-    calcular_.add_argument("--output", required=True, type=Path)
+    calcular_ = subcomandos.add_parser("calcular", allow_abbrev=False)
+    for opcao in ("--input", "--politica", "--cambio", "--output"):
+        calcular_.add_argument(opcao, required=True, type=Path, action=_UmaVez)
     return parser
 
 

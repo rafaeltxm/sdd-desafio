@@ -433,7 +433,7 @@ Preenchida ao fechar cada fase (a T-021 confere que não falta nada).
 | Regra da spec | Task | Teste |
 |---|---|---|
 | RN-001 | T-010, T-011, T-033 | `test_rn001_um_resultado_por_despesa.py`, `test_exemplo.py` |
-| RN-002 | T-006, T-008, T-009, T-011, T-019, T-023, T-029, T-030 | `test_leitura_json.py`, `test_rn002_validacao_da_entrada.py`, `test_cli.py` |
+| RN-002 | T-006, T-008, T-009, T-011, T-019, T-023, T-029, T-030, T-035 | `test_leitura_json.py`, `test_rn002_validacao_da_entrada.py`, `test_cli.py` |
 | RN-003 | T-010, T-024, T-031 | `test_rn003_arredondamento.py`, `test_dinheiro.py` |
 | RN-004 | T-013, T-031 | `test_rn004_valor_positivo.py` |
 | RN-005 | T-014 | `test_rn005_periodo.py` |
@@ -446,10 +446,10 @@ Preenchida ao fechar cada fase (a T-021 confere que não falta nada).
 | RN-012 | T-010, T-018 | `test_rn012_hospedagem_uma_diaria.py` |
 | RN-013 | T-007, T-012, T-023 | `test_rn013_chave_repetida.py` |
 | RN-014 | T-027, T-029 | `test_rn014_tabela_aplicada.py` |
-| RN-015 | T-026, T-031 | `test_rn015_moeda_e_cambio.py` |
+| RN-015 | T-026, T-031, T-035 | `test_rn015_moeda_e_cambio.py` |
 | RN-016 | T-025, T-026, T-028 | `test_rn016_arquivos_de_politica_e_cambio.py`, `test_cli.py` |
 | Seção 5 (normalização) | T-003 | `test_normalizacao.py` |
-| Seção 7 (100 casos) | T-010 a T-019, T-028 a T-032 | `test_casos_de_borda.py` |
+| Seção 7 (105 casos) | T-010 a T-019, T-028 a T-032, T-035, T-036 | `test_casos_de_borda.py` |
 | Seção 9 (três arquivos) | T-020, T-033 | `test_exemplo.py` |
 | AMB-001, AMB-002, AMB-003 | T-010 | `test_rn009_limite_diario.py` |
 | AMB-004 | T-018 | `test_rn010_viagem.py` |
@@ -471,11 +471,11 @@ Preenchida ao fechar cada fase (a T-021 confere que não falta nada).
 | AMB-021 | T-029 | `test_rn006_categorias.py`, `test_rn010_viagem.py`, `test_casos_de_borda.py` |
 | AMB-022 | T-024, T-027, T-029 | `test_rn009_limite_diario.py`, `test_casos_de_borda.py` |
 | AMB-023 | T-031 | `test_rn015_moeda_e_cambio.py`, `test_rn010_viagem.py` |
-| AMB-024 | T-026, T-031 | `test_rn015_moeda_e_cambio.py` |
+| AMB-024 | T-026, T-031, T-035 | `test_rn015_moeda_e_cambio.py` |
 | AMB-025 | T-026, T-030 | `test_rn015_moeda_e_cambio.py`, `test_rn002_validacao_da_entrada.py`, `test_leitura.py` |
 | AMB-026 | T-024, T-031 | `test_dinheiro.py`, `test_rn003_arredondamento.py`, `test_rn004_valor_positivo.py` |
 | AMB-027 | T-029, T-031 | `test_rn008_nota_fiscal.py` |
 | AMB-028 | T-032 | `test_rn007_duplicatas.py`, `test_casos_de_borda.py` |
 | AMB-029 | T-025, T-029 | `test_rn016_arquivos_de_politica_e_cambio.py`, `test_rn014_tabela_aplicada.py` |
 | AMB-030 | nenhuma (não implementado, seção 3) | `test_modelo.py` (`test_rn011_status_da_saida`: só os três status da RN-011, sem estado de pendência) |
-| AMB-031 | T-025, T-028 | `test_rn016_arquivos_de_politica_e_cambio.py`, `test_cli.py`, `test_casos_de_borda.py` |
+| AMB-031 | T-025, T-028, T-036 | `test_rn016_arquivos_de_politica_e_cambio.py`, `test_cli.py`, `test_casos_de_borda.py` |
