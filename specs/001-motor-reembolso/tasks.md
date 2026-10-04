@@ -412,7 +412,7 @@ Tasks das decisões da D-008 que mudam código ou exigem teste novo. Os demais p
   - **Casos de borda:** Cotação exatamente 4 dias antes · Cotação 5 dias antes · Terça de Carnaval · Descrição nula ou de outro tipo (substituem "Cotação exatamente 3 dias antes" e "Cotação 4 dias antes", cujos `id` saem de `test_casos_de_borda.py`)
   - **Commit:** 436d6c7
 
-- [ ] **T-036** — CLI: argumento repetido e prefixo abreviado são erro de uso; fim das pendências da Fase 6. `cli.py` com `allow_abbrev=False` e recusa da segunda ocorrência de `--input`, `--politica`, `--cambio` ou `--output`, inclusive na forma `--opção=valor`; `PENDENTES` e o código que o lê apagados de `test_rastreabilidade.py`; tabela de Cobertura com 105 casos.
+- [x] **T-036** — CLI: argumento repetido e prefixo abreviado são erro de uso; fim das pendências da Fase 6. `cli.py` com `allow_abbrev=False` e recusa da segunda ocorrência de `--input`, `--politica`, `--cambio` ou `--output`, inclusive na forma `--opção=valor`; `PENDENTES` e o código que o lê apagados de `test_rastreabilidade.py`; tabela de Cobertura com 105 casos.
   - **Tipo:** estrutura
   - **Atende:** seção 4 (Interface), AMB-031, D-008 (ponto 6, R2-2), DT-016
   - **Depende de:** T-035
@@ -423,6 +423,7 @@ Tasks das decisões da D-008 que mudam código ou exigem teste novo. Os demais p
     - `-h` e `calcular --help` → código 0, saída não criada e saída que já existia sem alteração.
     `tests/test_rastreabilidade.py` passa sem nenhuma pendência.
   - **Casos de borda:** Argumento repetido · Argumento desconhecido · Argumento sobrando
+  - **Commit:** 2594725
 
 ---
 
