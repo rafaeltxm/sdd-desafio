@@ -293,7 +293,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
     - `categoria_de_saida`: `"ALIMENTACAO"` → `alimentacao`; `"hospedagem"` com `CC-ENG-PLATAFORMA` (limite 0) → `hospedagem`; `"representacao"` com `padrao` → `representacao` como veio; `"Coworking"` → `Coworking`; não texto → `None`.
   - **Commit:** 4bbfdaf
 
-- [ ] **T-028** — CLI com política e câmbio: `--politica` e `--cambio` obrigatórios; leitura dos três arquivos, validação na ordem política → câmbio → entrada; mensagem `erro: <arquivo>: ...` (DT-007); `calcular(entrada, politica, cambio)` recebe os dois, mas o motor só os usa a partir da T-029; `processar()` do `conftest.py` passa a v4 e o câmbio transcritos quando o teste não informa outros.
+- [x] **T-028** — CLI com política e câmbio: `--politica` e `--cambio` obrigatórios; leitura dos três arquivos, validação na ordem política → câmbio → entrada; mensagem `erro: <arquivo>: ...` (DT-007); `calcular(entrada, politica, cambio)` recebe os dois, mas o motor só os usa a partir da T-029; `processar()` do `conftest.py` passa a v4 e o câmbio transcritos quando o teste não informa outros.
   - **Tipo:** estrutura (CLI)
   - **Atende:** seção 4 da spec (Interface), RN-016 (erro de arquivo na política e no câmbio), AMB-031, DT-006, DT-007
   - **Substitui:** T-019 (CLI com quatro argumentos)
@@ -306,7 +306,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
     - **Ordem:** política inválida e entrada inválida juntas → a mensagem é da política.
     - **Exemplo:** `test_exemplo.py` continua com a tabela da 1.9 (o motor ainda não lê a política), agora chamado com `exemplos/envelope/politica-v4.json` e `cambio.json`.
   - **Casos de borda:** Centro de custo reservado no arquivo · Política sem tabela padrão · Limite inválido na política · Periodicidade desconhecida · Taxa de câmbio não positiva · Chave repetida na política · Câmbio ausente com despesas em reais · Sem argumento de política
-  - **Commit:** —
+  - **Commit:** 0c4311b
 
 - [ ] **T-029** — Motor com a tabela aplicada: `centro_custo` validado na entrada (RN-002) e copiado na saída; tabela escolhida uma vez (RN-014); categorias, mínimo da nota, percentual e limites vindos da `Politica` (etapas 5, 6 e 9); categoria com limite 0 recusada na etapa 5 (AMB-021); categoria de saída decidida no motor para todo item, e `DespesaInvalida` passa a guardar `categoria_texto`; `politica` (`versao`, `vigencia`, `tabela_aplicada`) e `colaborador.centro_custo` na saída; mínimo da nota passado à justificativa (DT-009). Remove de `politica.py` os limites, o mínimo e as categorias fixas da 1.x; `tests/test_politica.py` sai, e os testes de `Motivo` e `Status` vão para `tests/test_modelo.py`.
   - **Tipo:** regra
