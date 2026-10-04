@@ -1,6 +1,6 @@
 # Tasks — Motor de Cálculo de Reembolso
 
-**Versão:** 1.2 · **Baseado em:** spec 1.9, plan 1.2
+**Versão:** 2.0 · **Baseado em:** spec 2.0, plan 2.0
 
 > Cada task é pequena o bastante para virar **um commit**. Se você não consegue
 > descrever o critério de aceite como "o teste X passa", a task está grande demais.
@@ -16,7 +16,7 @@
 - **Atende:** as `RN-`/`AMB-` da spec (e as `DT-` do plano) que a task implementa.
 - **Depende de:** tasks que precisam estar `[x]` antes.
 - **Aceite:** os testes que precisam passar. Arquivos em `tests/`; nomes conforme `plan.md` seção 6.
-- **Casos de borda:** linhas da tabela da seção 7 da spec que a task cobre, cada uma um caso de `tests/test_casos_de_borda.py` com `id` igual ao texto da coluna "Caso". As 63 linhas estão distribuídas entre as tasks; nenhuma fica sem dono.
+- **Casos de borda:** linhas da tabela da seção 7 da spec que a task cobre, cada uma um caso de `tests/test_casos_de_borda.py` com `id` igual ao texto da coluna "Caso". As 100 linhas (63 da 1.x e 37 da 2.0) estão distribuídas entre as tasks; nenhuma fica sem dono.
 
 O esperado de todo teste é calculado à mão a partir da spec, nunca copiado da saída do programa.
 
@@ -191,10 +191,209 @@ O motor segue o DT-005: fase individual (lista ordenada de verificações, etapa
 
 ---
 
-## Fase 5 — Envelope (criar no Dia 2)
+## Fase 5 — Envelope: Política v4 (spec 2.0, D-007)
 
-<Novas tasks a partir da mudança de requisito. Numeração continua de onde parou —
-não reinicie e não renumere as antigas: a numeração é o eixo da rastreabilidade.>
+Tasks da mudança de requisito do Dia 2 (D-007, plan 2.0). As tasks da 1.x **não são desmarcadas**: as que o D-007 lista como afetadas são substituídas pelas tasks abaixo, e cada uma diz o que substitui. A ordem mantém a suíte verde em todo commit:
+1. **Fundação:** pendências da rastreabilidade (DT-016), `leitura.py` e `dinheiro.py`.
+2. **Peças puras:** leitores de política e câmbio, seleção da tabela e limite.
+3. **Ligação:** a CLI recebe os dois arquivos, e depois o motor passa a usá-los.
+4. **Moeda:** validação, depois conversão, depois duplicata.
+5. **Fechamento:** aceite com os três arquivos e fim das pendências.
+
+Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendência de `PENDENTES` no mesmo commit (DT-016). O dono de cada pendência é a task que lista o caso em **Casos de borda**, ou a regra em **Remove pendência**.
+
+- [ ] **T-022** — Pendências da rastreabilidade: `PENDENTES` em `tests/test_rastreabilidade.py`, com RN-014, RN-015, RN-016 e os 37 casos novos da seção 7, cada um com a task dona (DT-016); arquivos de `exemplos/envelope/` versionados.
+  - **Tipo:** estrutura
+  - **Atende:** DT-016, seção 9 da spec (rastreabilidade)
+  - **Depende de:** T-021
+  - **Aceite:** `uv run pytest -q` verde. `tests/test_rastreabilidade.py` passa e ganha:
+    - `test_pendencia_com_teste_falha`: uma pendência que já tem teste faz a verificação falhar;
+    - `test_pendencia_fora_da_spec_falha`: uma pendência que não está na spec faz a verificação falhar;
+    - `test_dono_da_pendencia_e_task_da_fase_5`: todo dono é uma task `T-022` a `T-034` existente em `tasks.md`.
+    As três verificações são testadas sobre conjuntos montados no teste, sem editar a spec. Os 37 casos e os donos são os desta fase.
+  - **Commit:** —
+
+- [ ] **T-023** — `leitura.py`: mover de `entrada.py` a forma do arquivo (`ler_json`, `ObjetoJson`, `ErroDeArquivo`, verificação de escapes) e os testes de tipo da DT-003 (`e_numero`, `e_data`, `tem_texto`), sem mudar comportamento; acrescentar `e_codigo_de_moeda`, `tem_ate_2_casas` e `rejeitar_chaves_repetidas` (DT-010, DT-011).
+  - **Tipo:** estrutura (leitura de JSON; commit `refactor(T-023)`)
+  - **Atende:** DT-002, DT-003, DT-010, DT-011; prepara RN-016 (mesma forma para os três arquivos)
+  - **Depende de:** T-022
+  - **Aceite:**
+    - `tests/test_leitura_json.py` passa importando de `reembolso.leitura`, sem nenhum outro teste alterado além dos imports.
+    - `tests/test_leitura.py` (novo) passa:
+      - `e_codigo_de_moeda`: `EUR` → sim; `eur`, `" EUR"`, `"EUR\n"`, `"EURO"`, `"R$"`, `""`, `978`, `"ÉUR"` → não;
+      - `tem_ate_2_casas`: `60.000`, `6E1` e `0` → sim; `60.005` e `1E-999999` → não;
+      - `rejeitar_chaves_repetidas`: chave repetida no topo, em objeto aninhado e dentro de lista → `ErroDeArquivo` com o caminho na mensagem; documento sem repetição → sem erro.
+    - `entrada.py` não define mais nenhuma dessas funções.
+  - **Commit:** —
+
+- [ ] **T-024** — `dinheiro.py`: `contexto_exato()`, `arredondar` (movido de `motor.py`) e `truncar` (DT-012, DT-013).
+  - **Tipo:** regra
+  - **Atende:** RN-003 (produto exato arredondado uma vez), RN-009 (limite em viagem truncado), AMB-022, AMB-026, DT-012, DT-013
+  - **Depende de:** T-023
+  - **Aceite:** `tests/test_dinheiro.py` passa:
+    - `test_rn003_produto_exato_arredondado_uma_vez`: `16.8649 × 5.93` → 100,01 (não 99,98); `0.001 × 5.93` → 0,01;
+    - `test_produto_com_mais_de_28_digitos_e_exato`: `999999999.99999999999 × 5.123456789123456789`, conferido contra a conta à mão;
+    - `test_soma_com_mais_de_28_casas_e_exata`: `100 + 0.000…01` (41 casas);
+    - `test_produto_com_expoente_minimo`: `1E-999999 × 5.93` → `5.93E-999999`, sem subnormal;
+    - `test_rn009_truncar`: `49.995` → 49,99; `90.00` → 90,00;
+    - `test_conta_inexata_levanta_erro`: uma divisão inexata dentro de `contexto_exato()` levanta exceção.
+    `motor.py` importa `arredondar` de `dinheiro.py`, e a suíte da 1.x passa sem mudança.
+  - **Commit:** —
+
+- [ ] **T-025** — Leitor do arquivo de política: `ler_politica(bytes) -> Politica`, com a parte da RN-016 sobre a política (DT-015); `Politica` em `modelo.py`; construtor `construir_politica(**sobrescritas)` em `tests/conftest.py`, com a v4 transcrita (plan seção 6).
+  - **Tipo:** regra
+  - **Atende:** RN-016 (política), AMB-029 (`versao` e `vigencia` opcionais), AMB-031, DT-015
+  - **Substitui:** T-002 (política como dados, não constantes; as constantes da 1.x continuam até a T-029)
+  - **Depende de:** T-023
+  - **Remove pendência:** RN-016
+  - **Aceite:** `tests/test_rn016_arquivos_de_politica_e_cambio.py` passa os testes da política, cada um com `ErroDeArquivo` e o campo na mensagem:
+    - **Forma:** UTF-8 inválido, JSON inválido, escape sem par, chave repetida em qualquer objeto (`alimentacao` duas vezes na mesma tabela; `versao` duas vezes na raiz).
+    - **Raiz:** raiz que não é objeto; `versao` só com espaços ou não texto; `vigencia` `"2026-7-1"` ou `2026`; `moeda_base` `"brl"` ou `1`.
+    - **Tabelas:** `padrao` ausente ou lista; `centros_custo` lista ou com valor que não é tabela; chave de `centros_custo` `"padrao"`, `""` ou `"  "`.
+    - **Números:** `nota_fiscal_obrigatoria_acima_de` ausente, `"100"`, `-1` ou `100.001`; `acrescimo_em_viagem_percentual` ausente, texto ou `-1`.
+    - **Regras de categoria:** nome que normaliza vazio (`"-"`); `"Alimentação"` e `"alimentacao"` na mesma tabela; regra que não é objeto; `limite` ausente, `"60"`, `-10`, `60.005`; `periodicidade` ausente ou `"mes"`.
+    - **Teto:** `limite`, mínimo ou percentual `1000000000` ou `1e999999`.
+    - **Válidos:** `politica-v4` transcrita → `Politica` com as quatro tabelas indexadas pela categoria normalizada e os centros de custo pela chave como escrita; sem `versao`, `vigencia`, `moeda_base` e `centros_custo` (ou com `null`) → válida, `versao` e `vigencia` `None`; `60.000` → 60,00; `periodicidade` `"diaria"` em qualquer categoria; tabela vazia; `observacao` numa regra e campo desconhecido na raiz ignorados; limite `-0` → 0.
+  - **Commit:** —
+
+- [ ] **T-026** — Leitor do câmbio e busca da cotação: `ler_cambio(bytes) -> Cambio` (RN-016, parte do câmbio) e `cotacao(cambio, moeda, data) -> Cotacao | None` (RN-015, DT-014); `Cambio` e `Cotacao` em `modelo.py`; construtor `construir_cambio(taxas=...)` em `tests/conftest.py`, com o `cambio.json` do envelope transcrito.
+  - **Tipo:** regra
+  - **Atende:** RN-015 (taxa da data, D-1 a D-3, só a mesma moeda, nunca posterior, `BRL` taxa 1), RN-016 (câmbio), AMB-024, AMB-025 (`BRL` fora do arquivo; código sem cotação), DT-014, DT-015
+  - **Depende de:** T-023
+  - **Remove pendência:** RN-015
+  - **Aceite:**
+    - `tests/test_rn015_moeda_e_cambio.py` passa os testes da busca, com o câmbio do envelope salvo indicação:
+      - EUR em 14/07 → 5,93 de 14/07; EUR em 18/07 (sábado) → 5,96 de 17/07;
+      - câmbio só com 13/07: USD em 16/07 → 13/07 (D-3) e USD em 17/07 → `None` (D-4);
+      - USD em 12/07 → `None` (nunca a cotação posterior de 13/07); GBP e `XYZ` → `None`;
+      - câmbio com 13/07 (USD, EUR) e 14/07 (só USD): EUR em 15/07 → 5,91 de 13/07;
+      - `BRL` → taxa 1, data `None`, mesmo com câmbio vazio ou com `"BRL": 7` no arquivo;
+      - data em 0001-01-02 → busca sem erro.
+    - `tests/test_rn016_arquivos_de_politica_e_cambio.py` passa os testes do câmbio, cada um com `ErroDeArquivo`: raiz que não é objeto; `moeda_base` diferente de `"BRL"`; `taxas` ausente ou lista; data `"2026-07-32"` ou `"2026-7-13"`; valor de data que não é objeto; código `"usd"` ou `"US"`; taxa `0`, `-5.4`, `"5.4"` ou `1e999999`; chave repetida (mesma data duas vezes; mesma moeda duas vezes na data).
+    - Câmbio com `"BRL": 0` ou `"BRL": "x"` numa data e com `fonte` e `observacao` na raiz → válido.
+  - **Commit:** —
+
+- [ ] **T-027** — Tabela aplicada e limite: `tabela_aplicada(politica, centro_custo)` (RN-014), `limite_diario(tabela, categoria, em_viagem, percentual)` com truncamento (RN-009, DT-013) e `categoria_de_saida(texto, tabela)` (seção 4 da spec), em `politica.py`, com as constantes de interpretação da seção 4 do plano.
+  - **Tipo:** regra
+  - **Atende:** RN-014, RN-009 (limite normal e em viagem do arquivo), RN-006 (categorias da tabela aplicada), AMB-006, AMB-020, AMB-022, seção 4 da spec (`itens[].categoria`)
+  - **Depende de:** T-024, T-025
+  - **Remove pendência:** RN-014
+  - **Aceite:**
+    - `tests/test_rn014_tabela_aplicada.py` passa, com a v4 transcrita:
+      - `"CC-COMERCIAL"` → tabela `CC-COMERCIAL`;
+      - `"CC-SUPORTE-N2"`, `"cc-adm"`, `"CC-ADM "`, `None`, `""` e `"  "` → `padrao`;
+      - política sem `centros_custo` → `padrao` para qualquer centro de custo;
+      - `CC-ADM` não tem `hospedagem`, mesmo existindo no `padrao`, porque a tabela é fechada (AMB-020).
+    - `tests/test_rn009_limite_diario.py` ganha os testes de `limite_diario`:
+      - `padrao` em viagem dá 90,00, 120,00 e 250,00 (hospedagem não amplia);
+      - `CC-COMERCIAL` em viagem dá alimentação 135,00 e representação 300,00 (não amplia, AMB-022);
+      - alimentação 33,33 com 50% → 49,99;
+      - percentual 0 → limite normal;
+      - percentual com mais de 28 casas → conferido à mão.
+    - `categoria_de_saida`: `"ALIMENTACAO"` → `alimentacao`; `"hospedagem"` com `CC-ENG-PLATAFORMA` (limite 0) → `hospedagem`; `"representacao"` com `padrao` → `representacao` como veio; `"Coworking"` → `Coworking`; não texto → `None`.
+  - **Commit:** —
+
+- [ ] **T-028** — CLI com política e câmbio: `--politica` e `--cambio` obrigatórios; leitura dos três arquivos, validação na ordem política → câmbio → entrada; mensagem `erro: <arquivo>: ...` (DT-007); `calcular(entrada, politica, cambio)` recebe os dois, mas o motor só os usa a partir da T-029; `processar()` do `conftest.py` passa a v4 e o câmbio transcritos quando o teste não informa outros.
+  - **Tipo:** estrutura (CLI)
+  - **Atende:** seção 4 da spec (Interface), RN-016 (erro de arquivo na política e no câmbio), AMB-031, DT-006, DT-007
+  - **Substitui:** T-019 (CLI com quatro argumentos)
+  - **Depende de:** T-025, T-026
+  - **Aceite:** `tests/test_cli.py` passa, com todas as chamadas de `main` (inclusive em `test_exemplo.py` e `test_casos_de_borda.py`) atualizadas para os quatro argumentos:
+    - **Sucesso:** código 0.
+    - **Erro de uso:** sem `--politica` ou sem `--cambio` → código 2, sem saída.
+    - **Arquivos:** política ausente, câmbio ausente (com todas as despesas em BRL) ou política inválida → código 1, sem saída. Com saída preexistente, o arquivo continua intacto byte a byte em erro de qualquer um dos três arquivos.
+    - **Mensagem:** stderr começa com `erro: política:`, `erro: câmbio:` ou `erro: entrada:`, sem `Traceback`.
+    - **Ordem:** política inválida e entrada inválida juntas → a mensagem é da política.
+    - **Exemplo:** `test_exemplo.py` continua com a tabela da 1.9 (o motor ainda não lê a política), agora chamado com `exemplos/envelope/politica-v4.json` e `cambio.json`.
+  - **Casos de borda:** Centro de custo reservado no arquivo · Política sem tabela padrão · Limite inválido na política · Periodicidade desconhecida · Taxa de câmbio não positiva · Chave repetida na política · Câmbio ausente com despesas em reais · Sem argumento de política
+  - **Commit:** —
+
+- [ ] **T-029** — Motor com a tabela aplicada: `centro_custo` validado na entrada (RN-002) e copiado na saída; tabela escolhida uma vez (RN-014); categorias, mínimo da nota, percentual e limites vindos da `Politica` (etapas 5, 6 e 9); categoria com limite 0 recusada na etapa 5 (AMB-021); categoria de saída decidida no motor para todo item, e `DespesaInvalida` passa a guardar `categoria_texto`; `politica` (`versao`, `vigencia`, `tabela_aplicada`) e `colaborador.centro_custo` na saída; mínimo da nota passado à justificativa (DT-009). Remove de `politica.py` os limites, o mínimo e as categorias fixas da 1.x; `tests/test_politica.py` sai, e os testes de `Motivo` e `Status` vão para `tests/test_modelo.py`.
+  - **Tipo:** regra
+  - **Atende:** RN-002 (`centro_custo`), RN-006, RN-008 (mínimo do arquivo), RN-009, RN-010 (limite 0 não comprova viagem), RN-014, AMB-017, AMB-020, AMB-021, AMB-022, AMB-027 (origem do mínimo), AMB-029, seção 4 da spec (`colaborador`, `politica`, `itens[].categoria`)
+  - **Substitui:** T-009 (categoria dependente da tabela), T-010, T-015, T-016 (mínimo do arquivo), T-018 (percentual, truncamento e limite 0), T-020 (primeira tabela da seção 9)
+  - **Depende de:** T-027, T-028
+  - **Aceite:**
+    - `tests/test_rn014_tabela_aplicada.py` ganha os testes de ponta a ponta do **Aceite** da RN-014: `CC-COMERCIAL` com alimentação 85,00 → limite 90,00, `aprovado`; `CC-SUPORTE-N2` com 65,00 → `parcial` com 60,00; sem `centro_custo` → `padrao`; `"cc-adm"` com 50,00 → `aprovado`; `CC-ADM` com hospedagem de 300,00 com nota → `categoria_fora_da_politica`.
+    - `tests/test_rn006_categorias.py` ganha os testes do **Aceite** da RN-006 por tabela (`representacao` no `padrao` e no `CC-COMERCIAL`; `hospedagem` no `CC-ADM` e no `CC-ENG-PLATAFORMA`). Também ganha a categoria de saída de despesa inválida com `CC-COMERCIAL` e `"Representacao"` sem `tem_nota_fiscal` → `representacao`.
+    - `tests/test_rn010_viagem.py` ganha: `CC-ENG-PLATAFORMA`, hospedagem com nota em 14/07 → `categoria_fora_da_politica`, e alimentação de 100,00 com nota em 15/07 → limite 75,00, `parcial` com 75,00.
+    - `tests/test_rn012_hospedagem_uma_diaria.py` ganha: `CC-COMERCIAL`, hospedagem de 1.200,00 com nota → `parcial` com 400,00.
+    - `tests/test_rn008_nota_fiscal.py` ganha: política com mínimo 50,00 → 50,01 sem nota é `nota_fiscal_ausente`.
+    - `tests/test_rn002_validacao_da_entrada.py` ganha os testes de `centro_custo`: `17`, `true`, lista e objeto → `ErroDeArquivo`; ausente, `null`, `""` e `"  "` → válidos. Na saída, `centro_custo` é copiado se texto (inclusive `"  "`) e sai nulo se ausente ou nulo.
+    - `tests/test_saida.py` passa com a ordem nova do topo e de `colaborador` e `politica`.
+    - `tests/test_exemplo.py` passa com a **primeira tabela da seção 9 da spec 2.0**, transcrita à mão: `CC-ENG-PLATAFORMA`, 14 linhas, totais 1.861,84 / 351,43 / 1.510,41, `politica` = `v4` / `2026-07-01` / `CC-ENG-PLATAFORMA`.
+    - A suíte da 1.x continua passando com a tabela `padrao` da v4.
+  - **Casos de borda:** Centro de custo da tabela · Centro de custo fora da tabela · Centro de custo com grafia diferente · Centro de custo só com espaços · Centro de custo de tipo errado · Categoria ausente da tabela do centro de custo · Categoria com limite zero · Representação fora do centro de custo que a define · Representação não amplia em viagem · Limite em viagem truncado · Política sem versão nem vigência
+  - **Commit:** —
+
+- [ ] **T-030** — Moeda na entrada: `moeda` validada na etapa 1 (`Despesa.moeda`, `BRL` se ausente ou nula; `entrada_invalida` fora do formato) e `itens[].moeda` na saída (`BRL`, como veio se texto, ou nula).
+  - **Tipo:** regra
+  - **Atende:** RN-002 (`moeda`), AMB-025, seção 4 da spec (`itens[].moeda`)
+  - **Substitui:** T-009 (validação de `moeda`)
+  - **Depende de:** T-029
+  - **Aceite:** `tests/test_rn002_validacao_da_entrada.py` ganha os testes de `moeda`:
+    - `"eur"`, `" EUR"`, `"EUR "`, `"R$"`, `""`, `"EURO"` → `entrada_invalida`, `moeda` como veio;
+    - `978`, `true`, lista → `entrada_invalida`, `moeda` nula;
+    - ausente e `null` → válida, `moeda` `BRL`;
+    - `"USD"` → válida, `moeda` `USD`;
+    - elemento que não é objeto → `moeda` nula;
+    - despesa inválida por outro campo com `"moeda": "EUR"` → `moeda` `EUR`.
+    `tests/test_saida.py` passa com `moeda` na posição da seção 4.
+  - **Casos de borda:** Moeda em minúsculas · Moeda de tipo errado
+  - **Commit:** —
+
+- [ ] **T-031** — Conversão: etapa 2 da seção 8, com `cotacao` (T-026), `valor_considerado = arredondar(valor × taxa)` no contexto exato (DT-012) e `cambio_indisponivel` (novo `Motivo`, na ordem da seção 8); `taxa_cambio` e `data_cotacao` na saída; nulos e fora de `valor_solicitado` em `entrada_invalida` e `cambio_indisponivel`; justificativa para `cambio_indisponivel` e para a conversão (DT-009).
+  - **Tipo:** regra
+  - **Atende:** RN-003 (conversão arredondada uma vez), RN-004 (valor positivo em reais), RN-008 (mínimo comparado em reais), RN-010 (moeda não comprova viagem; hospedagem estrangeira comprova), RN-015, AMB-023, AMB-024, AMB-026, AMB-027, seção 4 da spec (`taxa_cambio`, `data_cotacao`, `valor_considerado`, `totais.valor_solicitado`), seção 8 (etapa 2)
+  - **Depende de:** T-024, T-026, T-030
+  - **Aceite:**
+    - `tests/test_rn015_moeda_e_cambio.py` ganha os testes de ponta a ponta do **Aceite** da RN-015:
+      - 22,00 EUR em 14/07 → 5,93, `2026-07-14`, 130,46;
+      - 30,00 EUR em 18/07 → 5,96 de 17/07, 178,80;
+      - sem `moeda` → `BRL`, taxa 1, `data_cotacao` nula;
+      - 55,00 GBP em 21/07 → `cambio_indisponivel`, `valor_considerado`, `taxa_cambio`, `data_cotacao`, `em_viagem` e `limite_diario` nulos, fora de `valor_solicitado`;
+      - USD em 12/07 → `cambio_indisponivel`.
+    - `tests/test_rn003_arredondamento.py` ganha: 16,8649 EUR × 5,93 → 100,01; 0,001 EUR → 0,01.
+    - `tests/test_rn004_valor_positivo.py` ganha: 0,001 EUR → não é `valor_invalido`; `1e-999999` EUR → `valor_invalido`.
+    - `tests/test_rn008_nota_fiscal.py` ganha: 40,00 USD sem nota a 5,50 → 220,00, `nota_fiscal_ausente`.
+    - `tests/test_rn010_viagem.py` ganha: alimentação de 22,00 EUR com nota em 14/07 sem hospedagem → 14/07 fora de viagem.
+    - `tests/test_justificativa.py` cobre `cambio_indisponivel`.
+    - Ordem das etapas: sem cotação e fora do período → `cambio_indisponivel`; sem cotação e valor negativo → `cambio_indisponivel`; despesa inválida em EUR → `entrada_invalida` com `taxa_cambio` nula.
+    - O teste de propriedade da DT-001 cobre `taxa_cambio`.
+  - **Casos de borda:** Moeda nula · Moeda estrangeira com cotação · Moeda estrangeira em sábado · Cotação exatamente 3 dias antes · Cotação 4 dias antes · Moeda sem cotação no arquivo · Sem cotação e fora do período · Conversão arredondada uma vez · Nota fiscal comparada em reais · Valor estrangeiro minúsculo · Teto na moeda original · Moeda estrangeira não comprova viagem · Hospedagem em moeda estrangeira · Data intermediária sem a moeda
+  - **Commit:** —
+
+- [ ] **T-032** — Duplicata com moeda: etapa 7 agrupa por (data, categoria, fornecedor, moeda, `valor` arredondado na moeda da despesa).
+  - **Tipo:** regra
+  - **Atende:** RN-007, AMB-028
+  - **Substitui:** T-017 (duplicata com moeda)
+  - **Depende de:** T-031
+  - **Aceite:** `tests/test_rn007_duplicatas.py` ganha:
+    - 22,00 EUR e 22,00 USD com os demais campos iguais → as duas avaliadas;
+    - 22.001 EUR e 22.00 EUR → a segunda `duplicata`;
+    - 10,00 EUR e 59,30 BRL do mesmo gasto → as duas avaliadas (risco aceito, seção 10);
+    - ausente e `"BRL"` com os demais campos iguais → a segunda `duplicata`, porque as duas valem `BRL`.
+    Os testes da 1.x da RN-007 continuam passando.
+  - **Casos de borda:** Duplicata em moedas diferentes · Duplicata em moeda estrangeira
+  - **Commit:** —
+
+- [ ] **T-033** — Aceite com os arquivos do envelope: `exemplos/envelope/despesas-envelope.json` e `despesas-envelope-cc-desconhecido.json` pela CLI, com `politica-v4.json` e `cambio.json`, contra a segunda e a terceira tabelas da seção 9 da spec, **transcritas à mão** no teste.
+  - **Tipo:** regra
+  - **Atende:** seção 9 da spec (critérios de aceite), RN-001 a RN-016
+  - **Substitui:** T-020 (três tabelas da seção 9)
+  - **Depende de:** T-032
+  - **Aceite:** `tests/test_exemplo.py` passa:
+    - **Envelope:** as 10 linhas de `despesas-envelope.json` (moeda, taxa, data da cotação, considerado, em viagem, limite, reembolsado, status, motivo); totais 2.457,52 / 1.148,26 / 1.309,26; `tabela_aplicada` `CC-COMERCIAL`.
+    - **CC desconhecido:** as 4 linhas de `despesas-envelope-cc-desconhecido.json`; totais 623,76 / 373,76 / 250,00; `tabela_aplicada` `padrao`.
+    - **Determinismo e propriedade:** `avisos` vazios no topo e nos itens dos três arquivos; determinismo byte a byte e nenhum valor monetário `float` também nos dois arquivos do envelope.
+  - **Commit:** —
+
+- [ ] **T-034** — Fim das pendências: apagar `PENDENTES` e o código que o lê em `tests/test_rastreabilidade.py` (DT-016); docstrings para "RN-001 a RN-016"; tabela de Cobertura atualizada com RN-014 a RN-016, AMB-020 a AMB-031, seção 7 (100 casos) e seção 9 (três arquivos).
+  - **Tipo:** estrutura
+  - **Atende:** seção 9 da spec (cada caso de borda e cada RN com teste), DT-016
+  - **Depende de:** T-033
+  - **Aceite:** `tests/test_rastreabilidade.py` passa sem nenhuma pendência; remover qualquer teste de RN-014 a RN-016 ou de um caso novo o faz falhar (verificado à mão uma vez e registrado no resumo da task); tabela de Cobertura sem célula vazia, e nenhum `test_politica.py` citado.
+  - **Commit:** —
 
 ---
 

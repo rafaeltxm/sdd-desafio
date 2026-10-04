@@ -3,7 +3,8 @@
 ## O projeto
 
 Motor de cálculo de reembolso de despesas corporativas. CLI que lê um JSON de
-despesas e emite um JSON com o valor reembolsável e a justificativa de cada item.
+despesas, um arquivo de política (limites por centro de custo) e um arquivo de
+câmbio, e emite um JSON com o valor reembolsável e a justificativa de cada item.
 
 ## Fonte da verdade
 
@@ -71,7 +72,8 @@ Detalhes e justificativas em `plan.md` seção 1.
 - Linguagem: Python ≥ 3.12 gerenciado com `uv` (`pyproject.toml` + `uv.lock`);
   o Python do sistema é 3.9, então sempre via `uv run`. Dependência de runtime
   só `simplejson` ≥ 4; o resto é biblioteca padrão (`decimal`, `argparse`, `unicodedata`).
-- Rodar: `uv run reembolso calcular --input <entrada> --output <saída>`
+- Rodar: `uv run reembolso calcular --input <entrada> --politica <política> --cambio <câmbio> --output <saída>`
+  (exemplos: `exemplos/envelope/politica-v4.json` e `exemplos/envelope/cambio.json`)
 - Testes: `uv run pytest -q`
 - Lint: `uv run ruff check .` (regras `E`, `F`, `I`, `B`, `UP`)
 - Pacote em `src/reembolso/`, testes em `tests/` (módulos e fronteiras: `plan.md` seção 2).
@@ -82,14 +84,20 @@ Detalhes em `plan.md` seções 2, 3 e 5; aqui só o que não pode ser esquecido.
 
 - **Dinheiro é `Decimal`, nunca `float`** (DT-001): lido direto do texto JSON
   (`simplejson`, `use_decimal=True`), arredondado só com
-  `quantize(Decimal("0.01"), ROUND_HALF_UP)` (RN-003). Um teste de propriedade
+  `quantize(Decimal("0.01"), ROUND_HALF_UP)` (RN-003). Toda conta com dinheiro,
+  taxa ou percentual roda em `dinheiro.contexto_exato()` (DT-012): o contexto
+  padrão arredonda em silêncio além de 28 dígitos. Um teste de propriedade
   garante que nenhum valor monetário da saída é `float`.
 - **Fronteiras dos módulos** (plan seção 2): só `cli.py` faz I/O (disco, argv,
   stderr, código de saída); o resto é função pura. Regra de negócio fica em
-  `motor.py` + `politica.py` + `normalizacao.py`; constantes da política só em
-  `politica.py`; `entrada.py` só aplica a RN-002 e a RN-013.
-- **Erros** (DT-007, RN-002): problema no arquivo ou no cabeçalho → `ErroDeArquivo`,
-  mensagem `erro: ...` em stderr, código 1, saída não criada nem alterada
+  `motor.py` + `politica.py` + `cambio.py` + `normalizacao.py`. **Os números da
+  política (limites, mínimo da nota, percentual) vêm do arquivo `--politica`,
+  nunca do código**; só as constantes de interpretação (plan seção 4) ficam em
+  `politica.py` e `cambio.py`. `leitura.py` só aplica a forma do arquivo (UTF-8,
+  JSON estrito, escapes, tipos), comum aos três; `entrada.py` só aplica a RN-002
+  e a RN-013.
+- **Erros** (DT-007, RN-002, RN-016): problema em qualquer dos três arquivos ou
+  no cabeçalho da entrada → `ErroDeArquivo`, mensagem `erro: <arquivo>: ...` em stderr, código 1, saída não criada nem alterada
   (gravação atômica, DT-006). Despesa inválida não é exceção: vira item
   `recusado`/`entrada_invalida`. Nenhum stack trace para erro previsto.
 - **Ordem das etapas** do motor segue a seção 8 da spec (DT-005); nova verificação
@@ -108,6 +116,8 @@ Detalhes em `plan.md` seções 2, 3 e 5; aqui só o que não pode ser esquecido.
 
 A lista oficial é a seção 3 da spec. Não implementar sem mudança de spec:
 pagamento ou integração, mais de um colaborador ou período por execução,
-leitura da `descricao`, conversão de moeda, histórico entre execuções, campos de
-entrada além dos da seção 4, categoria de representação, indicação explícita de
-viagem, tratamento especial de feriado ou fim de semana.
+leitura da `descricao`, câmbio externo (só o arquivo `--cambio`), verificação do
+centro de custo contra cadastro, fila de aprovação manual (item C da v4),
+histórico entre execuções, campos de entrada além dos da seção 4, indicação
+explícita de viagem, tratamento especial de feriado ou fim de semana (exceto na
+escolha da cotação).
