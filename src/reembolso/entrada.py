@@ -6,6 +6,7 @@ from decimal import Decimal
 from reembolso.leitura import (
     ErroDeArquivo,
     ObjetoJson,
+    e_codigo_de_moeda,
     e_data,
     e_numero,
     ler_json,
@@ -13,7 +14,7 @@ from reembolso.leitura import (
 )
 from reembolso.modelo import Colaborador, Despesa, DespesaInvalida, Entrada, Periodo
 from reembolso.normalizacao import normalizar_texto
-from reembolso.politica import VALOR_ABSOLUTO_MAXIMO
+from reembolso.politica import MOEDA_BASE, VALOR_ABSOLUTO_MAXIMO
 
 
 def _aviso(caminho: str, n: int) -> str:
@@ -122,10 +123,11 @@ def validar_despesa(
 ) -> Despesa | DespesaInvalida:
     """Etapa 1 da seção 8: elemento de `despesas` → `Despesa` ou `DespesaInvalida`.
 
-    Aplica a RN-002 (despesa inválida) e o teto da AMB-018 ao número recebido.
+    Aplica a RN-002 (despesa inválida), o teto da AMB-018 ao número recebido e
+    o formato da `moeda` (AMB-025).
     """
     if not isinstance(elemento, dict):
-        return DespesaInvalida(posicao, None, None, None, None, avisos)
+        return DespesaInvalida(posicao, None, None, None, None, None, avisos)
 
     id_ = elemento.get("id")
     data_texto = elemento.get("data")
@@ -133,6 +135,10 @@ def validar_despesa(
     fornecedor = elemento.get("fornecedor")
     valor = elemento.get("valor")
     tem_nota_fiscal = elemento.get("tem_nota_fiscal")
+    # ausente ou nula → BRL; senão comparada como veio, sem normalização (AMB-025)
+    moeda = elemento.get("moeda")
+    if moeda is None:
+        moeda = MOEDA_BASE
 
     data = e_data(data_texto)
     valida = (
@@ -146,6 +152,7 @@ def validar_despesa(
         # `copy_abs` é exato, sem o arredondamento do contexto decimal
         and Decimal(valor).copy_abs() < VALOR_ABSOLUTO_MAXIMO
         and type(tem_nota_fiscal) is bool
+        and e_codigo_de_moeda(moeda)
     )
     if not valida:
         return DespesaInvalida(
@@ -154,6 +161,7 @@ def validar_despesa(
             data_texto=data_texto if isinstance(data_texto, str) else None,
             categoria_texto=categoria if isinstance(categoria, str) else None,
             valor_informado=Decimal(valor) if e_numero(valor) else None,
+            moeda_saida=moeda if isinstance(moeda, str) else None,
             avisos=avisos,
         )
     return Despesa(
@@ -165,6 +173,7 @@ def validar_despesa(
         categoria=normalizar_texto(categoria),
         fornecedor=normalizar_texto(fornecedor),
         valor_informado=Decimal(valor),
+        moeda=moeda,
         tem_nota_fiscal=tem_nota_fiscal,
         avisos=avisos,
     )

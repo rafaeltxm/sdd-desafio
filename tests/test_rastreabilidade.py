@@ -18,8 +18,6 @@ SPEC = TESTES.parent / "specs" / "001-motor-reembolso" / "spec.md"
 TASKS = SPEC.with_name("tasks.md")
 
 PENDENTES = {  # some quando a Fase 5 terminar (DT-016)
-    "Moeda em minúsculas": "T-030",
-    "Moeda de tipo errado": "T-030",
     "Moeda nula": "T-031",
     "Moeda estrangeira com cotação": "T-031",
     "Moeda estrangeira em sábado": "T-031",

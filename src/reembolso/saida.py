@@ -12,6 +12,7 @@ def _item(item: ItemResultado) -> dict:
         "data": item.data,
         "categoria": item.categoria,
         "valor_informado": item.valor_informado,
+        "moeda": item.moeda,
         "valor_considerado": item.valor_considerado,
         "valor_reembolsado": item.valor_reembolsado,
         "status": item.status.value,

@@ -203,6 +203,20 @@ def _caso_valor_minusculo(saida):
     _recusado_valor_invalido(item)
 
 
+def _caso_moeda_em_minusculas(saida):
+    # RN-002 / AMB-025: comparado como veio, sem normalização → inválida
+    (item,) = saida["itens"]
+    _recusado_entrada_invalida(item)
+    assert item["moeda"] == "eur"
+
+
+def _caso_moeda_de_tipo_errado(saida):
+    # RN-002: não é texto nem nula → inválida, `moeda` nula na saída
+    (item,) = saida["itens"]
+    _recusado_entrada_invalida(item)
+    assert item["moeda"] is None
+
+
 def _recusado_fora_do_periodo(item):
     # RN-005: recusado, `fora_do_periodo`, sem reembolso, nulos de antes do limite
     assert (item["status"], item["motivo"]) == ("recusado", "fora_do_periodo")
@@ -802,6 +816,16 @@ CASOS = [
               _hospedagem(data="2026-07-14")),
         _caso_alimentacao_antes_da_hospedagem,
         id="Alimentação antes da hospedagem na entrada, mesma data",
+    ),
+    pytest.param(
+        _json(despesa(moeda="eur")),
+        _caso_moeda_em_minusculas,
+        id="Moeda em minúsculas",
+    ),
+    pytest.param(
+        _json(despesa(moeda=978)),
+        _caso_moeda_de_tipo_errado,
+        id="Moeda de tipo errado",
     ),
 ]
 

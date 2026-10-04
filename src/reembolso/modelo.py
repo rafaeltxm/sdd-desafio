@@ -52,7 +52,8 @@ class Despesa:
     categoria_texto: str  # como veio
     categoria: str  # normalizada (seção 5 da spec)
     fornecedor: str  # normalizado
-    valor_informado: Decimal
+    valor_informado: Decimal  # na moeda da despesa
+    moeda: str  # "BRL" se ausente ou nula; senão 3 letras A–Z
     tem_nota_fiscal: bool
     avisos: tuple[str, ...]  # RN-013
 
@@ -66,6 +67,7 @@ class DespesaInvalida:
     data_texto: str | None
     categoria_texto: str | None  # como veio, se texto; o motor decide a saída
     valor_informado: Decimal | None
+    moeda_saida: str | None  # "BRL" se ausente/nula; como veio, se texto; senão None
     avisos: tuple[str, ...]
 
 
@@ -123,6 +125,7 @@ class ItemResultado:
     data: str | None
     categoria: str | None
     valor_informado: Decimal | None
+    moeda: str | None
     valor_considerado: Decimal | None
     valor_reembolsado: Decimal
     status: Status

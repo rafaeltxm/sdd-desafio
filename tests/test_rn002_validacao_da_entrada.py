@@ -432,6 +432,8 @@ def test_rn002_despesa_valida_vira_despesa(entrada, despesa):
         fornecedor="padaria_centro",
         # sem arredondamento: valor recebido (seção 4, `valor_informado`)
         valor_informado=Decimal("33.333"),
+        # `moeda` ausente → BRL (RN-002, seção 4)
+        moeda="BRL",
         tem_nota_fiscal=False,
         avisos=(),
     )
@@ -459,6 +461,7 @@ def test_rn002_elemento_que_nao_e_objeto_e_invalido_com_campos_nulos(
         data_texto=None,
         categoria_texto=None,
         valor_informado=None,
+        moeda_saida=None,
         avisos=(),
     )
 
@@ -621,6 +624,7 @@ def test_rn002_id_numero_e_invalido_com_id_nulo(entrada, despesa):
         data_texto="2026-07-03",
         categoria_texto="alimentacao",
         valor_informado=Decimal("10.00"),
+        moeda_saida="BRL",
         avisos=(),
     )
 
@@ -660,6 +664,7 @@ def test_rn002_despesa_invalida_guarda_textos_e_valor(entrada, despesa):
         data_texto="2026-07-05",
         categoria_texto="alimentacao",
         valor_informado=Decimal("33.333"),
+        moeda_saida="BRL",
         avisos=(),
     )
 
@@ -673,6 +678,7 @@ def test_rn002_campo_ausente_sai_nulo_na_despesa_invalida(entrada, despesa):
             data_texto=None,
             categoria_texto=None,
             valor_informado=None,
+            moeda_saida="BRL",
             avisos=(),
         )
     )
@@ -918,3 +924,119 @@ def test_rn001_invalida_entre_validas_mantem_posicao_e_nao_consome_limite(
     # limite 60,00: a recebe 40,00; c recebe min(30,00; 60,00 − 40,00) = 20,00
     assert (a["status"], a["valor_reembolsado"]) == ("aprovado", Decimal("40.00"))
     assert (c["status"], c["valor_reembolsado"]) == ("parcial", Decimal("20.00"))
+
+
+# --- moeda (T-030) ---
+
+# Fora do formato "3 letras maiúsculas de A a Z", comparado como veio (AMB-025)
+_MOEDAS_TEXTO_INVALIDAS = [
+    "eur", " EUR", "EUR ", "R$", "", "EURO", "EUR\n", "Eur", "EU", "ÉUR", "ＥＵＲ",
+]
+
+
+@pytest.mark.parametrize("moeda", _MOEDAS_TEXTO_INVALIDAS)
+def test_rn002_moeda_texto_fora_do_formato_e_invalida_e_guardada_como_veio(
+    entrada, despesa, moeda
+):
+    """RN-002 / AMB-025: `moeda` texto fora do formato, sem normalização →
+    inválida; a saída copia o texto como veio (seção 4)."""
+    resultado = _uma(entrada, despesa(moeda=moeda))
+    assert isinstance(resultado, DespesaInvalida)
+    assert resultado.moeda_saida == moeda
+
+
+@pytest.mark.parametrize("moeda", [978, True, ["EUR"], {"codigo": "EUR"}])
+def test_rn002_moeda_nao_texto_e_invalida_e_sai_nula(entrada, despesa, moeda):
+    """RN-002 / AMB-025: `moeda` que não é texto nem nula → inválida, nula na
+    saída (seção 4)."""
+    resultado = _uma(entrada, despesa(moeda=moeda))
+    assert isinstance(resultado, DespesaInvalida)
+    assert resultado.moeda_saida is None
+
+
+def test_rn002_moeda_ausente_ou_nula_vale_brl(entrada, despesa):
+    """RN-002 / AMB-025: `moeda` ausente ou `null` → válida, `BRL`."""
+    ausente = _uma(entrada, despesa())
+    nula = _uma(entrada, despesa(moeda=None))
+    assert isinstance(ausente, Despesa) and isinstance(nula, Despesa)
+    assert (ausente.moeda, nula.moeda) == ("BRL", "BRL")
+
+
+@pytest.mark.parametrize("moeda", ["USD", "EUR", "BRL", "GBP", "XYZ"])
+def test_rn002_moeda_com_3_letras_maiusculas_e_valida(entrada, despesa, moeda):
+    """RN-002 / AMB-025: 3 letras de `A` a `Z` → válida, como veio; ter ou não
+    cotação é a etapa 2 (RN-015), não a etapa 1."""
+    resultado = _uma(entrada, despesa(moeda=moeda))
+    assert isinstance(resultado, Despesa)
+    assert resultado.moeda == moeda
+
+
+def test_rn002_despesa_invalida_por_outro_campo_guarda_a_moeda(entrada, despesa):
+    """RN-002 / seção 4: inválida por falta de `tem_nota_fiscal` com `"EUR"` →
+    `moeda` `EUR`; sem `moeda` → `BRL`."""
+    com_moeda = despesa(moeda="EUR")
+    del com_moeda["tem_nota_fiscal"]
+    sem_moeda = despesa()
+    del sem_moeda["tem_nota_fiscal"]
+    assert _uma(entrada, com_moeda).moeda_saida == "EUR"
+    assert _uma(entrada, sem_moeda).moeda_saida == "BRL"
+
+
+@pytest.mark.parametrize(
+    ("moeda", "esperada"),
+    [("eur", "eur"), (" EUR", " EUR"), ("EUR ", "EUR "), ("R$", "R$"), ("", ""),
+     ("EURO", "EURO"), (978, None), (True, None), (["EUR"], None)],
+)
+def test_rn002_moeda_fora_do_formato_sai_entrada_invalida(
+    avaliar, despesa, moeda, esperada
+):
+    """RN-002 / AMB-025: `moeda` fora do formato → `entrada_invalida`, fora dos
+    totais; `moeda` como veio se texto, nula se não (seção 4)."""
+    saida = avaliar(despesa(moeda=moeda))
+    (item,) = saida["itens"]
+    _invalido(item)
+    assert item["moeda"] == esperada
+    assert saida["totais"]["valor_solicitado"] == 0
+
+
+@pytest.mark.parametrize(("documento", "esperada"), [
+    ({}, "BRL"), ({"moeda": None}, "BRL"), ({"moeda": "USD"}, "USD"),
+])
+def test_rn002_moeda_valida_sai_na_saida(avaliar, despesa, documento, esperada):
+    """RN-002 / seção 4: ausente e `null` → `BRL`; `"USD"` → `USD`; válidas, não
+    `entrada_invalida`."""
+    (item,) = avaliar(despesa(**documento))["itens"]
+    assert item["motivo"] != "entrada_invalida"
+    assert item["moeda"] == esperada
+
+
+def test_rn002_elemento_que_nao_e_objeto_sai_com_moeda_nula(processar):
+    """RN-002 / seção 4: elemento que não é objeto → `moeda` nula."""
+    saida = processar(
+        '{"colaborador": {"id": "c-1", "nome": "Ana"}, '
+        '"periodo": {"inicio": "2026-07-01", "fim": "2026-07-31"}, '
+        '"despesas": [null, "EUR"]}'
+    )
+    assert [item["moeda"] for item in saida["itens"]] == [None, None]
+
+
+def test_rn002_invalida_por_outro_campo_sai_com_a_moeda(avaliar):
+    """RN-002 / seção 4: inválida por falta de `tem_nota_fiscal` com
+    `"moeda": "EUR"` → `entrada_invalida`, `moeda` `EUR`."""
+    (item,) = avaliar(_sem_nota(moeda="EUR"))["itens"]
+    _invalido(item)
+    assert item["moeda"] == "EUR"
+
+
+@pytest.mark.parametrize(("documento", "esperada"), [
+    ({"moeda": "USD"}, "USD"), ({"moeda": None}, "BRL"), ({}, "BRL"),
+])
+def test_rn002_moeda_sai_em_item_recusado_depois_da_etapa_1(
+    avaliar, despesa, documento, esperada
+):
+    """RN-002 / seção 4: despesa válida recusada numa etapa posterior à 1
+    (fora do período, RN-005) → `moeda` como na validação."""
+    (item,) = avaliar(despesa(data="2026-08-01", **documento))["itens"]
+    # período de 01/07 a 31/07: 01/08 → `fora_do_periodo` (etapa 4)
+    assert item["motivo"] == "fora_do_periodo"
+    assert item["moeda"] == esperada
