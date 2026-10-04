@@ -377,7 +377,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
   - **Casos de borda:** Duplicata em moedas diferentes · Duplicata em moeda estrangeira
   - **Commit:** cfe843d
 
-- [ ] **T-033** — Aceite com os arquivos do envelope: `exemplos/envelope/despesas-envelope.json` e `despesas-envelope-cc-desconhecido.json` pela CLI, com `politica-v4.json` e `cambio.json`, contra a segunda e a terceira tabelas da seção 9 da spec, **transcritas à mão** no teste.
+- [x] **T-033** — Aceite com os arquivos do envelope: `exemplos/envelope/despesas-envelope.json` e `despesas-envelope-cc-desconhecido.json` pela CLI, com `politica-v4.json` e `cambio.json`, contra a segunda e a terceira tabelas da seção 9 da spec, **transcritas à mão** no teste.
   - **Tipo:** regra
   - **Atende:** seção 9 da spec (critérios de aceite), RN-001 a RN-016
   - **Substitui:** T-020 (três tabelas da seção 9)
@@ -386,7 +386,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
     - **Envelope:** as 10 linhas de `despesas-envelope.json` (moeda, taxa, data da cotação, considerado, em viagem, limite, reembolsado, status, motivo); totais 2.457,52 / 1.148,26 / 1.309,26; `tabela_aplicada` `CC-COMERCIAL`.
     - **CC desconhecido:** as 4 linhas de `despesas-envelope-cc-desconhecido.json`; totais 623,76 / 373,76 / 250,00; `tabela_aplicada` `padrao`.
     - **Determinismo e propriedade:** `avisos` vazios no topo e nos itens dos três arquivos; determinismo byte a byte e nenhum valor monetário `float` também nos dois arquivos do envelope.
-  - **Commit:** —
+  - **Commit:** b1f1708
 
 - [ ] **T-034** — Fim das pendências: apagar `PENDENTES` e o código que o lê em `tests/test_rastreabilidade.py` (DT-016); docstrings para "RN-001 a RN-016"; tabela de Cobertura atualizada com RN-014 a RN-016, AMB-020 a AMB-031, seção 7 (100 casos) e seção 9 (três arquivos).
   - **Tipo:** estrutura
