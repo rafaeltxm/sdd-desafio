@@ -163,15 +163,17 @@ def _motivo_de_recusa(
 def _separar_duplicatas(
     despesas: list[Despesa],
 ) -> tuple[list[Despesa], list[Despesa]]:
-    """Etapa 7 (RN-007, AMB-010): agrupa por (data, categoria, fornecedor,
-    `valor_considerado`); a original é a primeira com nota fiscal, ou a primeira
-    na ordem da entrada. Devolve (originais, duplicatas)."""
-    grupos: dict[tuple[date, str, str, Decimal], list[Despesa]] = {}
+    """Etapa 7 (RN-007, AMB-010, AMB-028): agrupa por (data, categoria,
+    fornecedor, moeda, `valor` arredondado na moeda da despesa); a original é a
+    primeira com nota fiscal, ou a primeira na ordem da entrada. Devolve
+    (originais, duplicatas)."""
+    grupos: dict[tuple[date, str, str, str, Decimal], list[Despesa]] = {}
     for despesa in sorted(despesas, key=lambda d: d.posicao):
         chave = (
             despesa.data,
             despesa.categoria,
             despesa.fornecedor,
+            despesa.moeda,
             arredondar(despesa.valor_informado),
         )
         grupos.setdefault(chave, []).append(despesa)

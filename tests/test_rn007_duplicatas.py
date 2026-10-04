@@ -236,3 +236,78 @@ def test_rn007_duplicata_entra_no_valor_solicitado(avaliar, despesa):
         "valor_reembolsado": Decimal("54.90"),
         "valor_glosado": Decimal("54.90"),
     }
+
+
+# --- moeda (v4, AMB-028): câmbio do envelope, EUR 5,93 e USD 5,44 em 14/07 ---
+
+
+def test_rn007_mesmo_valor_em_moedas_diferentes_nao_e_duplicata(avaliar, despesa):
+    """RN-007 / AMB-028: 22,00 EUR e 22,00 USD, demais campos iguais → moedas
+    diferentes, as duas avaliadas (chegam ao limite diário)."""
+    campos = dict(data="2026-07-14", valor=Decimal("22.00"))
+    saida = avaliar(
+        despesa(id="eur", moeda="EUR", **campos),
+        despesa(id="usd", moeda="USD", **campos),
+    )
+    eur, usd = saida["itens"]
+
+    # EUR: 22,00 × 5,93 = 130,46; min(130,46; 60,00) = 60,00 → parcial
+    assert (eur["valor_considerado"], eur["valor_reembolsado"], eur["status"]) == (
+        Decimal("130.46"), Decimal("60.00"), "parcial",
+    )
+    # USD: 22,00 × 5,44 = 119,68; saldo do dia 60,00 − 60,00 = 0 → recusado
+    # pelo limite (etapa 9), não por duplicata
+    assert usd["valor_considerado"] == Decimal("119.68")
+    assert (usd["status"], usd["motivo"]) == ("recusado", "limite_diario_excedido")
+    assert usd["limite_diario"] == Decimal("60.00")
+
+
+def test_rn007_valor_comparado_arredondado_na_moeda_da_despesa(avaliar, despesa):
+    """RN-007 / RN-003 / AMB-028: 22.001 EUR e 22.00 EUR → 22,00 EUR nos dois
+    (arredondado na moeda da despesa) → a segunda `duplicata`."""
+    campos = dict(data="2026-07-14", moeda="EUR")
+    saida = avaliar(
+        despesa(id="a", valor=Decimal("22.001"), **campos),
+        despesa(id="b", valor=Decimal("22.00"), **campos),
+    )
+    a, b = saida["itens"]
+
+    # a: 22,001 × 5,93 = 130,46593 → 130,47; min(130,47; 60,00) = 60,00
+    assert (a["valor_considerado"], a["valor_reembolsado"], a["status"]) == (
+        Decimal("130.47"), Decimal("60.00"), "parcial",
+    )
+    _recusado_duplicata(b)
+    # b: 22,00 × 5,93 = 130,46
+    assert b["valor_considerado"] == Decimal("130.46")
+
+
+def test_rn007_mesmo_gasto_em_eur_e_brl_nao_e_duplicata(avaliar, despesa):
+    """RN-007 / AMB-028 / seção 10 (risco aceito): 10,00 EUR e 59,30 BRL do
+    mesmo gasto → o valor em reais não entra na comparação, as duas avaliadas."""
+    saida = avaliar(
+        despesa(id="eur", data="2026-07-14", valor=Decimal("10.00"), moeda="EUR"),
+        despesa(id="brl", data="2026-07-14", valor=Decimal("59.30")),
+    )
+    eur, brl = saida["itens"]
+
+    # eur: 10,00 × 5,93 = 59,30 ≤ 60,00 → aprovado
+    assert (eur["valor_considerado"], eur["status"]) == (Decimal("59.30"), "aprovado")
+    # brl: saldo 60,00 − 59,30 = 0,70; min(59,30; 0,70) = 0,70 → parcial
+    assert (brl["valor_considerado"], brl["valor_reembolsado"], brl["status"]) == (
+        Decimal("59.30"), Decimal("0.70"), "parcial",
+    )
+
+
+@pytest.mark.parametrize("moeda_ausente_primeiro", [True, False])
+def test_rn007_moeda_ausente_e_brl_sao_a_mesma(
+    avaliar, despesa, moeda_ausente_primeiro
+):
+    """RN-007 / RN-015: `moeda` ausente vale `BRL` → ausente e `"BRL"` com os
+    demais campos iguais são duplicatas; a segunda `duplicata`."""
+    ausente = despesa(id="ausente", valor=Decimal("30.00"))
+    brl = despesa(id="brl", valor=Decimal("30.00"), moeda="BRL")
+    primeira, segunda = (ausente, brl) if moeda_ausente_primeiro else (brl, ausente)
+    a, b = avaliar(primeira, segunda)["itens"]
+
+    _avaliado(a, Decimal("30.00"))
+    _recusado_duplicata(b)

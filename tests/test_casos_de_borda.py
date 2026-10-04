@@ -1140,6 +1140,25 @@ def _caso_data_intermediaria_sem_a_moeda(saida):
 
 _SO_13_07 = {"2026-07-13": {"USD": Decimal("5.42")}}
 
+def _caso_duplicata_em_moedas_diferentes(saida):
+    # RN-007 / AMB-028: moedas diferentes → as duas chegam ao limite (etapa 9):
+    # 22,00 × 5,93 = 130,46 → min(130,46; 60,00) = 60,00, parcial;
+    # 22,00 × 5,44 = 119,68 → saldo 0, recusado pelo limite
+    eur, usd = saida["itens"]
+    assert (eur["status"], eur["valor_reembolsado"]) == ("parcial", Decimal("60.00"))
+    assert (usd["status"], usd["motivo"]) == ("recusado", "limite_diario_excedido")
+
+
+def _caso_duplicata_em_moeda_estrangeira(saida):
+    # RN-007: 22.001 e 22.00 EUR → 22,00 EUR arredondado na moeda da despesa →
+    # a segunda `duplicata`; a primeira 22,001 × 5,93 = 130,46593 → 130,47,
+    # min(130,47; 60,00) = 60,00 → parcial
+    a, b = saida["itens"]
+    assert (a["status"], a["valor_reembolsado"]) == ("parcial", Decimal("60.00"))
+    assert (b["status"], b["motivo"]) == ("recusado", "duplicata")
+    assert (b["em_viagem"], b["limite_diario"]) == (None, None)
+
+
 CASOS_DE_CAMBIO = [
     # (texto da entrada, documento do câmbio ou None para o do envelope, verificação)
     pytest.param(
@@ -1216,6 +1235,22 @@ CASOS_DE_CAMBIO = [
             "2026-07-14": {"USD": Decimal("5.44")},
         }),
         _caso_data_intermediaria_sem_a_moeda, id="Data intermediária sem a moeda",
+    ),
+    pytest.param(
+        _json(despesa(id="eur", data="2026-07-14", valor=Decimal("22.00"),
+                      moeda="EUR"),
+              despesa(id="usd", data="2026-07-14", valor=Decimal("22.00"),
+                      moeda="USD")),
+        None, _caso_duplicata_em_moedas_diferentes,
+        id="Duplicata em moedas diferentes",
+    ),
+    pytest.param(
+        _json(despesa(id="a", data="2026-07-14", valor=Decimal("22.001"),
+                      moeda="EUR"),
+              despesa(id="b", data="2026-07-14", valor=Decimal("22.00"),
+                      moeda="EUR")),
+        None, _caso_duplicata_em_moeda_estrangeira,
+        id="Duplicata em moeda estrangeira",
     ),
 ]
 

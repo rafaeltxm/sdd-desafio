@@ -17,10 +17,7 @@ TESTES = Path(__file__).parent
 SPEC = TESTES.parent / "specs" / "001-motor-reembolso" / "spec.md"
 TASKS = SPEC.with_name("tasks.md")
 
-PENDENTES = {  # some quando a Fase 5 terminar (DT-016)
-    "Duplicata em moedas diferentes": "T-032",
-    "Duplicata em moeda estrangeira": "T-032",
-}
+PENDENTES: dict[str, str] = {}  # some quando a Fase 5 terminar (DT-016)
 PRIMEIRA_TASK_DA_FASE_5, ULTIMA_TASK_DA_FASE_5 = 22, 34
 
 
