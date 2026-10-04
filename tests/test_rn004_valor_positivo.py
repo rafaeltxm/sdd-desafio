@@ -112,3 +112,30 @@ def test_rn004_um_centavo_e_positivo(avaliar, despesa):
 
     assert item["valor_considerado"] == Decimal("0.01")
     assert (item["status"], item["valor_reembolsado"]) == ("aprovado", Decimal("0.01"))
+
+
+def test_rn004_valor_estrangeiro_minusculo_nao_e_invalido(avaliar, despesa):
+    """RN-004 / AMB-026 (aceite): 0,001 EUR com taxa 5,93 (14/07) →
+    `valor_considerado` 0,01 → não é `valor_invalido`."""
+    (item,) = avaliar(
+        despesa(data="2026-07-14", valor=Decimal("0.001"), moeda="EUR")
+    )["itens"]
+
+    # 0,001 × 5,93 = 0,00593 → 0,01 > 0; 0,01 ≤ 60,00 → aprovado
+    assert item["valor_considerado"] == Decimal("0.01")
+    assert (item["status"], item["valor_reembolsado"]) == ("aprovado",
+                                                          Decimal("0.01"))
+
+
+def test_rn004_valor_estrangeiro_que_arredonda_a_zero_e_invalido(
+    avaliar, despesa
+):
+    """RN-004 / AMB-026: 1e-999999 EUR com taxa 5,93 → 0,00 em reais →
+    `valor_invalido`."""
+    (item,) = avaliar(
+        despesa(data="2026-07-14", valor=Decimal("1e-999999"), moeda="EUR")
+    )["itens"]
+
+    # 5,93 × 10^-999999 → 0,00 ≤ 0
+    assert item["valor_considerado"] == Decimal("0.00")
+    _recusado_valor_invalido(item)

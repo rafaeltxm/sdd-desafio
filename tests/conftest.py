@@ -167,13 +167,14 @@ def processar(texto_json: str, politica=None, cambio=None) -> dict:
     )
 
 
-def avaliar(*despesas, politica=None, **cabecalho) -> dict:
+def avaliar(*despesas, politica=None, cambio=None, **cabecalho) -> dict:
     """Despesas (dicionários) numa entrada mínima válida → saída de `processar`.
 
-    `politica` é um documento (`construir_politica`); sem ela, a v4 transcrita.
+    `politica` e `cambio` são documentos (`construir_politica`,
+    `construir_cambio`); sem eles, a v4 e o câmbio do envelope transcritos.
     """
     documento = construir_entrada(despesas, **cabecalho)
-    return processar(simplejson.dumps(documento, use_decimal=True), politica)
+    return processar(simplejson.dumps(documento, use_decimal=True), politica, cambio)
 
 
 @pytest.fixture(name="processar")

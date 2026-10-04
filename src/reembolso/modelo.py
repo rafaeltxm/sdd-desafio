@@ -17,6 +17,7 @@ class Motivo(StrEnum):
     """Na ordem das etapas da seção 8 da spec."""
 
     ENTRADA_INVALIDA = "entrada_invalida"
+    CAMBIO_INDISPONIVEL = "cambio_indisponivel"
     VALOR_INVALIDO = "valor_invalido"
     FORA_DO_PERIODO = "fora_do_periodo"
     CATEGORIA_FORA_DA_POLITICA = "categoria_fora_da_politica"
@@ -126,6 +127,8 @@ class ItemResultado:
     categoria: str | None
     valor_informado: Decimal | None
     moeda: str | None
+    taxa_cambio: Decimal | None
+    data_cotacao: str | None  # AAAA-MM-DD
     valor_considerado: Decimal | None
     valor_reembolsado: Decimal
     status: Status

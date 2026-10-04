@@ -1036,7 +1036,11 @@ def test_rn002_moeda_sai_em_item_recusado_depois_da_etapa_1(
 ):
     """RN-002 / seção 4: despesa válida recusada numa etapa posterior à 1
     (fora do período, RN-005) → `moeda` como na validação."""
-    (item,) = avaliar(despesa(data="2026-08-01", **documento))["itens"]
-    # período de 01/07 a 31/07: 01/08 → `fora_do_periodo` (etapa 4)
+    (item,) = avaliar(
+        despesa(data="2026-07-21", **documento),
+        periodo={"inicio": "2026-07-01", "fim": "2026-07-20"},
+    )["itens"]
+    # 21/07 tem cotação de USD (etapa 2 passa); período até 20/07 →
+    # `fora_do_periodo` (etapa 4)
     assert item["motivo"] == "fora_do_periodo"
     assert item["moeda"] == esperada

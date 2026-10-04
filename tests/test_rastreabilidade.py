@@ -18,20 +18,6 @@ SPEC = TESTES.parent / "specs" / "001-motor-reembolso" / "spec.md"
 TASKS = SPEC.with_name("tasks.md")
 
 PENDENTES = {  # some quando a Fase 5 terminar (DT-016)
-    "Moeda nula": "T-031",
-    "Moeda estrangeira com cotação": "T-031",
-    "Moeda estrangeira em sábado": "T-031",
-    "Cotação exatamente 3 dias antes": "T-031",
-    "Cotação 4 dias antes": "T-031",
-    "Moeda sem cotação no arquivo": "T-031",
-    "Sem cotação e fora do período": "T-031",
-    "Conversão arredondada uma vez": "T-031",
-    "Nota fiscal comparada em reais": "T-031",
-    "Valor estrangeiro minúsculo": "T-031",
-    "Teto na moeda original": "T-031",
-    "Moeda estrangeira não comprova viagem": "T-031",
-    "Hospedagem em moeda estrangeira": "T-031",
-    "Data intermediária sem a moeda": "T-031",
     "Duplicata em moedas diferentes": "T-032",
     "Duplicata em moeda estrangeira": "T-032",
 }

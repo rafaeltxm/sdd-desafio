@@ -3,10 +3,12 @@
 from datetime import date, timedelta
 from decimal import Decimal
 
-from reembolso.dinheiro import arredondar
+from reembolso.cambio import cotacao
+from reembolso.dinheiro import arredondar, contexto_exato
 from reembolso.justificativa import justificar
 from reembolso.modelo import (
     Cambio,
+    Cotacao,
     Despesa,
     DespesaInvalida,
     Entrada,
@@ -29,6 +31,21 @@ from reembolso.politica import (
 )
 
 ZERO = Decimal("0.00")
+
+
+def _converter(valor: Decimal, taxa: Decimal) -> Decimal:
+    """Etapa 2 (RN-003, RN-015, AMB-026): `valor` × taxa, produto exato (DT-012),
+    arredondado ao centavo uma única vez, em reais."""
+    with contexto_exato():
+        return arredondar(valor * taxa)
+
+
+def _taxa_e_data(cotacao_usada: Cotacao | None) -> tuple[Decimal | None, str | None]:
+    """`taxa_cambio` e `data_cotacao` da saída (seção 4); nulas sem cotação."""
+    if cotacao_usada is None:
+        return None, None
+    data = cotacao_usada.data
+    return cotacao_usada.taxa, data.isoformat() if data is not None else None
 
 
 def _status(
@@ -54,6 +71,8 @@ def _item_invalido(
         categoria=categoria,
         valor_informado=despesa.valor_informado,
         moeda=despesa.moeda_saida,
+        taxa_cambio=None,
+        data_cotacao=None,
         valor_considerado=None,
         valor_reembolsado=ZERO,
         status=status,
@@ -76,20 +95,26 @@ def _item_invalido(
 
 def _item_recusado(
     despesa: Despesa,
-    considerado: Decimal,
+    cotacao_usada: Cotacao | None,
+    considerado: Decimal | None,
     motivo: Motivo,
     tabela: TabelaAplicada,
     politica: Politica,
 ) -> ItemResultado:
-    """Etapas 3 a 7: recusado antes do limite diário; não consome limite."""
+    """Etapas 2 a 7: recusado antes do limite diário; não consome limite.
+
+    Sem cotação (etapa 2), `cotacao_usada` e `considerado` são `None`."""
     status = Status.RECUSADO
     categoria = categoria_de_saida(despesa.categoria_texto, tabela)  # seção 4
+    taxa, data_cotacao = _taxa_e_data(cotacao_usada)
     return ItemResultado(
         id=despesa.id,
         data=despesa.data_texto,
         categoria=categoria,
         valor_informado=despesa.valor_informado,
         moeda=despesa.moeda,
+        taxa_cambio=taxa,
+        data_cotacao=data_cotacao,
         valor_considerado=considerado,
         valor_reembolsado=ZERO,
         status=status,
@@ -105,6 +130,9 @@ def _item_recusado(
             valor_reembolsado=ZERO,
             limite_diario=None,
             nota_fiscal_acima_de=politica.nota_fiscal_acima_de,
+            moeda=despesa.moeda,
+            taxa_cambio=taxa,
+            data_cotacao=cotacao_usada.data if cotacao_usada is not None else None,
         ),
         avisos=despesa.avisos,
     )
@@ -173,6 +201,7 @@ def _dias_em_viagem(despesas: list[Despesa]) -> set[date]:
 
 def _aplicar_limite(
     despesas: list[Despesa],
+    conversoes: dict[int, tuple[Cotacao, Decimal]],
     dias_em_viagem: set[date],
     tabela: TabelaAplicada,
     politica: Politica,
@@ -182,7 +211,8 @@ def _aplicar_limite(
     saldos: dict[tuple[date, str], Decimal] = {}
     itens = {}
     for despesa in sorted(despesas, key=lambda d: d.posicao):
-        considerado = arredondar(despesa.valor_informado)
+        cotacao_usada, considerado = conversoes[despesa.posicao]
+        taxa, data_cotacao = _taxa_e_data(cotacao_usada)
         em_viagem = despesa.data in dias_em_viagem
         limite = limite_diario(
             tabela,
@@ -201,6 +231,8 @@ def _aplicar_limite(
             categoria=despesa.categoria,
             valor_informado=despesa.valor_informado,
             moeda=despesa.moeda,
+            taxa_cambio=taxa,
+            data_cotacao=data_cotacao,
             valor_considerado=considerado,
             valor_reembolsado=reembolsado,
             status=status,
@@ -216,6 +248,9 @@ def _aplicar_limite(
                 valor_reembolsado=reembolsado,
                 limite_diario=limite,
                 nota_fiscal_acima_de=politica.nota_fiscal_acima_de,
+                moeda=despesa.moeda,
+                taxa_cambio=taxa,
+                data_cotacao=cotacao_usada.data,
             ),
             avisos=despesa.avisos,
         )
@@ -225,15 +260,15 @@ def _aplicar_limite(
 def _totais(itens: list[ItemResultado]) -> Totais:
     """Seção 4: solicitado e reembolsado somados; glosado = diferença (RN-001).
 
-    O solicitado não soma itens recusados por `entrada_invalida` (RN-002) nem
-    com `valor_considerado` ≤ 0 (RN-004).
+    O solicitado só soma `valor_considerado` não nulo e maior que zero: ficam
+    fora os recusados por `entrada_invalida` (RN-002) e `cambio_indisponivel`
+    (RN-015), que não têm valor em reais, e os com valor ≤ 0 (RN-004).
     """
     solicitado = sum(
         (
             item.valor_considerado
             for item in itens
-            if item.motivo is not Motivo.ENTRADA_INVALIDA
-            and item.valor_considerado > 0
+            if item.valor_considerado is not None and item.valor_considerado > 0
         ),
         ZERO,
     )
@@ -249,14 +284,23 @@ def calcular(entrada: Entrada, politica: Politica, cambio: Cambio) -> Resultado:
     """Um item por despesa, na ordem da entrada (RN-001), e os totais.
 
     `politica` e `cambio` já validados (RN-016); a tabela aplicada é escolhida
-    uma vez (RN-014). O motor passa a usar o `cambio` na T-031.
+    uma vez (RN-014).
     """
     tabela = tabela_aplicada(politica, entrada.colaborador.centro_custo)
     validas = [d for d in entrada.despesas if isinstance(d, Despesa)]
     por_posicao: dict[int, ItemResultado] = {}
+    conversoes: dict[int, tuple[Cotacao, Decimal]] = {}
     seguem = []
     for despesa in validas:
-        considerado = arredondar(despesa.valor_informado)
+        # etapa 2 (RN-015, AMB-024, AMB-025): sem cotação, nenhuma regra de valor
+        cotacao_usada = cotacao(cambio, despesa.moeda, despesa.data)
+        if cotacao_usada is None:
+            por_posicao[despesa.posicao] = _item_recusado(
+                despesa, None, None, Motivo.CAMBIO_INDISPONIVEL, tabela, politica
+            )
+            continue
+        considerado = _converter(despesa.valor_informado, cotacao_usada.taxa)
+        conversoes[despesa.posicao] = (cotacao_usada, considerado)
         motivo = _motivo_de_recusa(
             despesa, considerado, entrada.periodo, tabela, politica
         )
@@ -264,19 +308,17 @@ def calcular(entrada: Entrada, politica: Politica, cambio: Cambio) -> Resultado:
             seguem.append(despesa)
         else:
             por_posicao[despesa.posicao] = _item_recusado(
-                despesa, considerado, motivo, tabela, politica
+                despesa, cotacao_usada, considerado, motivo, tabela, politica
             )
     originais, duplicatas = _separar_duplicatas(seguem)
     for despesa in duplicatas:
         por_posicao[despesa.posicao] = _item_recusado(
-            despesa,
-            arredondar(despesa.valor_informado),
-            Motivo.DUPLICATA,
-            tabela,
-            politica,
+            despesa, *conversoes[despesa.posicao], Motivo.DUPLICATA, tabela, politica
         )
     por_posicao.update(
-        _aplicar_limite(originais, _dias_em_viagem(originais), tabela, politica)
+        _aplicar_limite(
+            originais, conversoes, _dias_em_viagem(originais), tabela, politica
+        )
     )
     itens = [
         por_posicao[d.posicao]

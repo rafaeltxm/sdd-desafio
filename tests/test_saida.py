@@ -27,6 +27,8 @@ CAMPOS_DO_ITEM = [
     "categoria",
     "valor_informado",
     "moeda",
+    "taxa_cambio",
+    "data_cotacao",
     "valor_considerado",
     "valor_reembolsado",
     "status",
@@ -46,6 +48,8 @@ def item(**campos):
         categoria="alimentacao",
         valor_informado=Decimal("45.00"),
         moeda="BRL",
+        taxa_cambio=Decimal(1),
+        data_cotacao=None,
         valor_considerado=Decimal("45.00"),
         valor_reembolsado=Decimal("45.00"),
         status=Status.APROVADO,
@@ -66,6 +70,8 @@ def item_entrada_invalida():
         categoria=None,
         valor_informado=None,
         moeda=None,
+        taxa_cambio=None,
+        data_cotacao=None,
         valor_considerado=None,
         valor_reembolsado=Decimal("0"),
         status=Status.RECUSADO,
@@ -187,12 +193,14 @@ def test_decimal_com_expoente_enorme_sai_como_numero():
 
 
 def test_nenhum_valor_monetario_e_float():
-    """DT-001: nenhum campo monetário do dicionário de saída é `float`."""
+    """DT-001: nenhum campo monetário do dicionário de saída, nem a
+    `taxa_cambio`, é `float`."""
     dicionario = para_dicionario(resultado(itens=[item()]))
     monetarios = [
         dicionario["itens"][0][campo]
         for campo in (
             "valor_informado",
+            "taxa_cambio",
             "valor_considerado",
             "valor_reembolsado",
             "limite_diario",
@@ -217,6 +225,8 @@ def test_campos_nulos_saem_null():
         "categoria",
         "valor_informado",
         "moeda",
+        "taxa_cambio",
+        "data_cotacao",
         "valor_considerado",
         "em_viagem",
         "limite_diario",
@@ -228,6 +238,16 @@ def test_campos_nulos_saem_null():
     assert simplejson.loads(para_texto(resultado(itens=[item()])))["itens"][0][
         "motivo"
     ] is None
+
+
+def test_taxa_e_data_da_cotacao_saem_exatas():
+    """Seção 4 / DT-001: `taxa_cambio` sai como o número exato do câmbio e
+    `data_cotacao` como texto `AAAA-MM-DD`."""
+    texto = para_texto(resultado(itens=[item(
+        moeda="EUR", taxa_cambio=Decimal("5.930"), data_cotacao="2026-07-14",
+    )]))
+    assert '"taxa_cambio": 5.930,' in texto
+    assert '"data_cotacao": "2026-07-14",' in texto
 
 
 def test_em_viagem_sai_como_booleano():

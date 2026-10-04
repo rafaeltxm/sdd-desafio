@@ -4,6 +4,8 @@ from decimal import Decimal
 
 import pytest
 
+from conftest import construir_cambio
+
 
 @pytest.mark.parametrize(
     ("valor", "considerado"),
@@ -45,3 +47,43 @@ def test_rn003_regras_usam_o_valor_arredondado(avaliar, despesa):
     assert item["valor_considerado"] == Decimal("60.01")
     assert item["valor_reembolsado"] == Decimal("60.00")
     assert item["status"] == "parcial"
+
+
+@pytest.mark.parametrize(
+    ("valor", "considerado"),
+    [
+        # RN-003 Aceite: 16,8649 × 5,93 = 100,008857 → 100,01
+        # (arredondar antes daria 16,86 × 5,93 = 99,98)
+        (Decimal("16.8649"), Decimal("100.01")),
+        # RN-003 Aceite: 0,001 × 5,93 = 0,00593 → 0,01
+        (Decimal("0.001"), Decimal("0.01")),
+    ],
+)
+def test_rn003_conversao_arredondada_uma_vez_em_reais(
+    avaliar, despesa, valor, considerado
+):
+    """RN-003 / AMB-026: o valor exato em EUR é multiplicado pela taxa (5,93 em
+    14/07) e o produto é arredondado uma única vez, em reais."""
+    (item,) = avaliar(
+        despesa(data="2026-07-14", valor=valor, moeda="EUR")
+    )["itens"]
+
+    assert item["valor_considerado"] == considerado
+    assert item["valor_informado"] == valor
+
+
+def test_rn003_produto_com_mais_de_28_digitos_e_exato(avaliar, despesa):
+    """RN-003 / DT-012: o produto é exato, sem a precisão padrão de 28 dígitos.
+
+    Câmbio com USD 2 em 14/07; 50,002499999999999999999999999999 USD sem nota."""
+    cambio = construir_cambio(taxas={"2026-07-14": {"USD": Decimal("2")}})
+    (item,) = avaliar(
+        despesa(data="2026-07-14", valor=Decimal("50.002499999999999999999999999999"),
+                moeda="USD", tem_nota_fiscal=False),
+        cambio=cambio,
+    )["itens"]
+
+    # exato: 100,004999999999999999999999999998 → 100,00 (com 28 dígitos o
+    # produto viraria 100,0050000… → 100,01, e exigiria nota)
+    assert item["valor_considerado"] == Decimal("100.00")
+    assert item["motivo"] != "nota_fiscal_ausente"

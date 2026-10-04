@@ -16,6 +16,11 @@ def formatar_data(data: date) -> str:
     return f"{data.day:02d}/{data.month:02d}"
 
 
+def formatar_taxa(taxa: Decimal) -> str:
+    """Taxa com as casas que tiver, sem arredondar (DT-009): `5,93`."""
+    return str(taxa).replace(".", ",")
+
+
 def justificar(
     status: Status,
     motivo: Motivo | None,
@@ -26,12 +31,48 @@ def justificar(
     valor_reembolsado: Decimal,
     limite_diario: Decimal | None,
     nota_fiscal_acima_de: Decimal,
+    moeda: str | None = None,
+    taxa_cambio: Decimal | None = None,
+    data_cotacao: date | None = None,
 ) -> str:
     """Frase de um item já decidido, a partir dos seus campos contratuais.
 
-    `nota_fiscal_acima_de` é o mínimo da nota da política (DT-009). Nenhuma
-    decisão depende deste texto (plan seção 3).
+    `nota_fiscal_acima_de` é o mínimo da nota da política (DT-009). Com
+    `data_cotacao` (moeda diferente de `BRL`), a frase começa pela conversão.
+    Nenhuma decisão depende deste texto (plan seção 3).
     """
+    frase = _frase(
+        status,
+        motivo,
+        data=data,
+        categoria=categoria,
+        valor_considerado=valor_considerado,
+        valor_reembolsado=valor_reembolsado,
+        limite_diario=limite_diario,
+        nota_fiscal_acima_de=nota_fiscal_acima_de,
+        moeda=moeda,
+    )
+    if data_cotacao is None:
+        return frase
+    return (
+        f"Convertido de {moeda} pela taxa {formatar_taxa(taxa_cambio)} de"
+        f" {formatar_data(data_cotacao)}: {formatar_reais(valor_considerado)}."
+        f" {frase}"
+    )
+
+
+def _frase(
+    status: Status,
+    motivo: Motivo | None,
+    *,
+    data: date | None,
+    categoria: str | None,
+    valor_considerado: Decimal | None,
+    valor_reembolsado: Decimal,
+    limite_diario: Decimal | None,
+    nota_fiscal_acima_de: Decimal,
+    moeda: str | None,
+) -> str:
     if status is Status.APROVADO:
         return (
             f"Aprovado integralmente: {formatar_reais(valor_considerado)} dentro do"
@@ -41,6 +82,11 @@ def justificar(
         return (
             "Recusado: despesa inválida (não é objeto, falta campo obrigatório,"
             " campo com tipo ou formato errado, ou valor fora do teto)."
+        )
+    if motivo is Motivo.CAMBIO_INDISPONIVEL:
+        return (
+            f"Recusado: o arquivo de câmbio não tem cotação de {moeda} em"
+            f" {formatar_data(data)} nem nos dias anteriores aceitos."
         )
     if motivo is Motivo.VALOR_INVALIDO:
         return (

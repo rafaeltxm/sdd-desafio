@@ -170,3 +170,16 @@ def test_rn008_exatamente_o_minimo_do_arquivo_sem_nota_segue(avaliar, despesa):
     )["itens"]
 
     assert (item["status"], item["valor_reembolsado"]) == ("aprovado", Decimal("50.00"))
+
+
+def test_rn008_minimo_comparado_em_reais(avaliar, despesa):
+    """RN-008 / AMB-027 (aceite): 40,00 USD sem nota em 20/07, taxa 5,50 →
+    220,00 → `nota_fiscal_ausente` (40,00 na moeda original não passaria)."""
+    (item,) = avaliar(
+        despesa(data="2026-07-20", categoria="transporte_urbano",
+                valor=Decimal("40.00"), moeda="USD", tem_nota_fiscal=False)
+    )["itens"]
+
+    # 40,00 × 5,50 = 220,00 > 100,00 sem nota
+    assert item["valor_considerado"] == Decimal("220.00")
+    _recusado_nota_fiscal_ausente(item)

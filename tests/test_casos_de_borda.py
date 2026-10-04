@@ -1010,6 +1010,223 @@ def test_caso_de_borda_de_tabela_aplicada(processar, texto, politica, verificar)
     verificar(processar(texto, politica))
 
 
+def _conversao(item):
+    return (
+        item["moeda"], item["taxa_cambio"], item["data_cotacao"],
+        item["valor_considerado"],
+    )
+
+
+def _recusado_cambio_indisponivel(item):
+    # RN-015: recusado na etapa 2; sem valor em reais nem taxa (seção 4)
+    assert (item["status"], item["motivo"]) == ("recusado", "cambio_indisponivel")
+    assert item["valor_reembolsado"] == 0
+    for campo in (
+        "valor_considerado", "taxa_cambio", "data_cotacao", "em_viagem",
+        "limite_diario",
+    ):
+        assert item[campo] is None, campo
+
+
+def _caso_moeda_nula(saida):
+    # null = BRL: taxa 1, sem data de cotação; 45,00 ≤ 60,00 → aprovado
+    (item,) = saida["itens"]
+    assert _conversao(item) == ("BRL", 1, None, Decimal("45.00"))
+    assert (item["valor_reembolsado"], item["status"]) == (Decimal("45.00"),
+                                                          "aprovado")
+
+
+def _caso_moeda_estrangeira_com_cotacao(saida):
+    # 22,00 × 5,93 = 130,46; min(130,46; 60,00) = 60,00 → parcial
+    (item,) = saida["itens"]
+    assert _conversao(item) == ("EUR", Decimal("5.93"), "2026-07-14",
+                                Decimal("130.46"))
+    assert (item["valor_reembolsado"], item["status"]) == (Decimal("60.00"),
+                                                          "parcial")
+
+
+def _caso_moeda_estrangeira_em_sabado(saida):
+    # 18/07 sem cotação → 17/07 (D-1): 30,00 × 5,96 = 178,80
+    (item,) = saida["itens"]
+    assert _conversao(item) == ("EUR", Decimal("5.96"), "2026-07-17",
+                                Decimal("178.80"))
+
+
+def _caso_cotacao_3_dias_antes(saida):
+    # 16/07 - 3 = 13/07: 10,00 × 5,42 = 54,20
+    (item,) = saida["itens"]
+    assert _conversao(item) == ("USD", Decimal("5.42"), "2026-07-13",
+                                Decimal("54.20"))
+
+
+def _caso_cambio_indisponivel_fora_dos_totais(saida):
+    (item,) = saida["itens"]
+    _recusado_cambio_indisponivel(item)
+    _fora_dos_totais(saida)
+
+
+def _caso_moeda_sem_cotacao_no_arquivo(saida):
+    # GBP não está no câmbio
+    (item,) = saida["itens"]
+    _recusado_cambio_indisponivel(item)
+    assert item["moeda"] == "GBP"
+    _fora_dos_totais(saida)
+
+
+def _caso_sem_cotacao_e_fora_do_periodo(saida):
+    # etapa 2 (câmbio) antes da etapa 4 (período)
+    (item,) = saida["itens"]
+    _recusado_cambio_indisponivel(item)
+
+
+def _caso_conversao_arredondada_uma_vez(saida):
+    # 16,8649 × 5,93 = 100,008857 → 100,01 > 100,00 sem nota
+    (item,) = saida["itens"]
+    assert item["valor_considerado"] == Decimal("100.01")
+    assert (item["status"], item["motivo"]) == ("recusado", "nota_fiscal_ausente")
+
+
+def _caso_nota_fiscal_comparada_em_reais(saida):
+    # 40,00 × 5,50 = 220,00 > 100,00 sem nota
+    (item,) = saida["itens"]
+    assert item["valor_considerado"] == Decimal("220.00")
+    assert (item["status"], item["motivo"]) == ("recusado", "nota_fiscal_ausente")
+
+
+def _caso_valor_estrangeiro_minusculo(saida):
+    # 0,001 × 5,93 = 0,00593 → 0,01 > 0; 0,01 ≤ 60,00 → aprovado
+    (item,) = saida["itens"]
+    assert item["valor_considerado"] == Decimal("0.01")
+    assert (item["valor_reembolsado"], item["status"]) == (Decimal("0.01"),
+                                                          "aprovado")
+
+
+def _caso_teto_na_moeda_original(saida):
+    # 200.000.000 < 1 bilhão na moeda original: segue;
+    # 200.000.000 × 5,44 = 1.088.000.000,00; min(…; 60,00) = 60,00
+    (item,) = saida["itens"]
+    assert item["valor_considerado"] == Decimal("1088000000.00")
+    assert (item["valor_reembolsado"], item["status"]) == (Decimal("60.00"),
+                                                          "parcial")
+
+
+def _caso_moeda_estrangeira_nao_comprova_viagem(saida):
+    # sem hospedagem: 14/07 fora de viagem; min(80,00; 60,00) = 60,00
+    _, alimentacao = saida["itens"]
+    assert alimentacao["em_viagem"] is False
+    assert _resumo(alimentacao) == (Decimal("60.00"), Decimal("60.00"), "parcial")
+
+
+def _caso_hospedagem_em_moeda_estrangeira(saida):
+    # 50,00 × 5,95 = 297,50; min(297,50; 250,00) = 250,00 → parcial
+    # 23/07 = D+1: 60,00 × 1,5 = 90,00; 80,00 ≤ 90,00 → aprovado
+    hospedagem, alimentacao = saida["itens"]
+    assert hospedagem["valor_considerado"] == Decimal("297.50")
+    assert hospedagem["em_viagem"] is True
+    assert _resumo(hospedagem) == (Decimal("250.00"), Decimal("250.00"), "parcial")
+    assert alimentacao["em_viagem"] is True
+    assert _resumo(alimentacao) == (Decimal("90.00"), Decimal("80.00"), "aprovado")
+
+
+def _caso_data_intermediaria_sem_a_moeda(saida):
+    # 15/07 sem cotação; 14/07 só USD; 13/07 EUR 5,91: 20,00 × 5,91 = 118,20;
+    # min(118,20; 60,00) = 60,00 → parcial
+    (item,) = saida["itens"]
+    assert _conversao(item) == ("EUR", Decimal("5.91"), "2026-07-13",
+                                Decimal("118.20"))
+    assert (item["valor_reembolsado"], item["status"]) == (Decimal("60.00"),
+                                                          "parcial")
+
+
+_SO_13_07 = {"2026-07-13": {"USD": Decimal("5.42")}}
+
+CASOS_DE_CAMBIO = [
+    # (texto da entrada, documento do câmbio ou None para o do envelope, verificação)
+    pytest.param(
+        _json(despesa(valor=Decimal("45.00"), moeda=None)),
+        None, _caso_moeda_nula, id="Moeda nula",
+    ),
+    pytest.param(
+        _json(despesa(data="2026-07-14", valor=Decimal("22.00"), moeda="EUR")),
+        None, _caso_moeda_estrangeira_com_cotacao,
+        id="Moeda estrangeira com cotação",
+    ),
+    pytest.param(
+        _json(despesa(data="2026-07-18", valor=Decimal("30.00"), moeda="EUR")),
+        None, _caso_moeda_estrangeira_em_sabado,
+        id="Moeda estrangeira em sábado",
+    ),
+    pytest.param(
+        _json(despesa(data="2026-07-16", valor=Decimal("10.00"), moeda="USD")),
+        construir_cambio(taxas=_SO_13_07), _caso_cotacao_3_dias_antes,
+        id="Cotação exatamente 3 dias antes",
+    ),
+    pytest.param(
+        _json(despesa(data="2026-07-17", valor=Decimal("10.00"), moeda="USD")),
+        construir_cambio(taxas=_SO_13_07), _caso_cambio_indisponivel_fora_dos_totais,
+        id="Cotação 4 dias antes",
+    ),
+    pytest.param(
+        _json(despesa(data="2026-07-21", valor=Decimal("55.00"), moeda="GBP")),
+        None, _caso_moeda_sem_cotacao_no_arquivo,
+        id="Moeda sem cotação no arquivo",
+    ),
+    pytest.param(
+        _json(despesa(data="2026-04-15", valor=Decimal("10.00"), moeda="USD")),
+        None, _caso_sem_cotacao_e_fora_do_periodo,
+        id="Sem cotação e fora do período",
+    ),
+    pytest.param(
+        _json(despesa(data="2026-07-14", valor=Decimal("16.8649"), moeda="EUR",
+                      tem_nota_fiscal=False)),
+        None, _caso_conversao_arredondada_uma_vez,
+        id="Conversão arredondada uma vez",
+    ),
+    pytest.param(
+        _json(despesa(data="2026-07-20", categoria="transporte_urbano",
+                      valor=Decimal("40.00"), moeda="USD", tem_nota_fiscal=False)),
+        None, _caso_nota_fiscal_comparada_em_reais,
+        id="Nota fiscal comparada em reais",
+    ),
+    pytest.param(
+        _json(despesa(data="2026-07-14", valor=Decimal("0.001"), moeda="EUR")),
+        None, _caso_valor_estrangeiro_minusculo, id="Valor estrangeiro minúsculo",
+    ),
+    pytest.param(
+        _json(despesa(data="2026-07-14", valor=Decimal("200000000"), moeda="USD")),
+        None, _caso_teto_na_moeda_original, id="Teto na moeda original",
+    ),
+    pytest.param(
+        _json(despesa(id="t", data="2026-07-14", categoria="transporte_urbano",
+                      valor=Decimal("22.00"), moeda="EUR"),
+              despesa(id="a", data="2026-07-14", valor=Decimal("80.00"))),
+        None, _caso_moeda_estrangeira_nao_comprova_viagem,
+        id="Moeda estrangeira não comprova viagem",
+    ),
+    pytest.param(
+        _json(_hospedagem(data="2026-07-22", valor=Decimal("50.00"), moeda="EUR"),
+              despesa(id="a", data="2026-07-23", valor=Decimal("80.00"))),
+        None, _caso_hospedagem_em_moeda_estrangeira,
+        id="Hospedagem em moeda estrangeira",
+    ),
+    pytest.param(
+        _json(despesa(data="2026-07-15", valor=Decimal("20.00"), moeda="EUR")),
+        construir_cambio(taxas={
+            "2026-07-13": {"USD": Decimal("5.42"), "EUR": Decimal("5.91")},
+            "2026-07-14": {"USD": Decimal("5.44")},
+        }),
+        _caso_data_intermediaria_sem_a_moeda, id="Data intermediária sem a moeda",
+    ),
+]
+
+
+@pytest.mark.parametrize(("texto", "cambio", "verificar"), CASOS_DE_CAMBIO)
+def test_caso_de_borda_de_cambio(processar, texto, cambio, verificar):
+    """Seção 7 da spec: casos de moeda e conversão (RN-015, RN-003, RN-004,
+    RN-008, RN-010) e da ordem das etapas (seção 8)."""
+    verificar(processar(texto, None, cambio))
+
+
 def _cli(*argumentos: str) -> int:
     """`main` da CLI; erro de uso do `argparse` vira o código do `SystemExit`."""
     try:

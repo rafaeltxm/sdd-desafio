@@ -25,6 +25,13 @@ COMBINACOES = [
         id="recusado-entrada_invalida",
     ),
     pytest.param(
+        Status.RECUSADO, Motivo.CAMBIO_INDISPONIVEL,
+        dict(data=date(2026, 7, 21), categoria="alimentacao", moeda="GBP",
+             valor_considerado=None, valor_reembolsado=Decimal("0"),
+             limite_diario=None),
+        id="recusado-cambio_indisponivel",
+    ),
+    pytest.param(
         Status.RECUSADO, Motivo.VALOR_INVALIDO,
         dict(data=date(2026, 7, 3), categoria="alimentacao",
              valor_considerado=Decimal("-45.00"), valor_reembolsado=Decimal("0"),
@@ -65,6 +72,14 @@ COMBINACOES = [
              valor_considerado=Decimal("30.00"), valor_reembolsado=Decimal("15.00"),
              limite_diario=Decimal("60.00")),
         id="parcial-limite_diario_excedido",
+    ),
+    pytest.param(
+        Status.PARCIAL, Motivo.LIMITE_DIARIO_EXCEDIDO,
+        dict(data=date(2026, 7, 14), categoria="alimentacao", moeda="EUR",
+             taxa_cambio=Decimal("5.93"), data_cotacao=date(2026, 7, 14),
+             valor_considerado=Decimal("130.46"),
+             valor_reembolsado=Decimal("60.00"), limite_diario=Decimal("60.00")),
+        id="parcial-convertido-de-eur",
     ),
     pytest.param(
         Status.RECUSADO, Motivo.LIMITE_DIARIO_EXCEDIDO,

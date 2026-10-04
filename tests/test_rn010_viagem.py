@@ -349,3 +349,15 @@ def test_rn010_cc_comercial_alimentacao_em_viagem_tem_limite_135(avaliar, despes
     assert _resumo(alimentacao) == (
         Decimal("135.00"), "parcial", "limite_diario_excedido",
     )
+
+
+def test_rn010_moeda_estrangeira_nao_comprova_viagem(avaliar, despesa):
+    """RN-010 / AMB-023 (aceite): alimentação de 22,00 EUR com nota em 14/07,
+    sem hospedagem → 14/07 não fica em viagem."""
+    (item,) = avaliar(
+        despesa(data="2026-07-14", valor=Decimal("22.00"), moeda="EUR")
+    )["itens"]
+
+    # 22,00 × 5,93 = 130,46; fora de viagem: limite 60,00 → parcial com 60,00
+    assert (item["em_viagem"], item["limite_diario"]) == (False, Decimal("60.00"))
+    assert _resumo(item) == (Decimal("60.00"), "parcial", "limite_diario_excedido")
