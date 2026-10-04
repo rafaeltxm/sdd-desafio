@@ -127,16 +127,16 @@ Aberto em 02/10 às 19:51 (não às ~10h previstas); planejamento retomado só e
 - [x] **Diligência** — procedimento, números, o que aceitei sem verificar
 - [x] **Envelope** — hash de partida, 0 arquivos na mão, tempos, diff de absorção, o que absorveu/resistiu — `8674de6`
 - [x] Explicar os 2 commits iniciais sem task (setup e export) — seção Fechamento
-- [ ] Atualizar números que ficaram para trás com a T-037 (Diligência, l. ~165: "36 tasks (T-037 aberta), 37 commits, 1041 testes, 25 revisões, 57 sessões" → 37 tasks, 38 commits `T-NNN`, 1043 testes, 26 revisões, 58 sessões)
-- [ ] Fechar o "Ponto em aberto" do envelope: registrar que a T-037 foi feita (`80639e1`) e o resultado da revisão
-- [ ] Releitura final do relatório inteiro (coerência dos números entre seções)
+- [x] Atualizar números que ficaram para trás com a T-037 (Diligência: 37 tasks, 38 commits `T-NNN`, 1043 testes, 26 revisões, 60 sessões)
+- [x] Fechar o "Ponto em aberto" do envelope: registrar que a T-037 foi feita (`80639e1`) e o resultado da revisão
+- [x] Releitura final do relatório inteiro (coerência dos números entre seções)
 
 ### Checagem final
-- [ ] `git log` legível: todo commit com task ou `docs(...)` — conferido em 04/10: só `994a491` e `683f161` fora do padrão, já explicados
-- [ ] Rastreabilidade fecha: RN → task → commit → teste (`test_rastreabilidade.py` verde, tabela de Cobertura em `tasks.md`)
-- [ ] Testes passando a partir de um clone limpo, seguindo o README (os três exemplos com `--politica`/`--cambio`)
-- [ ] `docs/sessions/` com um export por sessão (hoje 01 a 58)
-- [ ] `/export` final (sessão 59) + commit de fim de bloco
-- [ ] **Push** — 38+ commits locais ainda não estão no fork público
+- [x] `git log` legível: todo commit com task ou `docs(...)` — conferido em 04/10: só `994a491` e `683f161` fora do padrão, já explicados
+- [x] Rastreabilidade fecha: RN → task → commit → teste (`test_rastreabilidade.py` verde, tabela de Cobertura em `tasks.md`)
+- [x] Testes passando a partir de um clone limpo, seguindo o README (os três exemplos com `--politica`/`--cambio`)
+- [x] `docs/sessions/` com um export por sessão (01 a 60, sem lacuna)
+- [x] `/export` final (sessão 60) + commit de fim de bloco
+- [ ] **Push** do commit final (até `cfd22df` já está no fork, conferido com `git fetch`)
 - [ ] Confirmar no GitHub que o fork público mostra o último commit
 - [ ] Enviar link do fork no formulário

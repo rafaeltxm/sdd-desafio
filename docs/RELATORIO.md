@@ -1,6 +1,6 @@
 # Relatório — Desafio SDD
 
-**Aluno:** Rafael Teixeira Martins · **Repositório:** https://github.com/rafaeltxm/sdd-desafio · **Data:** 2026-10-02
+**Aluno:** Rafael Teixeira Martins · **Repositório:** https://github.com/rafaeltxm/sdd-desafio · **Data:** 2026-10-04
 
 > Sessões citadas como `docs/sessions/<arquivo>`, linha N.
 
@@ -162,7 +162,7 @@ produziu a primeira versão.
 
 **Procedimento (o que o fluxo impunha):** cada task pela skill `/task`: testes primeiro, falhando pelo motivo certo; pytest + ruff completos; `revisor-de-task` nas tasks de regra; resumo com "Decisões ou interpretações realizadas"; commit só depois do meu "pode commitar". Hooks bloqueiam commit com teste vermelho ou mensagem fora do padrão.
 
-**Números:** no Dia 1: 21 tasks, 22 commits `T-NNN`, 649 testes, 15 revisões independentes, 33 sessões exportadas, 6 mudanças de spec registradas (D-001 a D-006). Com o envelope e a revisão final: 36 tasks concluídas (T-037 aberta), 37 commits `T-NNN`, 1041 testes, 25 revisões independentes, 57 sessões exportadas, 8 mudanças de spec registradas (D-001 a D-008).
+**Números:** no Dia 1: 21 tasks, 22 commits `T-NNN`, 649 testes, 15 revisões independentes, 33 sessões exportadas, 6 mudanças de spec registradas (D-001 a D-006). Com o envelope e a revisão final: 37 tasks concluídas, 38 commits `T-NNN`, 1043 testes, 26 revisões independentes, 60 sessões exportadas, 8 mudanças de spec registradas (D-001 a D-008).
 
 **Exemplo de pergunta antes de aceitar:** T-018, proteção contra 9999-12-31 — perguntei "faz sentido registrar?" antes de commitar (`29-t018-viagem.md` l. 608).
 
@@ -346,14 +346,14 @@ provavelmente teriam sido rediscutidas durante a implementação.
 Na prática, a spec não me poupou de revisar as decisões novas, mas evitou que eu
 precisasse redescobrir as decisões antigas. Esse foi o principal ganho.
 
-**Ponto em aberto encontrado no levantamento:** a DT-012 do `plan.md` manda rodar
+**Ponto encontrado no levantamento (resolvido):** a DT-012 do `plan.md` manda rodar
 "toda conta com dinheiro (…) o saldo do limite e os totais" em
-`contexto_exato()`. Hoje só a conversão roda nele: o saldo do limite
-(`motor.py`, `_aplicar_limite`) e os totais (`_totais`) usam o contexto padrão.
+`contexto_exato()`. Até a T-037, só a conversão rodava nele: o saldo do limite
+(`motor.py`, `_aplicar_limite`) e os totais (`_totais`) usavam o contexto padrão.
 O revisor da T-031 apontou isso como ressalva BAIXA anterior à task, e ficou
 "para você decidir se vira task" (`49-…` l. 994). Nenhum resultado realista
 muda, porque para passar de 28 dígitos seriam precisos ~10^8 itens de ~10^18,
-mas o código diverge do plan.
+mas o código divergia do plan.
 
 **Decisão: corrigir com uma task (T-037).** Embora o desvio não produza
 diferença prática nos cenários realistas conhecidos, o comportamento atual não
@@ -364,6 +364,15 @@ resultados atuais não é motivo suficiente para manter implementação e plan
 divergentes. A task inclui testes que comprovam que o saldo do limite e os
 totais também são calculados no contexto exato, e os resultados já existentes
 nos casos normais ficam preservados.
+
+**Resultado:** feita em `80639e1 fix(T-037)`. O saldo do limite (`_aplicar_limite`)
+e os totais (`_totais`) passaram a rodar em `contexto_exato()`. Dois testes novos
+em `tests/test_rn003_arredondamento.py` forçam `prec=6` no contexto de quem chama e
+falham com o código anterior; nenhum teste existente mudou (1041 → 1043). O
+`revisor-de-task` deu **APROVADO COM RESSALVAS** (`docs/reviews/T-037.md`): os 4
+critérios de aceite foram atendidos, e a única ressalva (BAIXA) era uma linha em
+branco a mais no teste, que o `ruff` confirmou não ser problema. Com isso, código e
+`plan.md` voltaram a concordar.
 
 ---
 
