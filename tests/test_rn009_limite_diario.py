@@ -7,6 +7,10 @@ viagem); os limites em viagem estão em `test_rn010_viagem.py`.
 from decimal import Decimal
 
 import pytest
+import simplejson
+
+from conftest import construir_politica
+from reembolso.politica import ler_politica, limite_diario, tabela_aplicada
 
 
 def _resumo(item):
@@ -104,3 +108,86 @@ def test_rn009_item_que_chega_ao_limite_tem_limite_e_em_viagem(avaliar, despesa)
 
     assert item["limite_diario"] == Decimal("60.00")
     assert item["em_viagem"] is False
+
+
+# --- limite_diario com a tabela aplicada (RN-009, DT-013) ---
+
+
+def _tabela(centro_custo=None, **sobrescritas):
+    documento = construir_politica(**sobrescritas)
+    politica = ler_politica(simplejson.dumps(documento, use_decimal=True).encode())
+    return tabela_aplicada(politica, centro_custo)
+
+
+CINQUENTA = Decimal("50")  # acrescimo_em_viagem_percentual da v4
+
+
+@pytest.mark.parametrize(
+    ("categoria", "esperado"),
+    [
+        ("alimentacao", Decimal("90.00")),  # 60,00 × 1,5 = 90,00
+        ("transporte_urbano", Decimal("120.00")),  # 80,00 × 1,5 = 120,00
+        ("hospedagem", Decimal("250.00")),  # não amplia (AMB-006)
+    ],
+)
+def test_rn009_limite_em_viagem_da_tabela_padrao(categoria, esperado):
+    """RN-009 / AMB-006 / AMB-022: `padrao` da v4 em viagem → 90,00, 120,00 e
+    250,00 (hospedagem não amplia)."""
+    assert limite_diario(_tabela(), categoria, True, CINQUENTA) == esperado
+
+
+@pytest.mark.parametrize(
+    ("categoria", "esperado"),
+    [
+        ("alimentacao", Decimal("60.00")),
+        ("transporte_urbano", Decimal("80.00")),
+        ("hospedagem", Decimal("250.00")),
+    ],
+)
+def test_rn009_limite_fora_de_viagem_e_o_da_tabela(categoria, esperado):
+    """RN-009: fora de viagem, o limite é o `limite` da tabela aplicada."""
+    assert limite_diario(_tabela(), categoria, False, CINQUENTA) == esperado
+
+
+@pytest.mark.parametrize(
+    ("categoria", "esperado"),
+    [
+        ("alimentacao", Decimal("135.00")),  # 90,00 × 1,5 = 135,00
+        ("representacao", Decimal("300.00")),  # não amplia (AMB-022)
+    ],
+)
+def test_rn009_limite_em_viagem_do_cc_comercial(categoria, esperado):
+    """RN-009 / AMB-022: `CC-COMERCIAL` em viagem → alimentação 135,00;
+    representação 300,00 (não amplia)."""
+    tabela = _tabela("CC-COMERCIAL")
+    assert limite_diario(tabela, categoria, True, CINQUENTA) == esperado
+
+
+def test_rn009_limite_em_viagem_truncado_ao_centavo():
+    """RN-009 / AMB-022 / DT-013: alimentação 33,33 com 50% → 49,99."""
+    padrao = construir_politica()["padrao"]
+    padrao["alimentacao"]["limite"] = Decimal("33.33")
+    tabela = _tabela(padrao=padrao)
+
+    # 33,33 × 1,5 = 49,995 → truncado (nunca arredondado para cima) = 49,99
+    assert limite_diario(tabela, "alimentacao", True, CINQUENTA) == Decimal("49.99")
+
+
+def test_rn009_percentual_zero_mantem_o_limite_normal():
+    """RN-009: acréscimo de 0% → limite em viagem igual ao normal."""
+    tabela = _tabela()
+    # 60,00 × (1 + 0/100) = 60,00
+    assert limite_diario(tabela, "alimentacao", True, Decimal("0")) == Decimal(
+        "60.00"
+    )
+
+
+def test_rn009_percentual_com_mais_de_28_casas_e_exato():
+    """RN-009 / DT-012 / DT-013: percentual 50 − 10⁻³⁰ (30 casas) não é
+    arredondado antes do truncamento."""
+    percentual = Decimal("49." + "9" * 30)  # 50 − 10⁻³⁰
+    # 60,00 × (100 + 50 − 10⁻³⁰) / 100 = 90 − 0,6 × 10⁻³⁰ → truncado 89,99.
+    # Com a precisão padrão (28 dígitos), 149,99…9 viraria 150 e daria 90,00.
+    assert limite_diario(_tabela(), "alimentacao", True, percentual) == Decimal(
+        "89.99"
+    )

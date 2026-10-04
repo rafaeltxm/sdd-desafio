@@ -93,6 +93,14 @@ class Politica:
 
 
 @dataclass(frozen=True)
+class TabelaAplicada:
+    """Tabela escolhida pelo centro de custo (RN-014)."""
+
+    nome: str  # chave de `centros_custo` como escrita no arquivo, ou "padrao"
+    limites: Tabela
+
+
+@dataclass(frozen=True)
 class Cambio:
     """Arquivo de câmbio validado (RN-016), sem a entrada `BRL` (ignorada)."""
 

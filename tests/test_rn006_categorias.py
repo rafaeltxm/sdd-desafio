@@ -6,6 +6,10 @@ Período padrão do `conftest`: 2026-07-01 a 2026-07-31.
 from decimal import Decimal
 
 import pytest
+import simplejson
+
+from conftest import construir_politica
+from reembolso.politica import categoria_de_saida, ler_politica, tabela_aplicada
 
 
 def _recusado_fora_da_politica(item):
@@ -140,3 +144,43 @@ def test_rn006_riscos_aceitos_saem_fora_da_politica(avaliar, despesa, categoria)
 
     _recusado_fora_da_politica(item)
     assert item["categoria"] == categoria
+
+
+# --- categoria_de_saida (seção 4, `itens[].categoria`) ---
+
+
+def _tabela(centro_custo=None):
+    documento = construir_politica()
+    politica = ler_politica(simplejson.dumps(documento, use_decimal=True).encode())
+    return tabela_aplicada(politica, centro_custo)
+
+
+@pytest.mark.parametrize(
+    ("texto", "centro_custo", "esperado"),
+    [
+        # normaliza para `alimentacao`, presente no padrao
+        pytest.param("ALIMENTACAO", None, "alimentacao", id="reconhecida"),
+        # presente em CC-ENG-PLATAFORMA com limite 0: ainda reconhecida
+        pytest.param(
+            "hospedagem", "CC-ENG-PLATAFORMA", "hospedagem", id="limite-zero"
+        ),
+        # grafia não normalizada: o limite 0 não tira a categoria da tabela
+        pytest.param(
+            "HOSPEDAGEM", "CC-ENG-PLATAFORMA", "hospedagem", id="limite-zero-grafia"
+        ),
+        # `representacao` só existe em CC-COMERCIAL: no padrao sai como veio
+        pytest.param(
+            "representacao", None, "representacao", id="de-outra-tabela"
+        ),
+        pytest.param(
+            "Representacao", None, "Representacao", id="de-outra-tabela-como-veio"
+        ),
+        pytest.param("Coworking", None, "Coworking", id="fora-de-todas"),
+        pytest.param(17, None, None, id="nao-texto"),
+        pytest.param(None, None, None, id="ausente"),
+    ],
+)
+def test_rn006_categoria_de_saida(texto, centro_custo, esperado):
+    """RN-006 / AMB-021 / seção 4: normalizada se presente na tabela aplicada
+    (inclusive com limite 0); senão como veio, se texto; senão nula."""
+    assert categoria_de_saida(texto, _tabela(centro_custo)) == esperado

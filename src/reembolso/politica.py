@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from types import MappingProxyType
 
-from reembolso.dinheiro import arredondar
+from reembolso.dinheiro import arredondar, contexto_exato, truncar
 from reembolso.leitura import (
     ErroDeArquivo,
     e_data,
@@ -14,7 +14,7 @@ from reembolso.leitura import (
     tem_ate_2_casas,
     tem_texto,
 )
-from reembolso.modelo import Politica, Tabela
+from reembolso.modelo import Politica, Tabela, TabelaAplicada
 from reembolso.normalizacao import normalizar_texto
 
 
@@ -35,6 +35,8 @@ LIMITES_DIARIOS = {
 }
 CATEGORIAS_RECONHECIDAS = frozenset(LIMITES_DIARIOS)  # RN-006
 VALOR_ACIMA_DO_QUAL_EXIGE_NOTA = Decimal("100.00")  # RN-008 (estritamente maior)
+# RN-009, AMB-006, AMB-022: as únicas que ampliam em viagem
+CATEGORIAS_AMPLIADAS_EM_VIAGEM = frozenset({"alimentacao", "transporte_urbano"})
 CATEGORIA_QUE_COMPROVA_VIAGEM = "hospedagem"  # RN-010
 DIAS_EM_VIAGEM_APOS_HOSPEDAGEM = 1  # RN-010: D e D+1
 # RN-002, RN-016 / AMB-018: valor absoluto a partir dele é inválido
@@ -143,3 +145,31 @@ def ler_politica(conteudo: bytes) -> Politica:
             ate_2_casas=False,
         ),
     )
+
+
+def tabela_aplicada(politica: Politica, centro_custo: str | None) -> TabelaAplicada:
+    """RN-014: tabela do centro de custo se for chave exata; senão o `padrao`."""
+    if tem_texto(centro_custo) and centro_custo in politica.centros_custo:
+        return TabelaAplicada(centro_custo, politica.centros_custo[centro_custo])
+    return TabelaAplicada(NOME_DA_TABELA_PADRAO, politica.padrao)
+
+
+def limite_diario(
+    tabela: TabelaAplicada, categoria: str, em_viagem: bool, percentual: Decimal
+) -> Decimal:
+    """RN-009 / DT-013: limite normal, ou ampliado pelo percentual e truncado."""
+    limite = tabela.limites[categoria]
+    if not em_viagem or categoria not in CATEGORIAS_AMPLIADAS_EM_VIAGEM:
+        return limite
+    with contexto_exato():
+        ampliado = (limite * (100 + percentual)).scaleb(-2)
+    return truncar(ampliado)
+
+
+def categoria_de_saida(texto, tabela: TabelaAplicada) -> str | None:
+    """Seção 4 (`itens[].categoria`): normalizada se está na tabela aplicada
+    (inclusive com limite 0); senão o texto como veio; `None` se não é texto."""
+    if not isinstance(texto, str):
+        return None
+    normalizada = normalizar_texto(texto)
+    return normalizada if normalizada in tabela.limites else texto
