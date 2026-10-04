@@ -213,7 +213,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
     As três verificações são testadas sobre conjuntos montados no teste, sem editar a spec. Os 37 casos e os donos são os desta fase.
   - **Commit:** 91a0f33
 
-- [ ] **T-023** — `leitura.py`: mover de `entrada.py` a forma do arquivo (`ler_json`, `ObjetoJson`, `ErroDeArquivo`, verificação de escapes) e os testes de tipo da DT-003 (`e_numero`, `e_data`, `tem_texto`), sem mudar comportamento; acrescentar `e_codigo_de_moeda`, `tem_ate_2_casas` e `rejeitar_chaves_repetidas` (DT-010, DT-011).
+- [x] **T-023** — `leitura.py`: mover de `entrada.py` a forma do arquivo (`ler_json`, `ObjetoJson`, `ErroDeArquivo`, verificação de escapes) e os testes de tipo da DT-003 (`e_numero`, `e_data`, `tem_texto`), sem mudar comportamento; acrescentar `e_codigo_de_moeda`, `tem_ate_2_casas` e `rejeitar_chaves_repetidas` (DT-010, DT-011).
   - **Tipo:** estrutura (leitura de JSON; commit `refactor(T-023)`)
   - **Atende:** DT-002, DT-003, DT-010, DT-011; prepara RN-016 (mesma forma para os três arquivos)
   - **Depende de:** T-022
@@ -224,7 +224,7 @@ Cada task que escreve o teste de uma regra ou de um caso pendente tira a pendên
       - `tem_ate_2_casas`: `60.000`, `6E1` e `0` → sim; `60.005` e `1E-999999` → não;
       - `rejeitar_chaves_repetidas`: chave repetida no topo, em objeto aninhado e dentro de lista → `ErroDeArquivo` com o caminho na mensagem; documento sem repetição → sem erro.
     - `entrada.py` não define mais nenhuma dessas funções.
-  - **Commit:** —
+  - **Commit:** b9f728e
 
 - [ ] **T-024** — `dinheiro.py`: `contexto_exato()`, `arredondar` (movido de `motor.py`) e `truncar` (DT-012, DT-013).
   - **Tipo:** regra
