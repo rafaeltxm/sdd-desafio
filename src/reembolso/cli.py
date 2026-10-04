@@ -6,7 +6,8 @@ import secrets
 import sys
 from pathlib import Path
 
-from reembolso.entrada import ErroDeArquivo, ler_entrada
+from reembolso.entrada import ler_entrada
+from reembolso.leitura import ErroDeArquivo
 from reembolso.motor import calcular
 from reembolso.saida import para_texto
 

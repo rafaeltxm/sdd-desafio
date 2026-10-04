@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from reembolso.entrada import ErroDeArquivo, ler_json
+from reembolso.leitura import ErroDeArquivo, ler_json
 
 
 @pytest.mark.parametrize("literal", ["NaN", "Infinity", "-Infinity"])

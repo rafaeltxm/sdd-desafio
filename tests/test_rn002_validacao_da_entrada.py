@@ -7,7 +7,8 @@ import pytest
 import simplejson
 
 from conftest import construir_despesa
-from reembolso.entrada import ErroDeArquivo, ler_entrada, ler_json, validar_cabecalho
+from reembolso.entrada import ler_entrada, validar_cabecalho
+from reembolso.leitura import ErroDeArquivo, ler_json
 from reembolso.modelo import Colaborador, Despesa, DespesaInvalida
 
 

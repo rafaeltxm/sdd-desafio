@@ -2,7 +2,8 @@
 
 from decimal import Decimal
 
-from reembolso.entrada import avisos_de_chave_repetida, ler_json
+from reembolso.entrada import avisos_de_chave_repetida
+from reembolso.leitura import ler_json
 
 
 def _aviso(caminho, n):

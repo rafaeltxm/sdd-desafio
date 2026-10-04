@@ -1,71 +1,19 @@
 """bytes → JSON → Entrada; erros de arquivo e despesas inválidas (RN-002, RN-013)."""
 
-import re
 from collections import Counter
-from datetime import date
 from decimal import Decimal
 
-import simplejson
-
+from reembolso.leitura import (
+    ErroDeArquivo,
+    ObjetoJson,
+    e_data,
+    e_numero,
+    ler_json,
+    tem_texto,
+)
 from reembolso.modelo import Colaborador, Despesa, DespesaInvalida, Entrada, Periodo
 from reembolso.normalizacao import normalizar_texto
 from reembolso.politica import CATEGORIAS_RECONHECIDAS, VALOR_ABSOLUTO_MAXIMO
-
-
-class ErroDeArquivo(Exception):
-    """Erro de arquivo da RN-002: nenhuma saída é gravada."""
-
-
-class ObjetoJson(dict):
-    """Objeto JSON: vale a última ocorrência de cada chave; guarda os pares (DT-010)."""
-
-    def __init__(self, pares):
-        super().__init__(pares)
-        self.pares = tuple(pares)
-
-
-def _tem_substituto_isolado(texto: str) -> bool:
-    """Caractere entre U+D800 e U+DFFF: escape sem caractere válido (seção 4)."""
-    return any("\ud800" <= c <= "\udfff" for c in texto)
-
-
-def _verificar_textos(valor) -> None:
-    """Percorre chaves e textos do documento, inclusive descartados (DT-002, D-006)."""
-    if isinstance(valor, str):
-        if _tem_substituto_isolado(valor):
-            raise ErroDeArquivo("texto com escape que não forma caractere válido")
-    elif isinstance(valor, ObjetoJson):
-        for chave, item in valor.pares:
-            _verificar_textos(chave)
-            _verificar_textos(item)
-    elif isinstance(valor, list):
-        for item in valor:
-            _verificar_textos(item)
-
-
-def ler_json(conteudo: bytes):
-    """Bytes → documento JSON estrito, números em `Decimal` (DT-001, DT-002)."""
-    try:
-        texto = conteudo.decode("utf-8-sig")
-    except UnicodeDecodeError as erro:
-        raise ErroDeArquivo("arquivo não está em UTF-8 válido") from erro
-    if texto.startswith("\ufeff"):
-        # `utf-8-sig` removeu o único BOM ignorado; um segundo é JSON inválido (D-006)
-        raise ErroDeArquivo("arquivo não é JSON válido: BOM repetido no início")
-    try:
-        documento = simplejson.loads(
-            texto,
-            use_decimal=True,
-            parse_int=Decimal,
-            object_pairs_hook=ObjetoJson,
-        )
-        _verificar_textos(documento)
-    except simplejson.JSONDecodeError as erro:
-        raise ErroDeArquivo(f"arquivo não é JSON válido: {erro}") from erro
-    except RecursionError as erro:
-        # limite de aninhamento não fixado pela spec (seção 10, D-006)
-        raise ErroDeArquivo("arquivo com aninhamento profundo demais") from erro
-    return documento
 
 
 def _aviso(caminho: str, n: int) -> str:
@@ -120,29 +68,6 @@ def avisos_de_chave_repetida(documento):
     return tuple(topo), tuple(por_despesa)
 
 
-_FORMATO_DATA = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
-
-
-def _data(valor) -> date | None:
-    """Data válida `AAAA-MM-DD` com dígitos ASCII, ou `None` (DT-003)."""
-    if not isinstance(valor, str) or not _FORMATO_DATA.fullmatch(valor):
-        return None
-    try:
-        return date.fromisoformat(valor)
-    except ValueError:
-        return None
-
-
-def _tem_texto(valor) -> bool:
-    """Texto com algum caractere fora do espaço em branco (White_Space, RN-002).
-
-    `str.isspace()` também aceita U+001C a U+001F, que não são White_Space (DT-003).
-    """
-    return isinstance(valor, str) and any(
-        not c.isspace() or c in "\x1c\x1d\x1e\x1f" for c in valor
-    )
-
-
 def validar_cabecalho(documento) -> tuple[Colaborador, Periodo, list]:
     """`colaborador`, `periodo` e `despesas` da raiz; erro → `ErroDeArquivo` (RN-002).
 
@@ -155,7 +80,7 @@ def validar_cabecalho(documento) -> tuple[Colaborador, Periodo, list]:
     if not isinstance(colaborador, dict):
         raise ErroDeArquivo("colaborador ausente ou não é objeto")
     for campo in ("id", "nome"):
-        if not _tem_texto(colaborador.get(campo)):
+        if not tem_texto(colaborador.get(campo)):
             raise ErroDeArquivo(f"colaborador.{campo} ausente ou vazio")
 
     periodo = raiz.get("periodo")
@@ -163,7 +88,7 @@ def validar_cabecalho(documento) -> tuple[Colaborador, Periodo, list]:
         periodo = {}
     datas = {}
     for campo in ("inicio", "fim"):
-        datas[campo] = _data(periodo.get(campo))
+        datas[campo] = e_data(periodo.get(campo))
         if datas[campo] is None:
             raise ErroDeArquivo(f"periodo.{campo} ausente ou não é data AAAA-MM-DD")
     if datas["inicio"] > datas["fim"]:
@@ -185,11 +110,6 @@ def validar_cabecalho(documento) -> tuple[Colaborador, Periodo, list]:
         ),
         despesas,
     )
-
-
-def _numero(valor) -> bool:
-    """Número JSON: `Decimal` ou `int`, e não `bool` (DT-003)."""
-    return isinstance(valor, Decimal | int) and not isinstance(valor, bool)
 
 
 def _categoria_saida(valor) -> str | None:
@@ -217,15 +137,15 @@ def validar_despesa(
     valor = elemento.get("valor")
     tem_nota_fiscal = elemento.get("tem_nota_fiscal")
 
-    data = _data(data_texto)
+    data = e_data(data_texto)
     valida = (
-        _tem_texto(id_)
+        tem_texto(id_)
         and data is not None
-        and _tem_texto(categoria)
+        and tem_texto(categoria)
         and normalizar_texto(categoria) != ""
-        and _tem_texto(fornecedor)
+        and tem_texto(fornecedor)
         and normalizar_texto(fornecedor) != ""
-        and _numero(valor)
+        and e_numero(valor)
         # `copy_abs` é exato, sem o arredondamento do contexto decimal
         and Decimal(valor).copy_abs() < VALOR_ABSOLUTO_MAXIMO
         and type(tem_nota_fiscal) is bool
@@ -236,7 +156,7 @@ def validar_despesa(
             id=id_ if isinstance(id_, str) else None,
             data_texto=data_texto if isinstance(data_texto, str) else None,
             categoria_saida=_categoria_saida(categoria),
-            valor_informado=Decimal(valor) if _numero(valor) else None,
+            valor_informado=Decimal(valor) if e_numero(valor) else None,
             avisos=avisos,
         )
     return Despesa(
